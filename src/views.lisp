@@ -323,35 +323,33 @@
 	     (incf dx (float (3b-bmfont:glyph-xadvance glyph) 1.0f0))
 	  finally (return (values min-x min-y max-x max-y)))))
 
-(defobject rect-mixin ()
+(defobject 2d-box-mixin ()
   :inputs
-  ((rect-x 0)
-   (rect-y 0)
-   (rect-width 10)
-   (rect-height 10))
+  ((x (if (the parent) (send (the parent) x) 0))
+   (y (if (the parent) (send (the parent) y) 0))
+   (width (if (the parent) (send (the parent) width) 10))
+   (height (if (the parent) (send (the parent) height) 10)))
 
   :attributes
-  ((rect-x0 :uncached (the rect-x))
-   (rect-y0 :uncached (the rect-y))
+  ((x0 :uncached (the x))
+   (y0 :uncached (the y))
 
-   (rect-x1 (+ (the rect-x) (the rect-width)))
-   (rect-y1 (+ (the rect-y) (the rect-height)))))
+   (x1 (+ (the x) (the width)))
+   (y1 (+ (the y) (the height)))))
 
-(defobject client-rect (rect-mixin))
+(defobject client-rect (2d-box-mixin)
+  :attributes
+  ((parent (the superior))))
 
-(defobject view-mixin (rect-mixin node-mixin)
+(defobject view-mixin (2d-box-mixin node-mixin)
   
   :inputs
   ((parent (the superior))
-   (window)
+   (window :defaulting)
    (style :defaulting))
 
   :attributes
-  (#+NIL(all-hovered :uncached (krma::krma-hovered (clui::window-display (window-parent (the window)))))
-   #+NIL(generally-hovered? :uncached (find (the object-id) (the all-hovered)))
-   #+NIL(hovered? :uncached (eq (the object-id) (first (the all-hovered))))
-   
-   (layer (if (the superior)
+  ((layer (if (the superior)
 	      (1+ (the superior layer))
 	      0))))
 
@@ -369,10 +367,10 @@
   ((size))
   
   :attributes
-  ((center-x (/ (+ (the rect-x0) (the rect-x1)) 2))
-   (center-y (/ (+ (the rect-y0) (the rect-y1)) 2))
-   (rect-width (+ (the size) (* 2 (frame-padding-x (the style)))))
-   (rect-height (+ (the size) (* 2 (frame-padding-y (the style)))))))
+  ((center-x (/ (+ (the x0) (the x1)) 2))
+   (center-y (/ (+ (the y0) (the y1)) 2))
+   (width (+ (the size) (* 2 (frame-padding-x (the style)))))
+   (height (+ (the size) (* 2 (frame-padding-y (the style)))))))
 
 
 (defobject collapse-button (title-bar-button-mixin))
@@ -390,14 +388,13 @@
 
   :inputs
   ((title)
-   (rect-width)
    (button-size)
    
    (collapse-button? t)
    (close-button? t))
   
   :attributes
-  ((rect-height (title-bar-height (the style)))
+  ((height (title-bar-height (the style)))
    
    (pad-left (+ (frame-padding-x (the style)) (if (eq (window-menu-button-position (the style)) :left)
 						  (the button-size)
@@ -407,31 +404,27 @@
   :components
   ((close-button :type (if (the close-button?) 'close-button 'null-object)
 		 group (the group)
-		 window (the window)
 		 size (the button-size)
-		 rect-x (- (the rect-x1)
+		 x (- (the x1)
 			   (the button-size)
-			   (* 2 (frame-padding-x (the style))))
-		 rect-y (the rect-y0))
+			   (* 2 (frame-padding-x (the style)))))
 
    (collapse-button :type (if (the collapse-button?) 'collapse-button 'null-object)
 		    group (the group)
 		    size (the button-size)
-		    window (the window)
-		    rect-x (ecase (window-menu-button-position (the style))
+		    x (ecase (window-menu-button-position (the style))
 			     (:left 0)
-			     (:right (- (the rect-x1)
+			     (:right (- (the x1)
 					(if (the close-button?)
 					    (* 2 (the button-size))
 					    (the button-size))
 					4
-					(* 2 (frame-padding-x (the style))))))
-		    rect-y (the rect-y))))
+					(* 2 (frame-padding-x (the style)))))))))
 
 (defmethod rm-draw-node ((self title-bar))
   (let ((scene (the scene))
 	(style (the style))
-	(window (the superior))
+	(window (the window))
 	(group (the group))
 	(highlighted? (the hovered?)))
     
@@ -441,7 +434,7 @@
 	  (push
 	   (scene-add-filled-2d-rectangle-list-primitive
 	    scene group nil title-bar-color
-	    (list (the rect-x0) (the rect-y0) (the rect-x1) (the rect-y1))
+	    (list (the x0) (the y0) (the x1) (the y1))
 	    (the object-id)
 	    (the layer))
 	   (the primitive-handles)))
@@ -450,14 +443,14 @@
 	  (push
 	   (scene-add-filled-2d-rectangle-list-primitive
 	    scene group nil title-bar-color
-	    (list (the rect-x0) (the rect-y0) (the rect-x1) (the rect-y1))
+	    (list (the x0) (the y0) (the x1) (the y1))
 	    (the object-id)
 	    (the layer))
 	   (the primitive-handles))))
 	  
 
-    (let ((layout-r-x0 (+ (the rect-x0) (frame-padding-x style)))
-	  (layout-r-y0 (the rect-y0)))
+    (let ((layout-r-x0 (+ (the x0) (frame-padding-x style)))
+	  (layout-r-y0 (the y0)))
 
       (scene-add-text-primitive
        scene group nil (current-font style) (text-color style) layout-r-x0 layout-r-y0
@@ -493,8 +486,10 @@
 
    (border-size 0)
 
-   (rect-width 300)
-   (rect-height 200))
+   (x 0)
+   (y 0)
+   (width 300)
+   (height 200))
 
   :attributes
   ((z-index :modifiable 0)
@@ -502,34 +497,24 @@
 
   :components
   ((client-rect :type 'client-rect
-		rect-x (the rect-x)
-		rect-y (if (the title-bar?) (the title-bar rect-y1) (the rect-y))
-		rect-width (the rect-width)
-		rect-height (if (the title-bar?) (- (the rect-height) (the title-bar rect-height)) (the rect-height)))
+		y (if (the title-bar?) (the title-bar y1) (the y))
+		height (if (the title-bar?) (- (the height) (the title-bar height)) (the height)))
    
    (title-bar :type (if (the title-bar?) 'title-bar 'null-object)
 	      title (the title)
-	      window self
-	      rect-x (the rect-x)
-	      rect-y (the rect-y)
-	      rect-width (the rect-width)
 	      collapse-button? (the collapse-button?)
 	      close-button? (the close-button?)
 	      button-size (font-size (the font)))
 
-   (menu-bar :type (if (the menu-bar?) 'menu-bar 'null-object)
-	     window self)
+   (menu-bar :type (if (the menu-bar?) 'menu-bar 'null-object))
 
-   (resize-grips :type (if (the resizable?) 'resize-grips 'null-object)
-		 window self)
+   (resize-grips :type (if (the resizable?) 'resize-grips 'null-object))
 
    (horizontal-scrollbar :type (if (the scrollbar-x?) 'scrollbar 'null-object)
-			 axis :horizontal
-			 window self)
+			 axis :horizontal)
 
    (vertical-scrollbar :type (if (the scrollbar-y?) 'scrollbar 'null-object)
-		       axis :vertical
-		       window self)))
+		       axis :vertical)))
 
 (defmethod node-parent ((self homemade-window-mixin))
   ;; node-parent ::= node in the scene graph
@@ -633,33 +618,32 @@
       (values))))
 
 (defmethod clui:window-position ((self view-mixin))
-  (let* ((vec4 (m* (vec4 0 0 0 1) (the matrix)))
+  (let* ((vec4 (m* (vec4 (the x) (the y) 0 1) (the matrix)))
 	 (vec3 (safe-euclid vec4)))
     (values (vx vec3) (vy vec3) (vz vec3))))
 
 (defmethod global-window-position ((self view-mixin))
-  (let* ((vec4 (m* (vec4 0 0 0 1) (the global-matrix)))
+  (let* ((vec4 (m* (vec4 (the x) (the y) 0 1) (the global-matrix)))
 	 (vec3 (safe-euclid vec4)))
     (values (vx vec3) (vy vec3) (vz vec3))))
     
-(defmethod clui:set-window-position ((view view-mixin) x y)
-  (translate-node view (vec3 x y 0))
+(defmethod clui:set-window-position ((self view-mixin) x y)
+  (translate-node self (vec3 (- x (the x)) (- y (the y)) 0))
   (values))
 
-(defmethod clui:set-window-position ((view group-owner-view-mixin) x y)
-  (multiple-value-bind (cur-x cur-y) (clui:window-position view)
-    (let* ((dx (- x cur-x))
-	   (dy (- y cur-y))
-	   (vec3 (vec3 dx dy 0)))
-      (translate-node view vec3)
-      (values))))      
+(defmethod clui:set-window-position ((self group-owner-view-mixin) x y)
+  (let* ((dx (- x (the x)))
+	 (dy (- y (the y)))
+	 (vec3 (vec3 dx dy 0)))
+    (setf (the translation) vec3)
+    (values)))      
   
 (defmethod clui:window-size ((self view-mixin))
-  (values (the rect-width) (the rect-height)))
+  (values (the width) (the height)))
 
 (defmethod clui:set-window-size ((self group-owner-view-mixin) (width real) (height real))
-  (setf (the rect-width) width
-	(the rect-height) height)
+  (setf (the width) width
+	(the height) height)
   (rm-redraw-node-recursively self)
   (values))
 
@@ -692,33 +676,33 @@
       ;; draw window background
       (scene-add-filled-2d-rectangle-list-primitive
        scene group nil (window-bg-color style)
-       (list (the rect-x0) (the rect-y0) (the rect-x1) (the rect-y1))
+       (list (the x0) (the y0) (the x1) (the y1))
        (the object-id)
        (the layer)))))
 
 #+NOTYET
-(defun get-window-scrollbar-rect (window &optional (axis :vertical))
-  (let* ((rect-x0 (rect-x0 window))
-	 (rect-y0 (rect-y0 window))
-	 (rect-x1 (rect-x1 window))
-	 (rect-y1 (rect-y1 window))
+(defun get-window-scrollbar-box (window &optional (axis :vertical))
+  (let* ((box-x0 (box-x0 window))
+	 (box-y0 (box-y0 window))
+	 (box-x1 (box-x1 window))
+	 (box-y1 (box-y1 window))
 	 (client-rect (window-client-rect window))
-	 (client-x0 (rect-x0 client-rect))
-	 (client-y0 (rect-y0 client-rect))
-	 (client-x1 (rect-x1 client-rect))
-	 (client-y1 (rect-y1 client-rect))
+	 (client-x0 (box-x0 client-box))
+	 (client-y0 (box-y0 client-box))
+	 (client-x1 (box-x1 client-box))
+	 (client-y1 (box-y1 client-box))
 	 (border-size (window-border-size window))
 	 (scrollbar-size (if (eq axis :horizontal)
 			     (elt (window-scrollbar-sizes window) 0)
 			     (elt (window-scrollbar-sizes window) 1))))
     (case axis
-      (:horizontal (values client-x0 (max rect-y0 (- rect-y1 border-size scrollbar-size))
-			   client-x1 rect-y1))
+      (:horizontal (values client-x0 (max box-y0 (- box-y1 border-size scrollbar-size))
+			   client-x1 box-y1))
       (otherwise
        (unless (eq axis :vertical)
 	 (warn "`axis' ~S is not valid, wanted :horizontal or :vertical" axis))
-       (values (max rect-x0 (- rect-x1 border-size scrollbar-size)) client-y0
-	       rect-x1 client-y1)))))
+       (values (max box-x0 (- box-x1 border-size scrollbar-size)) client-y0
+	       box-x1 client-y1)))))
 
 #+NOTYET
 (defun add-scrollbar (scrollbar axis &key (style *style*))
@@ -727,10 +711,10 @@
 	 (group (object-group scrollbar))
 	 (client-rect (window-client-rect window))
 	 (size-avail (if (eq axis :horizontal)
-			 (- (rect-x1 client-rect)
-			    (rect-x0 client-rect))
-			 (- (rect-y1 client-rect)
-			    (rect-y0 client-rect))))
+			 (- (box-x1 client-box)
+			    (box-x0 client-rect))
+			 (- (box-y1 client-rect)
+			    (box-y0 client-rect))))
 	 (size-contents (if (eq axis :horizontal)
 			    (+ size-avail (* 2.0f0 (elt (window-padding window) 0)))
 			    (+ size-avail (* 2.0f0 (elt (window-padding window) 1))))))
@@ -931,8 +915,8 @@
 
     (if dock-node?
 	(push (scene-add-arrow-dock-menu scene group
-					 (+ (the rect-x) (frame-padding-x style))
-					 (+ (the rect-y) (frame-padding-y style))
+					 (+ (the x) (frame-padding-x style))
+					 (+ (the y) (frame-padding-y style))
 					 (font-size (current-font style))
 					 text-col
 					 object-id
@@ -940,8 +924,8 @@
 					 :style style)
 	      (the primitive-handles))
 	(push (scene-add-arrow scene group
-			       (+ (the rect-x) (frame-padding-x style))
-			       (+ (the rect-y) (frame-padding-y style))
+			       (+ (the x) (frame-padding-x style))
+			       (+ (the y) (frame-padding-y style))
 			       text-col (if (send window collapsed?) :right :down)
 			       1.0f0
 			       object-id
@@ -958,17 +942,17 @@
 	(window (window-parent menu-bar)))
     (scene-add-filled-2d-rectangle-list-primitive
      scene group nil (menu-bar-bg-color style)
-     (list (+ (rect-x0 menu-bar) (send window border-size))
-	   (rect-y0 menu-bar)
-	   (- (rect-x1 menu-bar) (send window border-size))
-	   (rect-y1 menu-bar))
+     (list (+ (box-x0 menu-bar) (send window border-size))
+	   (box-y0 menu-bar)
+	   (- (box-x1 menu-bar) (send window border-size))
+	   (box-y1 menu-bar))
      (send menu-bar object-id)
      (send menu-bar layer))
     (when (and (plusp (frame-border-size style))
-	       (> (rect-y1 menu-bar) (+ (rect-y window) (rect-height window))))
+	       (> (box-y1 menu-bar) (+ (box-y window) (box-height window))))
       (scene-add-2d-line-primitive scene group nil (frame-border-size style) (border-color style)
-			 (rect-x0 menu-bar) (rect-y1 menu-bar)
-			 (rect-x1 menu-bar) (rect-y1 menu-bar)
+			 (box-x0 menu-bar) (box-y1 menu-bar)
+			 (box-x1 menu-bar) (box-y1 menu-bar)
 			 (send menu-bar object-id)
 			 (send menu-bar layer)))))
 
@@ -1002,39 +986,10 @@
   
   (let ((w (make-instance 'homemade-window
 			  'translation (vec3 25 50 0)
-			  'rect-width 300
-			  'rect-height 200
-			  'parent (main-window *app*)
+			  'width 300
+			  'height 200
+			  'parent (main-window app)
 			  'scene (application-scene app))))
     w))
 
-	       
-#+NOTYET
-(defmethod forget-object ((self title-bar))
 
-  (call-next-method)
-  
-  (when (the close-button?)
-    (forget-object (the close-button)))
-
-  (when (the collapse-button?)
-    (forget-object (the collapse-button)))
-
-  (values))
-
-#+NOTYET
-(defmethod forget-object ((self homemade-window-mixin))
-
-  ;; remove the references to the object so it will no longer 
-  ;; handle events or be re-added, and can be garbage collected
-  (call-next-method)
-
-  (when (the title-bar?)
-    (forget-object (the title-bar)))
-
-  (when (the menu-bar?)
-    (forget-object (the menu-bar)))
-
-  (setf (krma::node-children (the scene)) (remove self (krma::node-children (the scene))))
-
-  (values))
