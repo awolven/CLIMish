@@ -31,6 +31,7 @@
           ,@body)))))
 
 
+
 (define-file-option "Package" (buffer value)
   (defhvar "Current Package"
     "The package used for evaluation of Lisp in this buffer."
@@ -486,9 +487,9 @@
 
 
 ;;; Other stuff.
-#+NIL
+
 (defmode "Editor")
-#+NIL
+
 (defcommand "Editor Mode" (p)
   "Turn on \"Editor\" mode in the current buffer.  If it is already on, turn it
   off.  When in editor mode, most lisp compilation and evaluation commands
@@ -497,12 +498,13 @@
   (declare (ignore p))
   (setf (buffer-minor-mode (current-buffer) "Editor")
         (not (buffer-minor-mode (current-buffer) "Editor"))))
-#+NIL
+
+
 (define-file-option "Editor" (buffer value)
   (declare (ignore value))
   (setf (buffer-minor-mode buffer "Editor") t))
 
-#+NIL
+
 (defhvar "Editor Definition Info"
   "When this is non-nil, the editor Lisp is used to determine definition
    editing information; otherwise, the slave Lisp is used."

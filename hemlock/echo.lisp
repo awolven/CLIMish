@@ -14,7 +14,7 @@
 (in-package :hemlock-internals)
 
 (defmode "Echo Area" :major-p t)
-(defvar *echo-area-buffer* (make-buffer "Echo Area" :modes '("Echo Area"))
+(defvar *echo-area-buffer* (make-instance 'krma.gui::text-editor-buffer :name "Echo Area" :modes '("Echo Area"))
   "Buffer used to hack text for the echo area.")
 (defvar *echo-area-region* (buffer-region *echo-area-buffer*)
   "Internal thing that's the *echo-area-buffer*'s region.")
@@ -49,7 +49,7 @@
   (let* ((bufs (remove *echo-area-buffer* *buffer-list*))
          (buf (or (find-if #'buffer-windows bufs)
                   (car bufs)
-                  (make-buffer "Main"))))
+                  (make-instance 'krma.gui::text-editor-buffer :name "Main"))))
     (setf (current-buffer) buf)
     (dolist (w *window-list*)
       (when (and (eq (window-buffer w) *echo-area-buffer*)
@@ -57,7 +57,7 @@
           (setf (window-buffer w) buf)))
     (setf (current-window)
           (or (car (buffer-windows buf))
-              (make-window (buffer-start-mark buf)))))
+              (make-instance 'krma.gui::text-editor-view-mixin :start-mark (buffer-start-mark buf)))))
   (editor-error "Wham!  We tried to confirm a parse that wasn't in progress?"))
 
 (defvar *parse-string-tables* ()

@@ -97,7 +97,7 @@
 
 		(cond ((null result)
 		       ;; potential race condition:
-		       ;; character-event has 1/100th of a second to show up in queue
+		       ;; character-event has 1/20th of a second to show up in queue
 		       ;; otherwse event is ignored
 		       ;; so if computer is running very slowly character events will be dropped
 		       (setq event-id (get-next-event window 0.01))

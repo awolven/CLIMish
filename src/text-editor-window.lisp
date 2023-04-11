@@ -25,7 +25,7 @@
 
 (defobject buffer-view-text (group-owner-view-mixin))
 
-(defobject text-editor-window-mixin (hi::text-editor-window-mixin homemade-window-mixin)
+(defobject text-editor-window-mixin (text-editor-view-mixin homemade-window-mixin)
   :metaclass text-editor-window-class
   
   :inputs
@@ -91,6 +91,7 @@
 	 (position (hi::dis-line-position dl))
 	 (last 0)
 	 (text-color-key 0))
+    (print position)
     (do ((change (hi::dis-line-font-changes dl) (hi::font-change-next change)))
 	((null change)
 	 (buffer-view-add-string self last position font text-color-key chars last length))
@@ -100,24 +101,21 @@
 	      text-color-key (hi::font-change-font change))))))
 
 (defmethod buffer-view-add-string ((self buffer-view-text) x y font text-color-key string start end)
-  (let* ((group (the group))
-	 (font-size (font-size font))
+  (let* ((font-size (font-size font))
 	 (font-data (font-data font))
 	 (space-width (slot-value font-data '3b-bmfont-common::space-size))
 	 (color (lookup-text-color text-color-key))
-	 (baseline 0)
-	 (xval (+ (+ x space-width) (the x)))
-	 (yval (+ (* y font-size) baseline (the y))))
-    (scene-add-text-primitive (the scene) group nil font color xval yval (subseq string start end) 0 (the layer))
+	 (xval (+ (* x space-width) (the superior x)))
+	 (yval (+ (* y font-size) -2 (the superior y))))
+    (scene-add-text-primitive (the scene) (the group) nil font color xval yval (subseq string start end) 0 (the layer))
     (values)))
 
 (defmethod rm-draw-node ((self buffer-view-text))
-  (let ((window (the window))
-	(view-text self))
+  (let ((window (the window)))
     (hi::%rt-update-window-image window)
     (do ((dis-lines (hi::window-first-line window) (cdr dis-lines)))
 	((eq dis-lines (slot-value window 'hi::the-sentinel)))
-      (add-buffer-line view-text (car dis-lines)))))
+      (add-buffer-line self (car dis-lines)))))
 
 (defun make-hemlock-window (&optional (app *app*))
   (hi::make-editor-window (hi::current-buffer)
@@ -166,7 +164,8 @@
                    (when p (editor-error "No next line.")))))
 	  (with-buffer-globals (b)
             (unless (.move-to-column. .point. target) (line-end .point.)))
-	  (setf (last-command-type) :line-motion))))))
+	  (setf (last-command-type) :line-motion)))))
+  (krma.gui::redraw-buffer window))
 
 (in-package :krma.gui)
 
@@ -174,21 +173,20 @@
   (command-next-line window (- (or p 1))))
   
 
-(define-gesture text-editor-window-mixin command-next-line #k"DownArrow")
-(define-gesture text-editor-window-mixin command-previous-line #k"UpArrow")
+
 
 (defun command-insert-newline (window p)
   (handle-character-input window #\Newline p))
   
 
-(define-gesture text-editor-window-mixin command-insert-newline #k"Enter")
+
 
 (defun command-save-file (window p)
   (declare (ignore window))
   (dotimes (n p)
     (print 'hiya)))
 
-(define-gesture text-editor-window-mixin command-save-file #k"C-x" #k"C-s")
+
 
 (in-package :hi)
 
@@ -196,27 +194,32 @@
   (with-buffer-globals ((window-buffer window))
     (let ((point .point.))
       (unless (line-offset point (if p p 0)) (editor-error "No such line."))
-      (line-start point))))
+      (line-start point)))
+  (krma.gui::redraw-buffer window))
 
 (in-package :krma.gui)
 
-(define-gesture text-editor-window-mixin command-beginning-of-line #k"Ctrl-a")
+
 
 (defun draw-cursor-closure-generator (window scene)
   #'(lambda ()
-      (let ((focused (focused-window window)))
-	(when focused
-	  (when (typep focused 'text-editor-window-mixin)
-	    (scene-draw-filled-2d-rectangle-list
-	     scene :cursor #xffff0077
-	     
-	     (destructuring-bind (tl br) (send focused cursor-px-coords)
-	       (let ((gtl tl)
-		     (gbr br))
-		 
-		 (list (vx gtl) (vy gtl) (vx gbr) (vy gbr))))
-	     
-	     0 (+ (send focused buffer-view text layer))))))))
+      (let ((time (get-internal-real-time)))
+	(when (evenp (floor time (* 0.5 internal-time-units-per-second)))
+	  (let ((self (focused-window window)))
+	    (when self
+	      (when (typep self 'text-editor-window-mixin)
+		(multiple-value-bind (ox oy) (global-window-position (the buffer-view text))
+		  (multiple-value-bind (x y) (hi::mark-to-cursorpos (hi::window-point self) self)
+		    (let* ((font (the font))
+			   (font-size (font-size font))
+			   (font-data (font-data font))
+			   (space-width (slot-value font-data '3b-bmfont-common::space-size))
+			   (xval (+ (* x space-width) ox))
+			   (yval (+ (* y font-size) oy)))
+		      (scene-draw-filled-2d-rectangle-list
+		       scene :cursor #xffff0077
+		       (list xval yval (+ xval space-width) (+ yval font-size))
+		       0 (1+ (the buffer-view text layer)))))))))))))
 
 #+NIL
 (setf (krma::immediate-mode-work-function-1 (clui::window-display (main-window *app*)))
@@ -224,6 +227,119 @@
 
 #+NIL
 (setf (krma::immediate-mode-work-function-1 (clui::window-display (main-window *app*))) nil)
-  
-  
+
+(defun hi::view-buffer (view)
+  (hi::window-buffer view))
+
+(defun redraw-buffer (self)
+  (rm-redraw-node (the buffer-view text)))
+
+(in-package :hi)
+
+(defun krma.gui::command-forward-character (view p)
+  (let ((p (or p 1)))
+    (with-buffer-globals ((view-buffer view))
+      (cond ((character-offset .point. p))
+	    ((= p 1)
+	     (editor-error "No next character."))
+	    ((= p -1)
+	     (editor-error "No previous character."))
+	    (t (if (plusp p)
+		   (buffer-end .point. .buffer.)
+		   (buffer-start .point. .buffer.))
+	       (editor-error "Not enough characters."))))
+    (%rt-update-window-image view)))
+
+(defun krma.gui::command-backward-character (view p)
+  (krma.gui::command-forward-character view (- (or p 1))))
+
+(defun krma.gui::command-delete-next-character (view p)
+  (cond ((with-buffer-globals ((view-buffer view))
+	   (hemlock::.kill-characters. .point. (or p 1))))
+	((and p (minusp p))
+	 (editor-error "Not enough previous characters."))
+	(t (editor-error "Not enough next characters.")))
+  (krma.gui::redraw-buffer view))
+
+(defun krma.gui::command-delete-previous-character (view p)
+  (krma.gui::command-delete-next-character view (- (or p 1))))
+
+(defun krma.gui::command-transpose-characters (view p)
+  (let ((buffer (view-buffer view)))
+    (when buffer
+      (with-buffer-globals (buffer)
+	(let ((arg (or p 1))
+	      (point (buffer-point buffer)))
+	  (dotimes (i (abs arg))
+	    (when (or (minusp arg) (end-line-p point))
+	      (mark-before point))
+	    (let ((prev nil)
+		  (next nil))
+	      (setq prev (hi::.previous-character. point))
+	      (setq next (hi::.next-character. point))
+	      (cond ((not prev) (editor-error "No previous character."))
+		    ((not next) (editor-error "No next character."))
+		    (t
+		     (hi::.set-previous-character. next point)
+		     (hi::.set-next-character. prev point)))
+	      (when (plusp arg) (mark-after point))))))))
+  (krma.gui::redraw-buffer view))
+
+(defun krma.gui::command-forward-word (view p)
+  (with-buffer-globals ((view-buffer view))
+    (cond ((word-offset .point. (or p 1)))
+          ((and p (minusp p))
+           (buffer-start .point. .buffer.)
+           (editor-error "No previous word."))
+          (t
+           (buffer-end .point. .buffer.)
+           (editor-error "No next word."))))
+  (krma.gui::redraw-buffer view))
+
+
+
+
+
+
+
+(in-package :krma.gui)
 	 
+(define-gesture text-editor-window-mixin command-next-line #k"DownArrow")
+(define-gesture text-editor-window-mixin command-next-line #k"Ctrl-n")
+(define-gesture text-editor-window-mixin command-previous-line #k"UpArrow")
+(define-gesture text-editor-window-mixin command-insert-newline #k"Enter")
+(define-gesture text-editor-window-mixin command-save-file #k"C-x" #k"C-s")
+(define-gesture text-editor-window-mixin command-beginning-of-line #k"Ctrl-a")
+(define-gesture text-editor-window-mixin command-forward-character #k"RightArrow")
+(define-gesture text-editor-window-mixin command-forward-character #k"Ctrl-f")
+(define-gesture text-editor-window-mixin command-backward-character #k"LeftArrow")
+(define-gesture text-editor-window-mixin command-backward-character #k"Ctrl-b")
+(define-gesture text-editor-window-mixin command-transpose-characters #k"Ctrl-t")
+
+(defobject echo-area-mixin (text-editor-window-mixin)
+  :inputs
+  ((parent (main-window *app*))
+   (scene (application-scene *app*))
+   (style *style*)
+   (font (current-font (the style)))
+
+   (window self))
+
+  :attributes
+  ((collapsed? nil)
+   (resizable? nil)
+   (menu-bar? nil)
+   (title-bar? nil)
+   (collapse-button? nil)
+   (close-button? nil)
+   (iconified? nil)
+   (rounding? nil)
+   (alpha 1.0)
+   (border-size 0)
+   (x :uncached (car (the window-pos)))
+   (y :uncached (- (cadr (the window-pos)) (the height)))
+   (width :uncached (car (the window-size)))
+   (height (title-bar-height (the style)))
+   (window-pos :uncached (multiple-value-list (window-position (the parent))))
+   (window-size :uncached (multiple-value-list (window-framebuffer-size (the parent))))))
+   

@@ -519,7 +519,7 @@
            (error ":delete-hook is a list of functions -- ~S." delete-hook))
          (let* ((region (make-empty-region)) ;; makes line with disembodied buffer
                 (object (getstring "Fundamental" *mode-names*))
-                (buffer (internal-make-buffer
+                (buffer (make-instance 'krma.gui::text-editor-buffer
                          :%name name
                          :%region region
                          :modes (list (mode-object-name object))
@@ -590,7 +590,7 @@
   (setf (get 'hemlock::make-buffer-hook 'hemlock-variable-value)
         (make-variable-object "foo" "bar"))
 
-  (setq *current-buffer* (make-buffer "Main" :modes '("Fundamental")
+  (setq *current-buffer* (make-instance 'krma.gui::text-editor-buffer :name "Main" :modes '("Fundamental")
                                              :modeline-fields nil))
 
   ;; Make the bogus variable go away...

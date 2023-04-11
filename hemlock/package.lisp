@@ -41,8 +41,8 @@
    #:mark-after
    #:character-offset
    #:line-offset
-   #:region
-   #:regionp
+   ;;#:region
+   ;;#:regionp
    #:make-empty-region
    #:copy-region
    #:region-to-string
@@ -180,7 +180,7 @@
    #:character-attribute-hooks
    #:current-window
    #:make-window
-   #:windowp
+   ;;#:windowp
    #:delete-window
    #:window-buffer
    #:window-display-start
@@ -300,7 +300,7 @@
 
    ;; Macros from the CIM:
    #:with-writable-buffer
-   #:value
+   ;;#:value
    #:setv
    #:add-hook
    #:remove-hook
@@ -475,7 +475,7 @@
    #:window-tick
    #:window-spare-lines
    #:maybe-recenter-window
-   #:window                             ;as a type
+   ;;#:window                             ;as a type
 
    #:editor-input
    #:*editor-input*

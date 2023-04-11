@@ -417,6 +417,7 @@
 (defun %print-whole-line (structure stream)
   (let ((buffer (line-%buffer structure)))
     (unless (typep stream 'hemlock::hemlock-character-io-stream)
+      #+NIL
       (with-buffer-globals (buffer)
         (cond ((eq structure open-line)
                (write-string open-chars stream :end left-open-pos)

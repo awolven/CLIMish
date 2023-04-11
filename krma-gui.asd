@@ -12,21 +12,25 @@
   :license "GPLv3"
   :serial t
   :components
-  ((:file "src/package")
+  ((:file "hemlock/package")
+
+   (:file "src/package")
    (:file "src/setup")
    (:file "src/scene-graph")
    (:file "src/views")
    (:file "src/event-queue")
-
-   (:file "hemlock/package")
+   
+   
    (:file "hemlock/lispdep")
    (:file "hemlock/hemlock-ext")
    (:file "hemlock/decls")
-   (:file "hemlock/classes")
+   ;;(:file "hemlock/classes")
    (:file "hemlock/struct")
    (:file "hemlock/charmacs")
 
    (:file "hemlock/macros")
+
+   (:file "src/text-editor-view")
 
    (:file "hemlock/rompsite")
    (:file "hemlock/bit-stuff")
@@ -35,6 +39,7 @@
    (:file "hemlock/line")
    (:file "hemlock/ring")
    (:file "hemlock/htext1")
+   
    (:file "hemlock/buffer")
    (:file "hemlock/vars")
    (:file "hemlock/interp")

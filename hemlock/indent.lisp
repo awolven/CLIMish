@@ -28,7 +28,7 @@
     `(let ((,mark-sym ,mark)
            (,column-sym ,column))
        (multiple-value-bind (tabs spaces)
-           (floor ,column-sym (value spaces-per-tab))
+           (floor ,column-sym (hi::value spaces-per-tab))
          (dotimes (i tabs) (hi::.insert-character. ,mark-sym #\tab))
          (dotimes (i spaces) (hi::.insert-character. ,mark-sym #\space))))))
 
@@ -47,6 +47,7 @@
   :value t)
 
 ;;; Note the name of this option has been chosen to be compatible with Emacs.
+  #+NIL
 (define-file-option "indent-tabs-mode" (buffer value)
   (let ((value (ignore-errors (let ((*read-eval* nil))
                                 (read-from-string value)))))
@@ -63,17 +64,17 @@
         (column-sym (gensym "INDENT-TO-COLUMN_COLUMN")))
     `(let ((,mark-sym ,mark)
            (,column-sym ,column))
-       (if (value indent-with-tabs)
+       (if (hi::value indent-with-tabs)
            (.indent-using-tabs. ,mark-sym ,column-sym)
            (.indent-using-spaces. ,mark-sym ,column-sym)))))
 
 (defmacro .indent-to-tab-stop. (mark)
   (let ((mark-sym (gensym "INDENT-TO-TAB-STOP_MARK")))
     `(let ((,mark-sym ,mark))
-       (cond ((value indent-with-tabs)
+       (cond ((hi::value indent-with-tabs)
               (hi::.insert-character. ,mark-sym #\tab))
              (t
-              (let ((tab-size (value spaces-per-tab)))
+              (let ((tab-size (hi::value spaces-per-tab)))
                 (.indent-using-spaces. ,mark-sym (* (ceiling (1+ (.mark-column. ,mark-sym))
                                                              tab-size)
                                                     tab-size))))))))
@@ -87,7 +88,7 @@
    line of region."
   (let ((region-sym (gensym "INDENT-REGION_REGION")))
     `(let ((,region-sym ,region))
-       (let* ((indent-function (value indent-function)))
+       (let* ((indent-function (hi::value indent-function)))
          (with-mark ((start (region-start ,region-sym) :left-inserting)
                      (end (region-end ,region-sym)))
            (line-start start)
@@ -142,12 +143,12 @@
    is used for indentation unless there is a Fill Prefix, in which case it is
    used.  Any argument is passed onto \"New Line\"."
   (with-buffer-globals ((window-buffer (current-window)))
-    (let ((prefix (value fill-prefix)))
+    (let ((prefix (hi::value fill-prefix)))
       (.delete-horizontal-space. .point.)
       (new-line-command p)
       (if prefix
           (hi::.insert-string. .point. prefix)
-          (funcall (value indent-function) .buffer. .point.)))))
+          (funcall (hi::value indent-function) .buffer. .point.)))))
 
 
 (defcommand "Indent" (p)
@@ -158,7 +159,7 @@
   (with-buffer-globals ((window-buffer (current-window)))
     (with-mark ((mark .point. :left-inserting))
       (cond ((or (not p) (zerop p))
-             (funcall (value indent-function) .buffer. mark))
+             (funcall (hi::value indent-function) .buffer. mark))
             (t
              (if (plusp p)
                  (unless (line-offset .point. (1- p))
@@ -201,7 +202,7 @@
           (.delete-horizontal-space. (line-end temp))
           (.delete-horizontal-space. (line-start temp))
           (let* ((len (line-length (mark-line temp)))
-                 (spaces (- (or p (value fill-column)) len)))
+                 (spaces (- (or p (hi::value fill-column)) len)))
             (if (and (plusp spaces)
                      (not (zerop len)))
                 (.indent-to-column. temp (ceiling spaces 2)))
@@ -326,7 +327,7 @@
    negative).  When moving a line to the left, tabs are converted to spaces."
     "Indent the region rigidly p spaces to the right (left if p is negative)."
   (with-buffer-globals ((window-buffer (current-window)))
-    (let ((p (or p (value spaces-per-tab)))
+    (let ((p (or p (hi::value spaces-per-tab)))
           (region (current-region .buffer.)))
       (with-mark ((mark1 (region-start region) :left-inserting)
                   (mark2 (region-end region) :left-inserting))

@@ -12,6 +12,8 @@
 
 (in-package :hemlock)
 
+(defvar *buffer-history* ()
+  "A list of buffers, in order from most recently to least recently selected.")
 
 (defun change-to-buffer (buffer &optional (window (current-window)))
   "Switches to buffer in the current window maintaining *buffer-history*."
@@ -660,8 +662,7 @@
 
 ;;;; Buffer hacking commands:
 
-(defvar *buffer-history* ()
-  "A list of buffers, in order from most recently to least recently selected.")
+
 
 (defun previous-buffer (&optional (window (current-window)))
   "Returns some previously selected buffer that is not the current buffer.
