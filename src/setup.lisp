@@ -8,7 +8,9 @@
   (incf *object-id-counter*))
 
 (defvar *object-id->object-table*
-  (make-hash-table :test #'eq :weak t))
+  #+ccl
+  (make-hash-table :test #'eq :weak t)
+  (make-hash-table :test #'eq :weakness :value))
 
 (defun (setf krma::object-from-id) (object id)
   (setf (gethash id *object-id->object-table*) object))

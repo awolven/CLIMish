@@ -2,6 +2,7 @@
 
 ;;;; Definition of *hemlock-version*.
 
+#+NIL
 (defparameter *hemlock-version*
   (let* ((system (asdf:find-system :hemlock))
          (dir (asdf:component-pathname system))

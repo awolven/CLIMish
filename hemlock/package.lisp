@@ -1,13 +1,7 @@
 (in-package :cl-user)
 
-#+SBCL
-(require :sb-concurrency)
-
 ;; deleteme
 (defpackage :osicat)
-
-;; deleteme
-(defpackage :sb-posix)
 
 (defpackage :hemlock-interface
     (:use)

@@ -33,10 +33,10 @@
   
   :components
   ((buffer-view :type 'buffer-view
-		x (+ (the client-rect x) (frame-padding-x (the style)))
-		y (+ (the client-rect y) (frame-padding-y (the style)))
-		width (- (the client-rect width) (* 2 (frame-padding-x (the style))))
-		height (- (the client-rect height) (* 2 (frame-padding-y (the style)))))))
+		x (+ (the client-rect x) (the style frame-padding-x))
+		y (+ (the client-rect y) (the style frame-padding-y))
+		width (- (the client-rect width) (* 2 (the style frame-padding-x)))
+		height (- (the client-rect height) (* 2 (the style frame-padding-y))))))
 
 (defobject text-editor-window (text-editor-window-mixin))
 
@@ -321,7 +321,7 @@
   ((parent (main-window *app*))
    (scene (application-scene *app*))
    (style *style*)
-   (font (current-font (the style)))
+   (font (the style current-font))
 
    (window self))
 
@@ -339,7 +339,7 @@
    (x :uncached (car (the window-pos)))
    (y :uncached (- (cadr (the window-pos)) (the height)))
    (width :uncached (car (the window-size)))
-   (height (title-bar-height (the style)))
+   (height (the style title-bar-height))
    (window-pos :uncached (multiple-value-list (window-position (the parent))))
    (window-size :uncached (multiple-value-list (window-framebuffer-size (the parent))))))
    
