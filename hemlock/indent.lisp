@@ -15,10 +15,7 @@
 
 
 
-(defhvar "Spaces per Tab"
-  "The number of spaces a tab is equivalent to.  NOTE: This is not incorporated
-   everywhere in Hemlock yet, so do not change it."
-  :value 8)
+
 
 (defmacro .indent-using-tabs. (mark column)
   "Inserts at mark a maximum number of tabs and a minimum number of spaces to
@@ -41,19 +38,9 @@
            (,column-sym ,column))
        (hi::.insert-string. ,mark-sym (make-string ,column-sym :initial-element #\space)))))
 
-(defhvar "Indent with Tabs"
-  "Function that takes a mark and a number of spaces and inserts tabs and spaces
-   to indent that number of spaces using \"Spaces per Tab\"."
-  :value t)
 
-;;; Note the name of this option has been chosen to be compatible with Emacs.
-  #+NIL
-(define-file-option "indent-tabs-mode" (buffer value)
-  (let ((value (ignore-errors (let ((*read-eval* nil))
-                                (read-from-string value)))))
-    (defhvar "Indent with Tabs" "override by file-option"
-      :buffer buffer
-      :value value)))
+
+
 
 (defmacro .indent-to-column. (mark column)
   "Insert white space at MARK so that it moves to COLUMN.  This assumes mark is
@@ -113,10 +100,7 @@
                            undo-region)))))
 
 
-(defhvar "Indent Function"
-  "Indentation function which is invoked by \"Indent\" command.
-   It takes a :left-inserting mark that may be moved."
-  :value #'indent-to-tab-stop)
+
 
 (defmacro .generic-indent. (mark)
   (let ((mark-sym (gensym "GENERIC-INDENT_MARK")))
@@ -259,13 +243,7 @@
           (editor-error)))))
 
 
-(defattribute "Space"
-  "This attribute is used by the indentation commands to determine which
-  characters are treated as space."
-  '(mod 2) 0)
 
-(setf (character-attribute :space #\space) 1)
-(setf (character-attribute :space #\tab) 1)
 
 
 

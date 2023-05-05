@@ -21,9 +21,7 @@
   (new-search-pattern :string-insensitive :forward "Foo")
   "Search pattern we keep around so we don't cons them all the time.")
 
-(defhvar "String Search Ignore Case"
-  "When set, string searching commands use case insensitive."
-  :value t)
+
 
 (defun get-search-pattern (string direction)
   (declare (simple-string string))
@@ -39,15 +37,15 @@
 
 ;;;; Vanilla searching.
 
-(defun vanilla-search (string direction)
+(defun vanilla-search (current-window string direction)
   (unless string
-    (setq string (prompt-for-string :prompt (ecase direction
+    (setq string (prompt-for-string current-window :prompt (ecase direction
                                               (:forward "Search: ")
                                               (:backward "Reverse Search: "))
                                     :default *last-search-string*
                                     :help "String to search for")))
   (let* ((pattern (get-search-pattern string direction))
-         (buffer (window-buffer (current-window)))
+         (buffer (window-buffer current-window))
          (point (buffer-point buffer))
          (mark (copy-mark point))
          (won (find-pattern point pattern)))
@@ -59,19 +57,19 @@
           (t (delete-mark mark)
              (editor-error)))))
 
-(defcommand "Forward Search" (p &optional string)
+(defcommand "Forward Search" (window p &optional string)
   "Do a forward search for a string.
   Prompt for the string and leave the point after where it is found."
   "Searches for the specified String in the current buffer."
   (declare (ignore p))
-  (vanilla-search string :forward))
+  (vanilla-search window string :forward))
 
-(defcommand "Reverse Search" (p &optional string)
+(defcommand "Reverse Search" (window p &optional string)
   "Do a backward search for a string.
   Prompt for the string and leave the point before where it is found."
   "Searches backwards for the specified String in the current buffer."
   (declare (ignore p))
-  (vanilla-search string :backward))
+  (vanilla-search window string :backward))
 
 
 
@@ -111,7 +109,7 @@
           (delete-mark save-start)
           (push-buffer-mark buffer save-start)))))
 
-(defcommand "Incremental Search" (p)
+(defcommand "Incremental Search" (window p)
   "Searches for input string as characters are provided.
   These are the default I-Search command characters:  ^Q quotes the
   next character typed.  Backspace cancels the last character typed.  ^S
@@ -127,10 +125,10 @@
   "Search for input string as characters are typed in.
   It sets up for the recursive searching and checks return values."
   (declare (ignore p))
-  (i-search (window-buffer (current-window)) :forward))
+  (i-search (window-buffer window) :forward))
 
 
-(defcommand "Reverse Incremental Search" (p)
+(defcommand "Reverse Incremental Search" (window p)
   "Searches for input string as characters are provided.
   These are the default I-Search command characters:  ^Q quotes the
   next character typed.  Backspace cancels the last character typed.  ^S
@@ -146,7 +144,7 @@
   "Search for input string as characters are typed in.
   It sets up for the recursive searching and checks return values."
   (declare (ignore p))
-  (i-search (window-buffer (current-window)) :backward))
+  (i-search (window-buffer window) :backward))
 
 ;;;      %I-SEARCH recursively (with support functions) searches to provide
 ;;; incremental searching.  There is a loop in case the recursion is ever
@@ -157,12 +155,13 @@
 ;;; call must be provided when %I-SEARCH-CHAR-EVAL is called a second time
 ;;; since it is possible for ^S or ^R to be typed.
 ;;;
-(defun %i-search (buffer string point trailer direction failure)
+(defun %i-search (current-window buffer string point trailer direction failure)
   (do* ((curr-point (copy-mark point :temporary))
         (curr-trailer (copy-mark trailer :temporary)))
        (nil)
     (let ((next-key-event (get-key-event *editor-input* t)))
-      (case (%i-search-char-eval buffer
+      (case (%i-search-char-eval current-window
+                                 buffer
                                  next-key-event string point trailer
                                  direction failure)
         (:cancel
@@ -183,7 +182,7 @@
 ;;;      %I-SEARCH-CHAR-EVAL evaluates the last character typed and takes
 ;;; necessary actions.
 ;;;
-(defun %i-search-char-eval (buffer key-event string point trailer direction failure)
+(defun %i-search-char-eval (current-window buffer key-event string point trailer direction failure)
   (declare (simple-string string))
   (cond ((let ((character (key-event-char key-event)))
            (and character (standard-char-p character)))
@@ -208,8 +207,8 @@
                                  string point trailer direction failure))
         ((and (zerop (length string)) (logical-key-event-p key-event :exit))
          (if (eq direction :forward)
-             (forward-search-command nil)
-             (reverse-search-command nil))
+             (forward-search-command current-window nil)
+             (reverse-search-command current-window nil))
          (throw 'exit-i-search nil))
         (t
          (unless (logical-key-event-p key-event :exit)
@@ -257,12 +256,12 @@
 ;;; then merely switch directions.  If there was a previous string, search
 ;;; for it, else flash at the guy.
 ;;;
-(defun %i-search-empty-string (buffer point trailer direction forward-direction-p
+(defun %i-search-empty-string (current-window buffer point trailer direction forward-direction-p
                                      forward-character-p)
   (cond ((eq forward-direction-p (not forward-character-p))
          (let ((direction (if forward-character-p :forward :backward)))
            (%i-search-echo-refresh "" direction nil)
-           (%i-search buffer "" point trailer direction nil)))
+           (%i-search current-window buffer "" point trailer direction nil)))
         (*last-search-string*
          (%i-search-echo-refresh *last-search-string* direction nil)
          (i-search-pattern *last-search-string* direction)
@@ -275,7 +274,7 @@
 ;;; the end of the buffer or to include the next character at the beginning
 ;;; of the search.
 ;;;
-(defun %i-search-printed-char (buffer key-event string point trailer direction failure)
+(defun %i-search-printed-char (current-window buffer key-event string point trailer direction failure)
   (let ((tchar (hemlock-ext:key-event-char key-event)))
     (unless tchar (editor-error "Not a text character -- ~S" (key-event-char
                                                               key-event)))
@@ -284,7 +283,7 @@
       (force-output *echo-area-stream*))
     (let ((new-string (concatenate 'simple-string string (string tchar))))
       (i-search-pattern new-string direction)
-      (cond (failure (%i-search buffer new-string point trailer direction failure))
+      (cond (failure (%i-search current-window buffer new-string point trailer direction failure))
             ((and (eq direction :backward) (next-character trailer))
              (%i-search-find-pattern buffer new-string point (mark-after trailer)
                                      direction))
@@ -296,7 +295,7 @@
 ;;; and finds it, updating necessary pointers for the next call to %I-SEARCH.
 ;;; If the search failed, tell the user and do not move any pointers.
 ;;;
-(defun %i-search-find-pattern (buffer string point trailer direction &optional backup)
+(defun %i-search-find-pattern (current-window buffer string point trailer direction &optional backup)
   (let ((found-offset (find-pattern trailer *last-search-pattern*)))
     (cond (found-offset
             (cond ((eq direction :forward)
@@ -308,7 +307,7 @@
              buffer (buffer-point buffer)
              (current-window))
 
-            (%i-search buffer string point trailer direction nil))
+            (%i-search current-window buffer string point trailer direction nil))
           (t
            (when backup
              (move-mark point backup)
@@ -317,18 +316,20 @@
            (if (interactive)
                (beep)
                (editor-error "I-Search failed."))
-           (%i-search buffer string point trailer direction "Failing")))))
+           (%i-search current-window buffer string point trailer direction "Failing")))))
 
 
 
 ;;;; Replacement commands:
 
-(defcommand "Replace String" (p &optional
-                                (target (prompt-for-string
+(defcommand "Replace String" (window p &optional
+                                     (target (prompt-for-string
+                                              window
                                          :prompt "Replace String: "
                                          :help "Target string"
                                          :default *last-search-string*))
-                                (replacement (prompt-for-string
+                                     (replacement (prompt-for-string
+                                                   window
                                               :prompt "With: "
                                               :help "Replacement string")))
   "Replaces the specified Target string with the specified Replacement
@@ -344,12 +345,14 @@
     (declare (ignore ignore))
     (message "~D Occurrences replaced." count)))
 
-(defcommand "Query Replace" (p &optional
-                               (target (prompt-for-string
+(defcommand "Query Replace" (window p &optional
+                                    (target (prompt-for-string
+                                             window
                                         :prompt "Query Replace: "
                                         :help "Target string"
                                         :default *last-search-string*))
-                               (replacement (prompt-for-string
+                                    (replacement (prompt-for-string
+                                                  window
                                              :prompt "With: "
                                              :help "Replacement string")))
   "Replaces the Target string with the Replacement string if confirmation
@@ -369,10 +372,7 @@
       (push-buffer-mark buffer mark))))
 
 
-(defhvar "Case Replace"
-  "If this is true then \"Query Replace\" will try to preserve case when
-  doing replacements."
-  :value t)
+
 
 (defstruct (replace-undo (:constructor make-replace-undo (mark region)))
   mark
@@ -512,7 +512,7 @@
 
 ;;;; Occurrence searching.
 
-(defcommand "List Matching Lines" (p &optional string)
+(defcommand "List Matching Lines" (window p &optional string)
   "Prompts for a search string and lists all matching lines after the point or
    within the current-region, depending on whether it is active or not.
    With an argument, lists p lines before and after each matching line."
@@ -520,7 +520,7 @@
    within the current-region, depending on whether it is active or not.
    With an argument, lists p lines before and after each matching line."
   (unless string
-    (setf string (prompt-for-string :prompt "List Matching: "
+    (setf string (prompt-for-string window :prompt "List Matching: "
                                     :default *last-search-string*
                                     :help "String to search for")))
   (let ((pattern (get-search-pattern string :forward))
@@ -560,7 +560,7 @@
               (return lines))
             (line-offset mark -1))))))
 
-(defcommand "Delete Matching Lines" (p &optional string)
+(defcommand "Delete Matching Lines" (window p &optional string)
   "Deletes all lines that match the search pattern using delete-region. If
    the current region is active, limit the search to it. The argument is
    ignored."
@@ -569,7 +569,7 @@
    ignored."
   (declare (ignore p))
   (unless string
-    (setf string (prompt-for-string :prompt "Delete Matching: "
+    (setf string (prompt-for-string window :prompt "Delete Matching: "
                                     :default *last-search-string*
                                     :help "String to search for")))
   (let* ((region (get-count-region))
@@ -587,7 +587,7 @@
           (buffer-end eol-mark .buffer.))
         (delete-region (region bol-mark eol-mark))))))
 
-(defcommand "Delete Non-Matching Lines" (p &optional string)
+(defcommand "Delete Non-Matching Lines" (window p &optional string)
   "Deletes all lines that do not match the search pattern using delete-region.
    If the current-region is active, limit the search to it. The argument is
    ignored."
@@ -596,7 +596,7 @@
    ignored."
   (declare (ignore p))
   (unless string
-    (setf string (prompt-for-string :prompt "Delete Non-Matching:"
+    (setf string (prompt-for-string window :prompt "Delete Non-Matching:"
                                     :default *last-search-string*
                                     :help "String to search for")))
   (let* ((region (get-count-region))
@@ -616,7 +616,7 @@
                (delete-region (region beg-mark stop-mark))
                (return)))))))
 
-(defcommand "Count Occurrences" (p &optional string)
+(defcommand "Count Occurrences" (window p &optional string)
   "Prompts for a search string and counts occurrences of it after the point or
    within the current-region, depending on whether it is active or not. The
    argument is ignored."
@@ -626,6 +626,7 @@
   (declare (ignore p))
   (unless string
     (setf string (prompt-for-string
+                  window
                   :prompt "Count Occurrences: "
                   :default *last-search-string*
                   :help "String to search for")))

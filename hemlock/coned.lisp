@@ -61,7 +61,7 @@
    confirmation before taking action."
   :value t)
 
-(defcommand "Coned Delete" (p)
+(defcommand "Coned Delete" (window p)
   "Delete the connection."
   "Delete the connection."
   (declare (ignore p))
@@ -69,7 +69,7 @@
          (buf-info (array-element-from-mark point *coned-connections*)))
     (if (and (not (value virtual-connection-deletion))
              (or (not (value coned-delete-confirm))
-                 (prompt-for-y-or-n :prompt "Delete connection? " :default t
+                 (prompt-for-y-or-n window :prompt "Delete connection? " :default t
                                     :must-exist t :default-string "Y")))
         (delete-coned-connection (coned-connection buf-info))
         (with-writable-buffer (*coned-buffer*)
@@ -78,7 +78,7 @@
             (setf (next-character (line-start point)) #\D))
           (line-offset point 1)))))
 
-(defcommand "Coned Undelete" (p)
+(defcommand "Coned Undelete" (window p)
   "Undelete the connection."
   "Undelete the connection."
   (declare (ignore p))
@@ -90,13 +90,13 @@
       (setf (next-character (line-start point)) #\space)
       (line-offset point 1))))
 
-(defcommand "Coned Expunge" (p)
+(defcommand "Coned Expunge" (window p)
   "Expunge connections marked for deletion."
   "Expunge connections marked for deletion."
   (declare (ignore p))
   (expunge-coned-connections))
 
-(defcommand "Coned Quit" (p)
+(defcommand "Coned Quit" (window p)
   "Kill the coned buffer, expunging any buffer marked for deletion."
   "Kill the coned buffer, expunging any buffer marked for deletion."
   (declare (ignore p))
@@ -119,7 +119,7 @@
           (push (coned-connection buf-info) connections))))
     (if (and connections
              (or (not (value coned-delete-confirm))
-                 (prompt-for-y-or-n :prompt "Delete connections? " :default t
+                 (prompt-for-y-or-n window :prompt "Delete connections? " :default t
                                     :must-exist t :default-string "Y")))
         (dolist (b connections t) (delete-coned-connection b))))
   (refresh-coned *coned-buffer*))
@@ -128,7 +128,7 @@
   (delete-connection conn))
 
 
-(defcommand "Coned Goto" (p)
+(defcommand "Coned Goto" (window p)
   "Change to the connection's buffer."
   "Change to the connection's buffer."
   (declare (ignore p))
@@ -149,7 +149,7 @@
         (dolist (c connections)
           (coned-write-line c s))))))
 
-(defcommand "Coned" (p)
+(defcommand "Coned" (window p)
   "Creates a list of connections in a buffer supporting operations such as deletion
    and selection.  If there already is a coned buffer, just go to it."
   "Creates a list of connections in a buffer supporting operations such as deletion
@@ -174,7 +174,7 @@
       (buffer-start (buffer-point buf)))
     (change-to-buffer buf)))
 
-(defcommand "Coned Refresh" (p)
+(defcommand "Coned Refresh" (window p)
   "" ""
   (declare (ignore p))
   (when *coned-buffer*
@@ -189,7 +189,7 @@
               (buffer-name buf)))))
 
 
-(defcommand "Coned Help" (p)
+(defcommand "Coned Help" (window p)
   "Show this help."
   "Show this help."
   (declare (ignore p))

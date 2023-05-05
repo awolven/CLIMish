@@ -28,7 +28,7 @@
   (when (eq buffer *dependency-graph-buffer*)
     (setf *dependency-graph-buffer* nil)))
 
-(defcommand "Show Project Graph" (p &optional projects)
+(defcommand "Show Project Graph" (window p &optional projects)
   "" ""
   (declare (ignore p))
   (let ((name "*Dependency Graph*"))
@@ -56,13 +56,13 @@
      scene)))
 
 (defcommand "Add Project To Graph"
-    (p &optional (project (hi::prompt-for-string :prompt "Project: ")))
+    (window p &optional (project (hi::prompt-for-string window :prompt "Project: ")))
   "" ""
   (declare (ignore p))
   (add-projects-to-current-graph (list project)))
 
 (defcommand "Layout Graph"
-    (p)
+    (window p)
   "" ""
   (declare (ignore p))
   (let ((graph (variable-value 'hemlock::current-graph))
@@ -82,12 +82,12 @@
     (#_setValue scroller (+ (#_value scroller)
                             (* f (#_height area))))))
 
-(defcommand "Graphics Page Down" (p)
+(defcommand "Graphics Page Down" (window p)
   "" ""
   (declare (ignore p))
   (graph-scroll-y-page 1 (hi::buffer-widget (current-buffer))))
 
-(defcommand "Graphics Page Up" (p)
+(defcommand "Graphics Page Up" (window p)
   "" ""
   (declare (ignore p))
   (graph-scroll-y-page -1 (hi::buffer-widget (current-buffer))))
@@ -97,12 +97,12 @@
     (#_setValue scroller (+ (#_value scroller)
                             (* f (#_height area))))))
 
-(defcommand "Graphics Page Left" (p)
+(defcommand "Graphics Page Left" (window p)
   "" ""
   (declare (ignore p))
   (graph-scroll-x-page 1 (hi::buffer-widget (current-buffer))))
 
-(defcommand "Graphics Page Right" (p)
+(defcommand "Graphics Page Right" (window p)
   "" ""
   (declare (ignore p))
   (graph-scroll-x-page -1 (hi::buffer-widget (current-buffer))))
@@ -111,12 +111,12 @@
   (let ((scroller (#_verticalScrollBar area)))
     (#_setValue scroller (+ c (#_value scroller)))))
 
-(defcommand "Graphics Scroll Down" (p)
+(defcommand "Graphics Scroll Down" (window p)
   "" ""
   (declare (ignore p))
   (graph-scroll-y-fixed 20 (hi::buffer-widget (current-buffer))))
 
-(defcommand "Graphics Scroll Up" (p)
+(defcommand "Graphics Scroll Up" (window p)
   "" ""
   (declare (ignore p))
   (graph-scroll-y-fixed -20 (hi::buffer-widget (current-buffer))))
@@ -125,12 +125,12 @@
   (let ((scroller (#_horizontalScrollBar area)))
     (#_setValue scroller (+ c (#_value scroller)))))
 
-(defcommand "Graphics Scroll Left" (p)
+(defcommand "Graphics Scroll Left" (window p)
   "" ""
   (declare (ignore p))
   (graph-scroll-x-fixed 20 (hi::buffer-widget (current-buffer))))
 
-(defcommand "Graphics Scroll Right" (p)
+(defcommand "Graphics Scroll Right" (window p)
   "" ""
   (declare (ignore p))
   (graph-scroll-x-fixed -20 (hi::buffer-widget (current-buffer))))
@@ -143,7 +143,7 @@
                         (+ (#_maximum scroller)
                            (#_height area)))))))
 
-(defcommand "Graphics Scroll Top" (p)
+(defcommand "Graphics Scroll Top" (window p)
   "" ""
   (declare (ignore p))
   (graph-scroll-y-to 0 (hi::buffer-widget (current-buffer))))
@@ -156,17 +156,17 @@
                         (+ (#_maximum scroller)
                            (#_height area)))))))
 
-(defcommand "Graphics Scroll Bottom" (p)
+(defcommand "Graphics Scroll Bottom" (window p)
   "" ""
   (declare (ignore p))
   (graph-scroll-y-to 1 (hi::buffer-widget (current-buffer))))
 
-(defcommand "Graphics Scroll Leftmost" (p)
+(defcommand "Graphics Scroll Leftmost" (window p)
   "" ""
   (declare (ignore p))
   (graph-scroll-x-to 0 (hi::buffer-widget (current-buffer))))
 
-(defcommand "Graphics Scroll Rightmost" (p)
+(defcommand "Graphics Scroll Rightmost" (window p)
   "" ""
   (declare (ignore p))
   (graph-scroll-x-to 1 (hi::buffer-widget (current-buffer))))
@@ -179,13 +179,13 @@
           (eq (current-buffer) *dependency-graph-buffer*)
     (error "not in a graphics buffer")))
 
-(defcommand "Graphics Quit" (p)
+(defcommand "Graphics Quit" (window p)
   "" ""
   (declare (ignore p))
   (assert-in-graphics-buffer)
   (delete-buffer-if-possible (current-buffer)))
 
-(defcommand "Back To Clbuild Buffer" (p)
+(defcommand "Back To Clbuild Buffer" (window p)
   "" ""
   (declare (ignore p))
   (assert-in-graphics-buffer)
@@ -217,7 +217,7 @@
 #+nil (bind-key "Enter Foreign Widget" #k"enter" :mode "Graphics")
 
 #+(or)
-(defcommand "Clbuild Dependency Graph" (p)
+(defcommand "Clbuild Dependency Graph" (window p)
   "" ""
   (declare (ignore p))
   (let ((name (mapcar #'clbuild-info-name (hemlock::list-marked-clbuild-projects))))
@@ -225,7 +225,7 @@
         (hemlock.qt::add-project-to-graph nil name)
         (hemlock.qt::show-project-graph-command nil names))))
 
-(defcommand "Clbuild Dependency Graph" (p)
+(defcommand "Clbuild Dependency Graph" (window p)
   "" ""
   (declare (ignore p))
   (let ((names (mapcar #'hemlock::clbuild-info-name

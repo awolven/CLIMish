@@ -55,7 +55,7 @@
 
 ;;;; Basic Spelling Correction Command (Esc-$ in EMACS)
 
-(defcommand "Check Word Spelling" (p)
+(defcommand "Check Word Spelling" (window p)
   "Check the spelling of the previous word and offer possible corrections
    if the word in unknown. To add words to the dictionary from a text file see
    the command \"Augment Spelling Dictionary\"."
@@ -113,7 +113,7 @@
     :buffer buffer  :value (make-ring 10 #'delete-mark))
   (maybe-read-default-user-spelling-dictionary))
 
-(defcommand "Auto Spell Mode" (p)
+(defcommand "Auto Spell Mode" (window p)
   "Toggle \"Spell\" mode in the current buffer.  When in \"Spell\" mode,
   the spelling of each word is checked after it is typed."
   "Toggle \"Spell\" mode in the current buffer."
@@ -122,7 +122,7 @@
         (not (buffer-minor-mode (current-buffer) "Spell"))))
 
 
-(defcommand "Auto Check Word Spelling" (p)
+(defcommand "Auto Check Word Spelling" (window p)
   "Check the spelling of the previous word and display a message in the echo
    area if the word is not in the dictionary.  To add words to the dictionary
    from a text file see the command \"Augment Spelling Dictionary\".  If a
@@ -182,7 +182,7 @@
                      (when (value check-word-spelling-beep) (beep))))))))))
   (setf (last-command-type) :spell-check))
 
-(defcommand "Correct Last Misspelled Word" (p)
+(defcommand "Correct Last Misspelled Word" (window p)
   "Fix a misspelling found by \"Auto Check Word Spelling\".  This prompts for
    a single character command to determine which action to take to correct the
    problem."
@@ -193,7 +193,7 @@
   (do ((info (value spell-information)))
       ((sub-correct-last-misspelled-word info))))
 
-(defun sub-correct-last-misspelled-word (info)
+(defun sub-correct-last-misspelled-word (current-window info)
   (let* ((missed (value buffer-misspelled-words))
          (region (cond ((zerop (ring-length missed))
                         (editor-error "No recently misspelled word."))
@@ -222,7 +222,8 @@
           (push folded (spell-info-insertions info))
           (message "~A inserted in the dictionary." word))
          (#\r "Prompt for a word to replace this word with."
-          (let ((s (prompt-for-string :prompt "Replace with: "
+              (let ((s (prompt-for-string current-window
+                                          :prompt "Replace with: "
                                       :default word
  :help "Type a string to replace occurrences of this word with.")))
             (delete-region region)
@@ -259,7 +260,7 @@
    inserting the old word into the dictionary."
   :value nil)
 
-(defcommand "Undo Last Spelling Correction" (p)
+(defcommand "Undo Last Spelling Correction" (window p)
   "Undo the last incremental spelling correction.
    The \"correction\" is replaced with the old word, and the old word is
    inserted in the dictionary.  When \"Spelling Un-Correct Prompt for Insert\"
@@ -284,6 +285,7 @@
       (setf (value last-spelling-correction-words) nil)
       (when (or (not (value spelling-un-correct-prompt-for-insert))
                 (prompt-for-y-or-n
+                 window
                  :prompt (list "Insert ~A into spelling dictionary? " folded)
                  :default t
                  :default-string "Y"))
@@ -319,7 +321,7 @@
 ;;; the uppercased word.  Mark is a mark which points to the beginning of
 ;;; the offending word.  Return True if we successfully corrected the word.
 ;;;
-(defun get-word-correction (mark word folded)
+(defun get-word-correction (current-window mark word folded)
   (let ((close-words (spell:spell-collect-close-words folded)))
     (declare (list close-words))
     (if close-words
@@ -330,6 +332,7 @@
             (format s "~36R=~A " i (car words)))
           (finish-output s)
           (let* ((key-event (prompt-for-key-event
+                             current-window
                              :prompt "Correction choice: "))
                  (num (digit-char-p (hemlock-ext:key-event-char key-event) 36)))
             (cond ((not num) (return-from get-word-correction nil))
@@ -375,7 +378,7 @@
 (setf (sbit *spell-word-characters* (char-code #\')) 1)
 
 
-(defcommand "Correct Buffer Spelling" (p)
+(defcommand "Correct Buffer Spelling" (window p)
   "Correct spelling over whole buffer.  A log of the found misspellings is
    kept in the buffer \"Spell Corrections\".  For each unknown word the
    user may accept it, insert it in the dictionary, correct its spelling
@@ -505,7 +508,7 @@
           (t
            (correct-buffer-word-not-found word unfolded-word window info)))))
 
-(defun correct-buffer-word-not-found (word unfolded-word window info)
+(defun correct-buffer-word-not-found (current-window word unfolded-word window info)
   (declare (simple-string word unfolded-word))
   (let* ((close-words (spell:spell-collect-close-words word))
          (close-words-len (length (the list close-words)))
@@ -539,6 +542,7 @@
          (let ((num (if (= close-words-len 1) 0
                         (digit-char-p (hemlock-ext:key-event-char
                                        (prompt-for-key-event
+                                        current-window
                                         :prompt "Correction choice: "))
                                       36))))
            (unless num (reprompt))
@@ -567,7 +571,8 @@
       (#\a "Accept the word as correct (that is, ignore it)."
          (character-offset mark wordlen))
       (#\r "Replace the unknown word with a supplied replacement."
-         (let ((s (prompt-for-string
+           (let ((s (prompt-for-string
+                     current-window
                    :prompt "Replacement Word: "
                    :default unfolded-word
                    :help "String to replace the unknown word with.")))
@@ -629,7 +634,7 @@
      (variable-value 'spell-information :buffer buffer))))
 
 
-(defcommand "Save Incremental Spelling Insertions" (p)
+(defcommand "Save Incremental Spelling Insertions" (window p)
   "Append incremental spelling dictionary insertions to a file.  The file
    is prompted for unless \"Set Buffer Spelling Dictionary\" has been
    executed in the buffer."
@@ -639,6 +644,7 @@
          (file (or (spell-info-pathname info)
                    (value default-user-spelling-dictionary)
                    (prompt-for-file
+                    window
                     :prompt "Dictionary File: "
                     :default (dictionary-name-default)
                     :must-exist nil
@@ -649,6 +655,7 @@
            (insertions (spell-info-insertions ginfo)))
       (when (and insertions
                  (prompt-for-y-or-n
+                  window
                   :prompt
                   `("Global spelling insertions exist.~%~
                      Save these to ~A also? "
@@ -661,7 +668,7 @@
                                       (name (spell-info-pathname info)))
   (when (spell-info-insertions info)
     (with-open-file (stream name
-                            :direction :output :element-type 'base-char
+                            :direction :output :element-type 'character
                             :if-exists :append :if-does-not-exist :create)
       (dolist (w (spell-info-insertions info))
         (write-line w stream)))
@@ -669,7 +676,7 @@
     (message "Incremental spelling insertions for ~A written."
              (namestring name))))
 
-(defcommand "Set Buffer Spelling Dictionary" (p &optional file buffer)
+(defcommand "Set Buffer Spelling Dictionary" (window p &optional file buffer)
   "Prompts for the dictionary file to associate with the current buffer.
    If this file has not been read for any other buffer, then it is read.
    Incremental spelling insertions from this buffer can be appended to
@@ -679,6 +686,7 @@
   (maybe-read-default-user-spelling-dictionary)
   (let* ((file (truename (or file
                              (prompt-for-file
+                              window
                               :prompt "Dictionary File: "
                               :default (dictionary-name-default)
                               :help
@@ -696,7 +704,7 @@
       (setf (gethash file-name *pathname-to-spell-info*) spell-info)
       (read-spelling-dictionary-command nil file))))
 
-(defcommand "Read Spelling Dictionary" (p &optional file)
+(defcommand "Read Spelling Dictionary" (window p &optional file)
   "Adds entries to the dictionary from a file in the following format:
 
       entry1/flag1/flag2/flag3
@@ -713,6 +721,7 @@
   (spell:spell-read-dictionary
    (or file
        (prompt-for-file
+        window
         :prompt "Dictionary File: "
         :default (dictionary-name-default)
         :help
@@ -722,7 +731,7 @@
   (make-pathname :defaults (buffer-default-pathname (current-buffer))
                  :type "dict"))
 
-(defcommand "Add Word to Spelling Dictionary" (p)
+(defcommand "Add Word to Spelling Dictionary" (window p)
   "Add the previous word to the spelling dictionary."
   "Add the previous word to the spelling dictionary."
   (declare (ignore p))
@@ -734,12 +743,13 @@
       (message "Word ~(~S~) added to the spelling dictionary." word)
       (push word (spell-info-insertions (value spell-information))))))
 
-(defcommand "Remove Word from Spelling Dictionary" (p)
+(defcommand "Remove Word from Spelling Dictionary" (window p)
   "Prompts for word to remove from the spelling dictionary."
   "Prompts for word to remove from the spelling dictionary."
    (declare (ignore p))
   (spell:maybe-read-spell-dictionary)
   (let* ((word (prompt-for-string
+                window
                 :prompt "Word to remove from spelling dictionary: "
                 :trim t))
          (upword (string-upcase word)))
@@ -753,6 +763,7 @@
           (let ((flags (spell:spell-root-flags index)))
             (when (or (not flags)
                       (prompt-for-y-or-n
+                       window
                        :prompt
  `("Deleting ~A also removes words formed from this root and these flags: ~%  ~
     ~S.~%~
@@ -771,7 +782,7 @@
     (setf (spell-info-insertions info)
           (delete word (spell-info-insertions info) :test #'string=))))
 
-(defcommand "List Incremental Spelling Insertions" (p)
+(defcommand "List Incremental Spelling Insertions" (window p)
   "Display the incremental spelling insertions for the current buffer's
    associated spelling dictionary file."
   "Display the incremental spelling insertions for the current buffer's

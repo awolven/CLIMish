@@ -257,7 +257,7 @@
 
 (defvar *inner-linedit-p* nil)
 
-(defcommand "Finish Linedit" (p) "" ""
+(defcommand "Finish Linedit" (window p) "" ""
   (declare (ignore p))
   (when (and (find "Lisp" (buffer-modes (current-buffer)) :test #'string=)
              (not (buffer-contains-complete-form-p)))
@@ -269,14 +269,14 @@
       (throw 'inner-linedit-result (get-string (current-device)))
       (hemlock::exit-hemlock)))
 
-(defcommand "Illegal Linedit Command" (p) "" ""
+(defcommand "Illegal Linedit Command" (window p) "" ""
   (declare (ignore p))
   (editor-error "Command not available"))
 
 (defun empty-region-p (r)
   (hemlock::mark= (hemlock::region-start r) (hemlock::region-end r)))
 
-(defcommand "Linedit Delete Or Eof" (p) "" ""
+(defcommand "Linedit Delete Or Eof" (window p) "" ""
   (if (empty-region-p (hi:buffer-region (current-buffer)))
       (progn
         (hemlock::save-all-files-command nil)
@@ -284,7 +284,7 @@
       (hemlock::delete-next-character-command p)))
 
 #+NIL
-(defcommand "Linedit Clear Screen" (p) "" ""
+(defcommand "Linedit Clear Screen" (window p) "" ""
   (tty-write-cmd (hemlock.terminfo:tputs hemlock.terminfo:clear-screen)))
 
 (defun install-linedit-mode (buffer)
@@ -970,11 +970,11 @@ empty string."
       (t
        (beep)))))
 
-(defcommand "Linedit Previous History Entry" (p) "" ""
+(defcommand "Linedit Previous History Entry" (window p) "" ""
   (declare (ignore p))
   (advance-history #'linedit-history-previous))
 
-(defcommand "Linedit Next History Entry" (p) "" ""
+(defcommand "Linedit Next History Entry" (window p) "" ""
   (declare (ignore p))
   (advance-history #'linedit-history-next))
 
@@ -1188,7 +1188,7 @@ to the appropriate home directory."
                     (describe (find-symbol (canonical-case
                                             (editor-word editor))) s))))
 
-(defcommand "Linedit Complete" (p) "" ""
+(defcommand "Linedit Complete" (window p) "" ""
   (complete nil (current-device)))
 
 (defun inner-formedit (prompt &optional (eof-error-p t) eof-value)
@@ -1197,7 +1197,7 @@ to the appropriate home directory."
                     eof-value))
 
 (defcommand "Linedit Describe Symbol"
-    (p &optional (sym (hemlock::slave-symbol-at-point)))
+    (window p &optional (sym (hemlock::slave-symbol-at-point)))
     "" ""
   (declare (ignore p))
   (newline (current-device))
@@ -1210,7 +1210,7 @@ to the appropriate home directory."
       (newline (current-device)))))
 
 (defcommand "Linedit Apropos"
-    (p &optional (sym (hemlock::slave-symbol-at-point)))
+    (window p &optional (sym (hemlock::slave-symbol-at-point)))
     "" ""
   (declare (ignore p))
   (newline (current-device))
@@ -1224,7 +1224,7 @@ to the appropriate home directory."
                         (apropos sym)))
       (newline (current-device)))))
 
-(defcommand "Linedit Find Definitions" (p)
+(defcommand "Linedit Find Definitions" (window p)
     "" ""
   (declare (ignore p))
   (let* ((default (hemlock::symbol-string-at-point))
@@ -1301,7 +1301,7 @@ to the appropriate home directory."
         (newline device))))))
 
 (defcommand "Linedit Test"
-    (p &optional (sym (hemlock::slave-symbol-at-point)))
+    (window p &optional (sym (hemlock::slave-symbol-at-point)))
     "" ""
   (declare (ignore p))
   (tty-excursion (lambda ()
@@ -1311,7 +1311,7 @@ to the appropriate home directory."
 ;; TTY-EXCURSION would be more effective if Unix terminals weren't that
 ;; useless.  Perhaps we should give up and do without it.
 (defcommand "Linedit Fuzzy Complete"
-    (p &optional (sym (hemlock::slave-symbol-at-point)))
+    (window p &optional (sym (hemlock::slave-symbol-at-point)))
     "" ""
   (declare (ignore p))
   (tty-excursion (lambda ()
@@ -1323,12 +1323,12 @@ to the appropriate home directory."
                  :keep-current-split-p nil
                  :split-screen-p nil))
 
-(defcommand "Linedit Isearch" (p)
+(defcommand "Linedit Isearch" (window p)
     "" ""
   (declare (ignore p))
   (line-isearch :backward))
 
-(defcommand "Linedit Inverted Isearch" (p)
+(defcommand "Linedit Inverted Isearch" (window p)
     "" ""
   (declare (ignore p))
   (line-isearch :forward))

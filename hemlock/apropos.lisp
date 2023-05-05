@@ -39,8 +39,7 @@
 
 ;;;; Commands.
 
-(defmode "Apropos" :major-p t
-  :documentation "Apropos mode presents a list of slave symbols.")
+
 
 (defcommand "Apropos Quit" (p)
   "Kill the apropos buffer."
@@ -110,14 +109,14 @@
   (describe-mode-command nil "Apropos"))
 
 (defcommand "Slave Apropos Ignoring Point"
-            (p &optional (str
-                          (hemlock-interface::prompt-for-string
+            (window p &optional (str
+                          (hemlock-interface::prompt-for-string window
                            :prompt "Apropos string: ")))
   "" ""
   (declare (ignore p))
   (slave-apropos str))
 
-(defcommand "Slave Apropos" (p)
+(defcommand "Slave Apropos" (window p)
   "" ""
   (declare (ignore p))
   (let ((default (hemlock::symbol-string-at-point)))
@@ -129,6 +128,7 @@
       (setf default nil))
     (slave-apropos
      (hemlock-interface::prompt-for-string
+      window
       :prompt "Apropos string: "
       :default default))))
 

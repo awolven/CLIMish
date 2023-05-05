@@ -7,6 +7,7 @@
 	       :bordeaux-threads
 	       :iterate
 	       :conium
+	       :osicat
 	       :cl-ppcre)
   :author "Andrew K Wolven <awolven@gmail.com>"
   :license "GPLv3"
@@ -17,6 +18,7 @@
    (:file "src/package")
    (:file "src/setup")
    (:file "src/scene-graph")
+   (:file "src/metaclasses")
    (:file "src/views")
    (:file "src/event-queue")
    
@@ -30,7 +32,7 @@
 
    (:file "hemlock/macros")
 
-   (:file "src/text-editor-view")
+   (:file "src/classes")
 
    (:file "hemlock/rompsite")
    (:file "hemlock/bit-stuff")
@@ -108,4 +110,13 @@
    (:file "hemlock/ll")
    (:file "hemlock/cmd")
 
-   (:file "src/text-editor-window")))
+   
+   
+   (:file "src/gui-application")
+   (:file "src/text-editor-view")
+   (:file "src/text-editor-window")
+   (:file "src/echo-area-window")
+   (:file "src/command-tables")
+   (:file "src/commands")
+   (:file "src/gestures")))
+	  

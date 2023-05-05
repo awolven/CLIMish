@@ -51,6 +51,7 @@
 
 (declaim (inline current-window))
 
+#+nil
 (defun current-window ()
   "Return the current window.  The current window is specially treated by
   redisplay in several ways, the most important of which is that is does
@@ -58,6 +59,14 @@
   Window-Buffer is always displayed.  This may be set with Setf."
   *current-window*)
 
+(defun current-window ()
+  "Return the current window.  The current window is specially treated by
+  redisplay in several ways, the most important of which is that is does
+  recentering, ensuring that the Buffer-Point of the current window's
+  Window-Buffer is always displayed.  This may be set with Setf."
+  (krma.gui::focused-window (krma::main-window krma::*app*)))
+
+#+NIL
 (defun (setf current-window) (new-window)
   "Set the current window."
   (invoke-hook hemlock::set-window-hook new-window)
@@ -66,6 +75,15 @@
     (let ((buffer (window-buffer new-window)))
       (move-mark (buffer-point buffer) (window-point new-window))))
   (setq *current-window* new-window))
+
+(defun (setf current-window) (new-window)
+  "Set the current window."
+  (invoke-hook hemlock::set-window-hook new-window)
+  (let ((window (current-window)))
+    (move-mark (window-point window) (buffer-point (window-buffer window)))
+    (let ((buffer (window-buffer new-window)))
+      (move-mark (buffer-point buffer) (window-point new-window))))
+  (setf (krma.gui::focused-window (krma::main-window krma::*app*)) new-window))
 
 
 
@@ -85,43 +103,42 @@
 
 (defun (setf window-buffer) (new-buffer window)
   "Change the buffer a window is mapped to."
-  (with-render-thread (*app*)
-    (bt:with-recursive-lock-held ((buffer-lock new-buffer))
-      (with-slots (the-sentinel) window
-        (unless (bufferp new-buffer) (error "~S is not a buffer." new-buffer))
-        (unless (windowp window) (error "~S is not a window." window))
-        (unless (eq new-buffer (window-buffer window))
-          (invoke-hook hemlock::window-buffer-hook window new-buffer)
-          ;;
-          ;; Move the window's marks to the new start.
-          (let ((buffer (window-buffer window)))
-            (bt:with-recursive-lock-held ((buffer-lock buffer))
-              (setf (buffer-windows buffer) (delete window (buffer-windows buffer)))
-              (move-mark (buffer-display-start buffer) (window-display-start window))))
-          (push window (buffer-windows new-buffer))
-          (move-mark (window-point window) (buffer-point new-buffer))
-          (move-mark (window-display-start window) (buffer-display-start new-buffer))
-          (move-mark (window-display-end window) (buffer-display-start new-buffer))
-          ;;
-          ;; Delete all the dis-lines, and nil out the line and chars so they get
-          ;; gc'ed.
-          (let ((first (window-first-line window))
-                (last (window-last-line window))
-                (free (window-spare-lines window)))
-            (unless (eq (cdr first) the-sentinel)
-              (shiftf (cdr last) free (cdr first) the-sentinel))
-            (dolist (dl free)
-              (setf (dis-line-line dl) nil  (dis-line-old-chars dl) nil))
-            (setf (window-spare-lines window) free))
-          ;;
-          ;; Set the last line and first&last changed so we know there's nothing there.
-          (setf (window-last-line window) the-sentinel
-                (window-first-changed window) the-sentinel
-                (window-last-changed window) the-sentinel)
-          ;;
-          ;; Make sure the window gets updated, and set the buffer.
-          (setf (window-tick window) -3)
-          (setf (window-%buffer window) new-buffer))))))
+  (with-slots (the-sentinel) window
+    (unless (bufferp new-buffer) (error "~S is not a buffer." new-buffer))
+    (unless (windowp window) (error "~S is not a window." window))
+    (unless (eq new-buffer (window-buffer window))
+      (invoke-hook hemlock::window-buffer-hook window new-buffer)
+      ;;
+      ;; Move the window's marks to the new start.
+      (let ((buffer (window-buffer window)))
+        (when buffer
+          (bt:with-recursive-lock-held ((buffer-lock buffer))
+            (setf (buffer-windows buffer) (delete window (buffer-windows buffer)))
+            (move-mark (buffer-display-start buffer) (window-display-start window)))))
+      (push window (buffer-windows new-buffer))
+      (move-mark (window-point window) (buffer-point new-buffer))
+      (move-mark (window-display-start window) (buffer-display-start new-buffer))
+      (move-mark (window-display-end window) (buffer-display-start new-buffer))
+      ;;
+      ;; Delete all the dis-lines, and nil out the line and chars so they get
+      ;; gc'ed.
+      (let ((first (window-first-line window))
+            (last (window-last-line window))
+            (free (window-spare-lines window)))
+        (unless (eq (cdr first) the-sentinel)
+          (shiftf (cdr last) free (cdr first) the-sentinel))
+        (dolist (dl free)
+          (setf (dis-line-line dl) nil  (dis-line-old-chars dl) nil))
+        (setf (window-spare-lines window) free))
+      ;;
+      ;; Set the last line and first&last changed so we know there's nothing there.
+      (setf (window-last-line window) the-sentinel
+            (window-first-changed window) the-sentinel
+            (window-last-changed window) the-sentinel)
+      ;;
+      ;; Make sure the window gets updated, and set the buffer.
+      (setf (window-tick window) -3)
+      (setf (window-%buffer window) new-buffer))))
 
 
 

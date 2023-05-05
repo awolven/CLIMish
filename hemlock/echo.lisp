@@ -13,21 +13,18 @@
 ;;;
 (in-package :hemlock-internals)
 
-(defmode "Echo Area" :major-p t)
-(defvar *echo-area-buffer* (make-instance 'krma.gui::text-editor-buffer :name "Echo Area" :modes '("Echo Area"))
+
+(defvar *echo-area-buffer* nil
   "Buffer used to hack text for the echo area.")
-(defvar *echo-area-region* (buffer-region *echo-area-buffer*)
+(defvar *echo-area-region* nil
   "Internal thing that's the *echo-area-buffer*'s region.")
-(defvar *echo-area-stream*
-  (hemlock::make-hemlock-character-io-stream *echo-area-buffer*)
+(defvar *echo-area-stream* nil
   "Buffered stream that prints into the echo area.")
 (defvar *echo-area-window* ()
   "Window used to display stuff in the echo area.")
-(defvar *parse-starting-mark*
-  (copy-mark (buffer-point *echo-area-buffer*) :right-inserting)
+(defvar *parse-starting-mark* nil
   "Mark that points to the beginning of the text that'll be parsed.")
-(defvar *parse-input-region*
-  (region *parse-starting-mark* (region-end *echo-area-region*))
+(defvar *parse-input-region* nil
   "Region that contains the text typed in.")
 
 
@@ -50,12 +47,12 @@
          (buf (or (find-if #'buffer-windows bufs)
                   (car bufs)
                   (make-instance 'krma.gui::text-editor-buffer :name "Main"))))
-    (setf (current-buffer) buf)
+    (setf (window-buffer (krma.gui::focused-window (krma::main-window krma::*app*))) buf)
     (dolist (w *window-list*)
       (when (and (eq (window-buffer w) *echo-area-buffer*)
                    (not (eq w *echo-area-window*)))
           (setf (window-buffer w) buf)))
-    (setf (current-window)
+    (setf (krma.gui::focused-window (krma::main-window krma::*app*))
           (or (car (buffer-windows buf))
               (make-instance 'krma.gui::text-editor-view-mixin :start-mark (buffer-start-mark buf)))))
   (editor-error "Wham!  We tried to confirm a parse that wasn't in progress?"))
@@ -87,8 +84,7 @@
 
 ;;;; MESSAGE and CLEAR-ECHO-AREA:
 
-(defhvar "Message Pause" "The number of seconds to pause after a Message."
-  :value 0.5s0)
+
 
 (defvar *last-message-time* 0
   "Internal-Real-Time the last time we displayed a message.")
@@ -163,7 +159,8 @@
            (finish-output *echo-area-stream*))
           (t
            (insert-string point prompt)))
-    (update-window *echo-area-window*)
+    (krma.gui::redraw-buffer *echo-area-window*)
+
     #+(or)                              ;we insert the default directly now
     (when default
       (insert-character point #\[)
@@ -171,27 +168,26 @@
       (insert-string point "] "))))
 
 
-(defun parse-for-something ()
-  (let ((start-window (current-window))
-        (start-buffer (current-buffer))
-        (point (buffer-point *echo-area-buffer*)))
-    (display-prompt-nicely)
+(defun parse-for-something (start-window)
+  (display-prompt-nicely)
+  (let* ((start-buffer (window-buffer start-window))
+         (point (buffer-point *echo-area-buffer*)))
+
     (move-mark *parse-starting-mark* point)
     (insert-string point (or *parse-default-string* *parse-default*))
-    (setf (current-window) *echo-area-window*)
-    (update-window *echo-area-window*)
+    (setf (krma.gui::focused-window (krma::main-window krma::*app*)) *echo-area-window*)
+    (krma.gui::redraw-buffer *echo-area-window*)
     (unwind-protect
          (progn
-           (use-buffer *echo-area-buffer*
-             (recursive-edit nil)))
-      (setf (current-window) start-window)
-      (change-to-buffer start-buffer))))
+           (recursive-edit nil))
+      (setf (krma.gui::focused-window (krma::main-window krma::*app*)) start-window)
+      (change-to-buffer start-buffer start-window))))
 
 
 
 ;;;; Buffer prompting.
 
-(defun prompt-for-buffer (&key ((:must-exist *parse-value-must-exist*) t)
+(defun prompt-for-buffer (current-window &key ((:must-exist *parse-value-must-exist*) t)
                                default
                                ((:default-string *parse-default-string*))
                                ((:prompt *parse-prompt*) "Buffer: ")
@@ -216,7 +212,7 @@
                               *parse-default-string*)
                              (t nil)))
           (*parse-verification-function* #'buffer-verification-function))
-      (parse-for-something)))
+      (parse-for-something current-window)))
 
 (defun buffer-verification-function (string)
   (declare (simple-string string))
@@ -255,7 +251,7 @@
 
 ;;;; File Prompting.
 
-(defun prompt-for-file (&key ((:must-exist *parse-value-must-exist*) t)
+(defun prompt-for-file (current-window &key ((:must-exist *parse-value-must-exist*) t)
                              default
                              ((:default-string *parse-default-string*))
                              ((:prompt *parse-prompt*) "Filename: ")
@@ -264,7 +260,7 @@
   (let ((*parse-verification-function* #'file-verification-function)
         (*parse-default* (if default (namestring default)))
         (*parse-type* :file))
-    (parse-for-something)))
+    (parse-for-something current-window)))
 
 (defun file-verification-function (string)
   (let ((pn (pathname-or-lose string)))
@@ -303,6 +299,7 @@
 ;;;; Keyword and variable prompting.
 
 (defun prompt-for-keyword (*parse-string-tables*
+                           current-window
                            &key
                            ((:must-exist *parse-value-must-exist*) t)
                            ((:default *parse-default*))
@@ -312,9 +309,10 @@
   "Prompts for a keyword using the String Tables."
   (let ((*parse-verification-function* #'keyword-verification-function)
         (*parse-type* :keyword))
-    (parse-for-something)))
+    (parse-for-something current-window)))
 
-(defun prompt-for-variable (&key ((:must-exist *parse-value-must-exist*) t)
+(defun prompt-for-variable (current-window
+                            &key ((:must-exist *parse-value-must-exist*) t)
                                  ((:default *parse-default*))
                                  ((:default-string *parse-default-string*))
                                  ((:prompt *parse-prompt*) "Variable: ")
@@ -324,7 +322,7 @@
   (let ((*parse-string-tables* (current-variable-tables))
         (*parse-verification-function* #'keyword-verification-function)
         (*parse-type* :keyword))
-    (parse-for-something)))
+    (parse-for-something current-window)))
 
 (defun current-variable-tables ()
   "Returns a list of all the variable tables currently established globally,
@@ -364,7 +362,8 @@
 
 ;;;; Integer, expression, and string prompting.
 
-(defun prompt-for-integer (&key ((:must-exist *parse-value-must-exist*) t)
+(defun prompt-for-integer (current-window
+                           &key ((:must-exist *parse-value-must-exist*) t)
                                 default
                                 ((:default-string *parse-default-string*))
                                 ((:prompt *parse-prompt*) "Integer: ")
@@ -378,13 +377,14 @@
                    (if number (list number))
                    (list (or number string))))))
         (*parse-default* (if default (write-to-string default :base 10))))
-    (parse-for-something)))
+    (parse-for-something current-window)))
 
 
 (defvar hemlock-eof '(())
   "An object that won't be EQ to anything read.")
 
-(defun prompt-for-expression (&key ((:must-exist *parse-value-must-exist*) t)
+(defun prompt-for-expression (current-window
+                              &key ((:must-exist *parse-value-must-exist*) t)
                                    (default nil defaultp)
                                    ((:default-string *parse-default-string*))
                                    ((:prompt *parse-prompt*) "Expression: ")
@@ -401,10 +401,11 @@
                    (if (eq expr hemlock-eof)
                        (list string) (values (list expr) t))))))
         (*parse-default* (if defaultp (prin1-to-string default))))
-      (parse-for-something)))
+      (parse-for-something current-window)))
 
 
-(defun prompt-for-string (&key ((:default *parse-default*))
+(defun prompt-for-string (current-window
+                          &key ((:default *parse-default*))
                                ((:default-string *parse-default-string*))
                                (trim ())
                                ((:prompt *parse-prompt*) "String: ")
@@ -416,13 +417,14 @@
          #'(lambda (string)
              (list (string-trim (if (eq trim t) '(#\space #\tab) trim)
                                 string)))))
-    (parse-for-something)))
+    (parse-for-something current-window)))
 
-(defun prompt-for-url (&key ((:default *parse-default*))
-                       ((:default-string *parse-default-string*))
-                       (trim ())
-                       ((:prompt *parse-prompt*) "URL: ")
-                       ((:help *parse-help*) "Type a URL."))
+(defun prompt-for-url (current-window
+                       &key ((:default *parse-default*))
+                         ((:default-string *parse-default-string*))
+                         (trim ())
+                         ((:prompt *parse-prompt*) "URL: ")
+                         ((:help *parse-help*) "Type a URL."))
   "Prompts for a URL.  If :trim is t, then leading and trailing whitespace
    is removed from input, otherwise it is interpreted as a Char-Bag argument
    to String-Trim.  Since URL syntax is hard to validate, any input is
@@ -431,7 +433,7 @@
          #'(lambda (string)
              (list (string-trim (if (eq trim t) '(#\space #\tab) trim)
                                 string)))))
-    (parse-for-something)))
+    (parse-for-something current-window)))
 
 
 ;;;; Yes-or-no and y-or-n prompting.
@@ -439,7 +441,8 @@
 (defvar *yes-or-no-string-table*
   (make-string-table :initial-contents '(("Yes" . t) ("No" . nil))))
 
-(defun prompt-for-yes-or-no (&key ((:must-exist *parse-value-must-exist*) t)
+(defun prompt-for-yes-or-no (current-window
+                             &key ((:must-exist *parse-value-must-exist*) t)
                                   (default nil defaultp)
                                   ((:default-string *parse-default-string*))
                                   ((:prompt *parse-prompt*) "Yes or No? ")
@@ -458,7 +461,7 @@
                       (if won (values (list value) t))
                       (list (if won (values value t) string)))))))
          (*parse-type* :keyword))
-    (parse-for-something)))
+    (parse-for-something current-window)))
 
 (defun listify (x) (if (listp x) x (list x)))
 
@@ -476,16 +479,17 @@
                                    `(list ,@keys)))
                  (iter:collect `(lambda () ,@body)))))
 
-(defun prompt-for-y-or-n (&key ((:must-exist must-exist) t)
+(defun prompt-for-y-or-n (current-window
+                          &key ((:must-exist must-exist) t)
                                (default nil defaultp)
                                default-string
                                ((:prompt prompt) "Y or N? ")
                                ((:help *parse-help*) "Type Y or N."))
   "Prompts for Y or N."
-  (let ((old-window (current-window)))
+  (let ((old-window current-window))
     (unwind-protect
-        (progn
-          (setf (current-window) *echo-area-window*)
+         (progn
+           (setf (krma.gui::focused-window (krma::main-window krma::*app*)) *echo-area-window*)
           (display-prompt-nicely prompt (or default-string
                                             (if defaultp (if default "Y" "N"))))
           (loop
@@ -505,7 +509,7 @@
                     (t
                      (unless must-exist (return key-event))
                      (beep))))))
-      (setf (current-window) old-window))))
+      (setf (krma.gui::focused-window (krma::main-window krma::*app*)) old-window))))
 
 
 
@@ -515,72 +519,72 @@
   "Prompts for a key-event."
   (prompt-for-key-event* prompt change-window))
 
-(defun prompt-for-key-event* (prompt change-window)
-  (let ((old-window (current-window)))
+(defun prompt-for-key-event* (current-window prompt change-window)
+  (let ((old-window current-window))
     (unwind-protect
         (progn
           (when change-window
-            (setf (current-window) *echo-area-window*))
+            (setf (krma.gui::focused-window (krma::main-window krma::*app*)) *echo-area-window*))
           (display-prompt-nicely prompt)
           (get-key-event *editor-input* t))
-      (when change-window (setf (current-window) old-window)))))
+      (when change-window (setf (krma.gui::focused-window (krma::main-window krma::*app*)) old-window)))))
 
 (defvar *prompt-key* (make-array 10 :adjustable t :fill-pointer 0))
-(defun prompt-for-key (&key ((:must-exist must-exist) t)
-                            default default-string
-                            (prompt "Key: ")
-                            ((:help *parse-help*) "Type a key."))
-  (let ((old-window (current-window))
+(defun prompt-for-key (current-window &key ((:must-exist must-exist) t)
+                                        default default-string
+                                        (prompt "Key: ")
+                                        ((:help *parse-help*) "Type a key."))
+  (let ((old-window current-window)
         (string (if default
                     (or default-string
                         (let ((l (coerce default 'list)))
                           (format nil "~:C~{ ~:C~}" (car l) (cdr l)))))))
 
     (unwind-protect
-        (progn
-          (setf (current-window) *echo-area-window*)
-          (display-prompt-nicely prompt string)
-          (setf (fill-pointer *prompt-key*) 0)
-          (prog ((key *prompt-key*) key-event)
-                (declare (vector key))
-                TOP
-                (setf key-event (get-key-event *editor-input*))
-                (cond ((logical-key-event-p key-event :quote)
-                       (setf key-event (get-key-event *editor-input* t)))
-                      ((logical-key-event-p key-event :confirm)
-                       (cond ((and default (zerop (length key)))
-                              (let ((res (get-command default :current)))
-                                (unless (commandp res) (go FLAME))
-                                (return (values default res))))
-                             ((and (not must-exist) (plusp (length key)))
-                              (return (copy-seq key)))
-                             (t
-                              (go FLAME))))
-                      ((logical-key-event-p key-event :help)
-                       (hemlock::help-on-parse-command ())
-                       (go TOP)))
-                (vector-push-extend key-event key)
-                (when must-exist
-                  (let ((res (get-command key :current)))
-                    (cond ((commandp res)
-                           (hemlock-ext:print-pretty-key-event key-event
-                                                       *echo-area-stream*
-                                                       t)
-                           (write-char #\space *echo-area-stream*)
-                           (force-output *echo-area-stream*)
-                           (return (values (copy-seq key) res)))
-                          ((not (eq res :prefix))
-                           (vector-pop key)
-                           (go FLAME)))))
-                (hemlock-ext:print-pretty-key key-event *echo-area-stream* t)
-                (write-char #\space *echo-area-stream*)
-                (force-output *echo-area-stream*)
-                (go TOP)
-                FLAME
-                (beep)
-                (go TOP)))
+         (progn
+           (setf (krma.gui::focused-window (krma::main-window krma::*app*)) *echo-area-window*)
+           (display-prompt-nicely prompt string)
+           (setf (fill-pointer *prompt-key*) 0)
+           (prog ((key *prompt-key*) key-event)
+              (declare (vector key))
+              TOP
+              (setf key-event (get-key-event *editor-input*))
+              (cond ((logical-key-event-p key-event :quote)
+                     (setf key-event (get-key-event *editor-input* t)))
+                    ((logical-key-event-p key-event :confirm)
+                     (cond ((and default (zerop (length key)))
+                            (let ((res (get-command default :current)))
+                              (unless (commandp res) (go FLAME))
+                              (return (values default res))))
+                           ((and (not must-exist) (plusp (length key)))
+                            (return (copy-seq key)))
+                           (t
+                            (go FLAME))))
+                    ((logical-key-event-p key-event :help)
+                     (hemlock::help-on-parse-command ())
+                     (go TOP)))
+              (vector-push-extend key-event key)
+              (when must-exist
+                (let ((res (get-command key :current)))
+                  (cond ((commandp res)
+                         (hemlock-ext:print-pretty-key-event key-event
+                                                             *echo-area-stream*
+                                                             t)
+                         (write-char #\space *echo-area-stream*)
+                         (force-output *echo-area-stream*)
+                         (return (values (copy-seq key) res)))
+                        ((not (eq res :prefix))
+                         (vector-pop key)
+                         (go FLAME)))))
+              (hemlock-ext:print-pretty-key key-event *echo-area-stream* t)
+              (write-char #\space *echo-area-stream*)
+              (force-output *echo-area-stream*)
+              (go TOP)
+              FLAME
+              (beep)
+              (go TOP)))
       (force-output *echo-area-stream*)
-      (setf (current-window) old-window))))
+      (setf (krma.gui::focused-window (krma::main-window krma::*app*)) old-window))))
 
 
 

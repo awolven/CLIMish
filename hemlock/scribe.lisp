@@ -93,7 +93,7 @@
 
 ;;;; Commands.
 
-(defcommand "Scribe Mode" (p)
+(defcommand "Scribe Mode" (window p)
   "Puts buffer in Scribe mode.  Sets up comment variables and has delimiter
    matching.  The definition of paragraphs is changed to know about scribe
    commands."
@@ -101,7 +101,7 @@
   (declare (ignore p))
   (setf (buffer-major-mode (current-buffer)) "Scribe"))
 
-(defcommand "Select Scribe Warnings" (p)
+(defcommand "Select Scribe Warnings" (window p)
   "Goes to the Scribe Warnings buffer if it exists."
   "Goes to the Scribe Warnings buffer if it exists."
   (declare (ignore p))
@@ -111,8 +111,9 @@
         (editor-error "There is no Scribe Warnings buffer."))))
 
 (defcommand "Add Scribe Paragraph Delimiter"
-            (p &optional
-               (word (prompt-for-string
+            (window p &optional
+                    (word (prompt-for-string
+                           window
                       :prompt "Scribe command: "
                       :help "Name of Scribe command to make delimit paragraphs."
                       :trim t)))
@@ -122,7 +123,7 @@
   "Add or remove Word in the *scribe-para-break-table*, depending on P."
   (setf (gethash word *scribe-para-break-table*) (not p)))
 
-(defcommand "List Scribe Paragraph Delimiters" (p)
+(defcommand "List Scribe Paragraph Delimiters" (window p)
   "Pops up a display of the Scribe commands that delimit paragraphs."
   "Pops up a display of the Scribe commands that delimit paragraphs."
   (declare (ignore p))
@@ -135,7 +136,7 @@
     (with-pop-up-display (s :height (length result))
       (dolist (ele result) (write-line ele s)))))
 
-(defcommand "Scribe Insert Bracket" (p)
+(defcommand "Scribe Insert Bracket" (window p)
   "Inserts a the bracket it is bound to and then shows the matching bracket."
   "Inserts a the bracket it is bound to and then shows the matching bracket."
   (declare (ignore p))
@@ -154,7 +155,7 @@
                      '(("Command" . :command)
                        ("Environment" . :environment))))
 
-(defcommand "Add Scribe Directive" (p &optional
+(defcommand "Add Scribe Directive" (window p &optional
                                       (command-name nil command-name-p)
                                       type key-event mode)
   "Adds a new scribe function to put into \"Scribe Command Table\"."
@@ -163,18 +164,19 @@
   (let ((command-name (if command-name-p
                           command-name
                           (or command-name
-                              (prompt-for-string :help "Directive Name"
+                              (prompt-for-string window :help "Directive Name"
                                                  :prompt "Directive: ")))))
     (multiple-value-bind (ignore type)
                          (if type
                              (values nil type)
                              (prompt-for-keyword
+                              window
                               (list *scribe-directive-type-table*)
                               :help "Enter Command or Environment."
                               :prompt "Command or Environment: "))
       (declare (ignore ignore))
       (let ((key-event (or key-event
-                           (prompt-for-key-event :prompt
+                           (prompt-for-key-event window :prompt
                                                  "Dispatch Character: "))))
         (setf (gethash key-event
                        (cond (mode
@@ -185,7 +187,7 @@
                                  "Could not find \"Scribe Command Table\"."))))
               (cons type command-name))))))
 
-(defcommand "Insert Scribe Directive" (p)
+(defcommand "Insert Scribe Directive" (window p)
   "Prompts for a character to dispatch on.  Some indicate \"commands\" versus
    \"environments\".  Commands are wrapped around the previous or current word.
    If there is no previous word, the command is insert, leaving point between
@@ -196,7 +198,7 @@
   "Wrap some text with some stuff."
   (declare (ignore p))
   (loop
-    (let ((key-event (prompt-for-key-event :prompt "Dispatch Character: ")))
+    (let ((key-event (prompt-for-key-event window :prompt "Dispatch Character: ")))
       (if (logical-key-event-p key-event :help)
           (directive-help)
           (let ((table-entry (gethash key-event (value scribe-command-table))))
@@ -302,7 +304,7 @@
 ;;; string to the previous word.  At the end, if we hadn't found a word, we
 ;;; backup the mark one character to put it between the command brackets.
 ;;;
-(defun insert-scribe-directive (mark &optional command-string)
+(defun insert-scribe-directive (current-window mark &optional command-string)
   (with-mark ((word-start mark :left-inserting)
               (word-end mark :left-inserting))
     (let ((open-paren-char (value open-paren-character))
@@ -317,6 +319,7 @@
                       (word-offset word-start -1)))
           (command-string (or command-string
                               (prompt-for-string
+                               current-window
                                :trim t :prompt "Environment: "
                                :help "Name of environment to enclose with."))))
       (declare (simple-string command-string))
@@ -377,9 +380,10 @@
                    (mark-before bottom-mark)))
             (get-and-insert-environment top-mark bottom-mark environment))))))
 
-(defun get-and-insert-environment (top-mark bottom-mark environment)
+(defun get-and-insert-environment (current-window top-mark bottom-mark environment)
   (let ((environment (or environment
                          (prompt-for-string
+                          current-window
                           :trim t :prompt "Environment: "
                           :help "Name of environment to enclose with."))))
     (insert-environment top-mark "begin" environment)

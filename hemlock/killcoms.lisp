@@ -17,14 +17,7 @@
 
 ;;;; Active Regions.
 
-(defhvar "Active Regions Enabled"
-  "When set, some commands that affect the current region only work when the
-   region is active."
-  :value t)
 
-(defhvar "Highlight Active Region"
-  "When set, the active region will be highlighted on the display if possible."
-  :value t)
 
 
 (defvar *ephemerally-active-command-types* (list :ephemerally-active)
@@ -79,7 +72,7 @@
 (defun control-g-deactivate-region ()
   (deactivate-region (window-buffer (current-window))))
 ;;;
-(add-hook abort-hook 'control-g-deactivate-region)
+
 
 
 
@@ -195,12 +188,7 @@
 
 
 
-(defhvar "Character Deletion Threshold"
-  "When this many characters are deleted contiguously via KILL-CHARACTERS,
-   they are saved on the kill ring -- for example, \"Delete Next Character\",
-   \"Delete Previous Character\", or \"Delete Previous Character Expanding
-   Tabs\"."
-  :value 5)
+
 
 
 ;;;; Commands.

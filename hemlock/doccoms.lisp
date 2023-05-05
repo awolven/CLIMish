@@ -17,7 +17,7 @@
 
 ;;;; Help.
 
-(defcommand "Help" (p)
+(defcommand "Help" (window p)
   "Give helpful information.
   This command dispatches to a number of other documentation commands,
   on the basis of a character command."
@@ -48,14 +48,14 @@
      (editor-describe-command nil))
     ((#\q :no) "Quits, You don't really want help.")))
 
-(defcommand "Where Is" (p)
+(defcommand "Where Is" (window p)
   "Find what key a command is bound to.
    Prompts for the command to look for, and says what environment it is
    available in."
   "List places where a command is bound."
   (declare (ignore p))
   (multiple-value-bind (nam cmd)
-                       (prompt-for-keyword (list *command-names*)
+                       (prompt-for-keyword window (list *command-names*)
                                            :prompt "Command: "
                                            :help "Name of command to look for.")
     (let ((bindings (command-bindings cmd)))
@@ -71,11 +71,12 @@
 
 ;;;; Apropos.
 
-(defcommand "Apropos" (p)
+(defcommand "Apropos" (window p)
   "List things whose names contain a keyword."
   "List things whose names contain a keyword."
   (declare (ignore p))
   (let* ((str (prompt-for-string
+               window
                 :prompt "Apropos keyword: "
                 :help
                 "String to look for in command, variable and attribute names."))
@@ -153,13 +154,14 @@
 
 ;;;; Describe command, key, pointer.
 
-(defcommand "Describe Command" (p)
+(defcommand "Describe Command" (window p)
   "Describe a command.
   Prompts for a command and then prints out it's full documentation."
   "Print out the command documentation for a command which is prompted for."
   (declare (ignore p))
   (multiple-value-bind (nam com)
-                       (prompt-for-keyword
+      (prompt-for-keyword
+       window
                         (list *command-names*)
                         :prompt "Describe command: "
                         :help "Name of a command to document.")
@@ -177,7 +179,7 @@
                (print-command-bindings bindings s)
                (terpri s)))))))
 
-(defcommand "Describe Key" (p)
+(defcommand "Describe Key" (window p)
   "Prompt for a sequence of characters.  When the first character is typed that
    terminates a key binding in the current context, describe the command bound
    to it.  When the first character is typed that no longer allows a correct
@@ -216,7 +218,7 @@
       #+echo-area-is-separate-window
       (setf (current-window) old-window))))
 
-(defcommand "Describe Pointer" (p)
+(defcommand "Describe Pointer" (window p)
   "Describe commands with any key binding that contains a \"mouse\" character
    (modified or not).  Does not describe the command \"Illegal\"."
   "Describe commands with any key binding that contains a \"mouse\" character
@@ -261,7 +263,7 @@
                              ("Key" . :key)
                              ("Attribute" . :attribute)))))
 
-(defcommand "Generic Describe" (p)
+(defcommand "Generic Describe" (window p)
   "Describe some Hemlock thing.
   First prompt for the kind of thing, then prompt for the thing to describe.
   Currently supported kinds of things are variables, commands, keys and
@@ -269,7 +271,7 @@
   "Prompt for some Hemlock thing to describe."
   (declare (ignore p))
   (multiple-value-bind (ignore kwd)
-                       (prompt-for-keyword *generic-describe-kinds*
+                       (prompt-for-keyword window *generic-describe-kinds*
                                            :default "Variable"
                                            :help "Kind of thing to describe."
                                            :prompt "Kind: ")
@@ -277,11 +279,12 @@
     (case kwd
       (:variable
        (describe-and-show-variable-command nil))
-      (:command (describe-command-command ()))
-      (:key (describe-key-command ()))
+      (:command (describe-command-command window ()))
+      (:key (describe-key-command window ()))
       (:attribute
        (multiple-value-bind (name attr)
-                            (prompt-for-keyword
+           (prompt-for-keyword
+            window
                              (list *character-attribute-names*)
                              :help "Name of character attribute to describe."
                              :prompt "Attribute: ")
@@ -302,25 +305,27 @@
 
 ;;;; Describing and show variables.
 
-(defcommand "Show Variable" (p)
+(defcommand "Show Variable" (window p)
   "Display the values of a Hemlock variable."
   "Display the values of a Hemlock variable."
   (declare (ignore p))
   (multiple-value-bind (name var)
-                       (prompt-for-variable
+      (prompt-for-variable
+       window
                         :help "Name of variable to describe."
                         :prompt "Variable: ")
     (let ((buffer (current-buffer)))
       (with-pop-up-display (s)
         (show-variable s name var buffer)))))
 
-(defcommand "Describe and Show Variable" (p)
+(defcommand "Describe and Show Variable" (window p)
   "Describe in full and show all of variable's value.
    Variable is prompted for."
   "Describe in full and show all of variable's value."
   (declare (ignore p))
   (multiple-value-bind (name var)
-                       (prompt-for-variable
+      (prompt-for-variable
+       window
                         :help "Name of variable to describe."
                         :prompt "Variable: ")
     (let ((buffer (current-buffer)))
@@ -350,12 +355,12 @@
 
 (defvar *describe-mode-ignore* (list "Illegal" "Do Nothing"))
 
-(defcommand "Describe Mode" (p &optional name)
+(defcommand "Describe Mode" (window p &optional name)
   "Describe a mode showing special bindings for that mode."
   "Describe a mode showing special bindings for that mode."
   (declare (ignore p))
   (let* ((name (or name
-                   (prompt-for-keyword (list *mode-names*)
+                   (prompt-for-keyword window (list *mode-names*)
                                        :prompt "Mode: "
                                        :help "Enter mode to describe."
                                        :default
@@ -394,7 +399,7 @@
 
 ;;;; Printing bindings and last N characters typed.
 
-(defcommand "What Lossage" (p)
+(defcommand "What Lossage" (window p)
   "Display the last 60 characters typed."
   "Display the last 60 characters typed."
   (declare (ignore p))

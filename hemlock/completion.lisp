@@ -186,7 +186,7 @@
    letters are in one list sorted by most recently used.  \"Completion Bucket
    Size\" limits the number of completions saved in each list.")
 
-(defcommand "Completion Mode" (p)
+(defcommand "Completion Mode" (window p)
   "Toggles Completion Mode in the current buffer."
   "Toggles Completion Mode in the current buffer."
   (declare (ignore p))
@@ -213,7 +213,7 @@
 ;;; tense things up a bit.  Otherwise, if Last-Command-Type says we were
 ;;; just doing a word, then we record that word in the database.
 ;;;
-(defcommand "Completion Self Insert" (p)
+(defcommand "Completion Self Insert" (window p)
   "Insert the last character typed, showing possible completions.  With prefix
    argument insert the character that many times."
   "Implements \"Completion Self Insert\". Calling this function is not
@@ -265,7 +265,7 @@
            (setq *completion-prefix-length* 0)))))
 
 
-(defcommand "Completion Complete Word" (p)
+(defcommand "Completion Complete Word" (window p)
   "Complete the word if we've got a completion, fixing up the case.  Invoking
    this immediately in succession rotates through possible completions in the
    buffer.  If there is no currently displayed completion, this tries to choose
@@ -288,7 +288,7 @@
        (do-completion))))
   (setf (last-command-type) :completion))
 
-(defcommand "List Possible Completions" (p)
+(defcommand "List Possible Completions" (window p)
   "List all possible completions of the prefix the user has typed."
   "List all possible completions of the prefix the user has typed."
   (declare (ignore p))
@@ -363,7 +363,7 @@
                (setq new-word t)))))
     strung))
 
-(defcommand "Completion Rotate Completions" (p)
+(defcommand "Completion Rotate Completions" (window p)
   "Show another possible completion in the status line, if there is one.
    If there is no currently displayed completion, this tries to choose a
    completion from text immediately before the point and displays the
@@ -392,7 +392,7 @@
   "The file that will be defaultly written to and read from by \"Save
    Completions\" and \"Read Completions\".")
 
-(defcommand "Save Completions" (p)
+(defcommand "Save Completions" (window p)
   "Writes the current completion database to a file, defaultly the value of
    \"Completion Database Filename\".  With an argument, prompts for a
    filename."
@@ -401,6 +401,7 @@
    filename."
   (let ((filename (or (and (not p) (value completion-database-filename))
                       (prompt-for-file
+                       window
                        :must-exist nil
                        :default *completion-default-default-database-filename*
                        :prompt "File to write completions to: "))))
@@ -419,13 +420,14 @@
             (terpri s))))
       (message "Done."))))
 
-(defcommand "Read Completions" (p)
+(defcommand "Read Completions" (window p)
   "Reads some completions from a file, defaultly the value of \"Completion
    Database File\".  With an argument, prompts for a filename."
   "Reads some completions from a file, defaultly the value of \"Completion
    Database File\".  With an argument, prompts for a filename."
   (let ((filename (or (and (not p) (value completion-database-filename))
                       (prompt-for-file
+                       window
                        :must-exist nil
                        :default *completion-default-default-database-filename*
                        :prompt "File to read completions from: ")))
@@ -455,13 +457,13 @@
               (when (= i end) (setf (cdr completion) nil))))))
       (message "Done."))))
 
-(defcommand "Parse Buffer for Completions" (p)
+(defcommand "Parse Buffer for Completions" (window p)
   "Zips over a buffer slamming everything that is a valid completion word
    into the completion hashtable."
   "Zips over a buffer slamming everything that is a valid completion word
    into the completion hashtable."
   (declare (ignore p))
-  (let ((buffer (prompt-for-buffer :prompt "Buffer to parse: "
+  (let ((buffer (prompt-for-buffer window :prompt "Buffer to parse: "
                                    :must-exist t
                                    :default (current-buffer)
                                    :default-string (buffer-name
@@ -647,11 +649,11 @@
 (defhvar "Completion Function" ""
   :mode "Editor" :value 'editor-complete-symbol)
 
-(defcommand "Complete For Mode" (p)
+(defcommand "Complete For Mode" (window p)
   "" ""
   (funcall (value completion-function) p))
 
-(defcommand "Indent Or Complete" (p)
+(defcommand "Indent Or Complete" (window p)
   """"
   (if (let ((mark (current-point)))
         (or (zerop (mark-charpos mark))
@@ -686,7 +688,7 @@
 (defmode "Completelist" :major-p t
   :documentation "Completelist mode presents a list of completions.")
 
-(defcommand "Completelist Quit" (p)
+(defcommand "Completelist Quit" (window p)
   "Kill the completelist buffer."
   ""
   (declare (ignore p))
@@ -696,14 +698,14 @@
 (defun completelist-entry-from-mark (mark)
   (array-element-from-mark (current-point) *completelist-entries*))
 
-(defcommand "Completelist Find Definition" (p)
+(defcommand "Completelist Find Definition" (window p)
   "" ""
   (declare (ignore p))
   (let ((entry (completelist-entry-from-mark (current-point))))
     (when entry
       (change-to-definition entry))))
 
-(defcommand "Completelist Pick" (p)
+(defcommand "Completelist Pick" (window p)
   "" ""
   (declare (ignore p))
   (let ((entry (completelist-entry-from-mark (current-point))))
@@ -746,7 +748,7 @@
           ;; (fuzz-chunks entry)
           (fuzz-classification-string entry)))
 
-(defcommand "Completelist Help" (p)
+(defcommand "Completelist Help" (window p)
   "Show this help."
   "Show this help."
   (declare (ignore p))

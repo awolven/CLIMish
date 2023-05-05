@@ -71,7 +71,7 @@
    confirmation before taking action."
   :value t)
 
-(defcommand "Bufed Delete" (p)
+(defcommand "Bufed Delete" (window p)
   "Delete the buffer.
    Any windows displaying this buffer will display some other buffer."
   "Delete the buffer indicated by the current line.  Any windows displaying this
@@ -81,7 +81,7 @@
          (buf-info (array-element-from-mark point *bufed-buffers*)))
     (if (and (not (value virtual-buffer-deletion))
              (or (not (value bufed-delete-confirm))
-                 (prompt-for-y-or-n :prompt "Delete buffer? " :default t
+                 (prompt-for-y-or-n window :prompt "Delete buffer? " :default t
                                     :must-exist t :default-string "Y")))
         (delete-bufed-buffer (bufed-buffer buf-info))
         (with-writable-buffer (*bufed-buffer*)
@@ -89,7 +89,7 @@
           (with-mark ((point point))
             (setf (next-character (line-start point)) #\D))))))
 
-(defcommand "Bufed Undelete" (p)
+(defcommand "Bufed Undelete" (window p)
   "Undelete the buffer.
    Any windows displaying this buffer will display some other buffer."
   "Undelete the buffer.  Any windows displaying this buffer will display some
@@ -102,13 +102,13 @@
     (with-mark ((point (current-point)))
       (setf (next-character (line-start point)) #\space))))
 
-(defcommand "Bufed Expunge" (p)
+(defcommand "Bufed Expunge" (window p)
   "Expunge buffers marked for deletion."
   "Expunge buffers marked for deletion."
   (declare (ignore p))
   (expunge-bufed-buffers))
 
-(defcommand "Bufed Quit" (p)
+(defcommand "Bufed Quit" (window p)
   "Kill the bufed buffer, expunging any buffer marked for deletion."
   "Kill the bufed buffer, expunging any buffer marked for deletion."
   (declare (ignore p))
@@ -121,8 +121,8 @@
 ;;; buffers before deleting any because the BUFED-DELETE-HOOK moves elements
 ;;; around in *bufed-buffers*.
 ;;;
-(defun expunge-bufed-buffers ()
-  (unless (eq *bufed-buffer* (current-buffer))
+(defun expunge-bufed-buffers (current-window)
+  (unless (eq *bufed-buffer* (window-buffer current-window))
     (editor-error "Not in the Bufed buffer."))
   (let (buffers)
     (dotimes (i *bufed-buffers-end*)
@@ -131,27 +131,27 @@
           (push (bufed-buffer buf-info) buffers))))
     (if (and buffers
              (or (not (value bufed-delete-confirm))
-                 (prompt-for-y-or-n :prompt "Delete buffers? " :default t
+                 (prompt-for-y-or-n current-window :prompt "Delete buffers? " :default t
                                     :must-exist t :default-string "Y")))
         (dolist (b buffers t) (delete-bufed-buffer b)))))
 
-(defun delete-bufed-buffer (buf)
+(defun delete-bufed-buffer (current-window buf)
   (when (and (buffer-modified buf)
              (buffer-pathname buf)
-             (prompt-for-y-or-n :prompt (list "~A is modified.  Save it first? "
+             (prompt-for-y-or-n current-window :prompt (list "~A is modified.  Save it first? "
                                               (buffer-name buf))))
     (save-file-command nil buf))
   (delete-buffer-if-possible buf))
 
 
-(defcommand "Bufed Goto" (p)
+(defcommand "Bufed Goto" (window p)
   "Change to the buffer."
   "Change to the buffer."
   (declare (ignore p))
   (change-to-buffer
    (bufed-buffer (array-element-from-mark (current-point) *bufed-buffers*))))
 
-(defcommand "Bufed Goto and Quit" (p)
+(defcommand "Bufed Goto and Quit" (window p)
   "Change to the buffer quitting Bufed.
    This supplies a function for \"Generic Pointer Up\" which is a no-op."
   "Change to the buffer quitting Bufed."
@@ -164,7 +164,7 @@
   (when *bufed-buffer* (delete-buffer-if-possible *bufed-buffer*))
   (supply-generic-pointer-up-function #'(lambda () nil)))
 
-(defcommand "Bufed Save File" (p)
+(defcommand "Bufed Save File" (window p)
   "Save the buffer."
   "Save the buffer."
   (declare (ignore p))
@@ -172,7 +172,7 @@
    nil
    (bufed-buffer (array-element-from-mark (current-point) *bufed-buffers*))))
 
-(defcommand "Bufed" (p)
+(defcommand "Bufed" (window p)
   "Creates a list of buffers in a buffer supporting operations such as deletion
    and selection.  If there already is a bufed buffer, just go to it."
   "Creates a list of buffers in a buffer supporting operations such as deletion
@@ -226,7 +226,7 @@
         (write-line name s))))
 
 
-(defcommand "Bufed Help" (p)
+(defcommand "Bufed Help" (window p)
   "Show this help."
   "Show this help."
   (declare (ignore p))

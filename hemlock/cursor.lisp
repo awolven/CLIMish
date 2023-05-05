@@ -445,7 +445,7 @@
            (.dis-line-offset-guess. point (truncate (window-height ,window-sym) 2)
                                     width)
            (when iscurrent (move-mark bpoint point))))
-       (%rt-update-window-image ,window-sym)
+       (update-window-image ,window-sym)
        t)))
 
 ;; to be called inside with-buffer-globals
@@ -505,7 +505,7 @@
       ;; If that doesn't work, panic and make the start the point.
       (unless (%rt-displayed-p mark window)
         (move-mark start mark))
-      (%rt-update-window-image window))))
+      (update-window-image window))))
 
 (defun %rt-bottom-window-on-mark (window mark)
   "Adjust the start of Window so that Mark is displayed on the center line."
@@ -524,7 +524,7 @@
       ;; If that doesn't work, panic and make the start the point.
       (unless (%rt-displayed-p mark window)
         (move-mark start mark))
-      (%rt-update-window-image window))))
+      (update-window-image window))))
 
 
 ;;; maybe-recenter-window  --  Internal
@@ -549,15 +549,15 @@
 
 (defun %rt-update-all-buffer-windows (buffer)
   (loop for window in (buffer-windows buffer)
-        do (%rt-update-window-image window)))
+        do (update-window-image window)))
 
 (defun %rt-maybe-recenter-current-on-mark-then-update-all-buffer-windows (buffer mark current)
   (loop for window in (buffer-windows buffer)
         do (with-buffer-globals ((window-buffer window))
              (if (eq window current)
                  (unless (%rt-maybe-recenter-window-on-mark window mark)
-                   (%rt-update-window-image window))
-                 (%rt-update-window-image window)))))
+                   (update-window-image window))
+                 (update-window-image window)))))
 
 
 (defun %rt-maybe-rebottom-current-on-mark-then-update-all-buffer-windows (buffer mark current)
@@ -565,8 +565,8 @@
         do (with-buffer-globals ((window-buffer window))
              (if (eq window current)
                  (unless (%rt-maybe-rebottom-window-on-mark window mark)
-                   (%rt-update-window-image window))
-                 (%rt-update-window-image window)))))
+                   (update-window-image window))
+                 (update-window-image window)))))
 
 (defun %rt-maybe-scroll-current-to-center-then-update-all-buffer-windows (buffer current)
   (loop for window in (buffer-windows buffer)
@@ -575,8 +575,8 @@
                  (progn
                    (buffer-end .point. .buffer.)
                    (unless (%rt-maybe-recenter-window-on-mark window .point.)
-                     (%rt-update-window-image window)))
-                 (%rt-update-window-image window)))))
+                     (update-window-image window)))
+                 (update-window-image window)))))
 
 
 (defun %rt-maybe-scroll-current-to-bottom-then-update-all-buffer-windows (buffer current)
@@ -586,8 +586,8 @@
                  (progn
                    (buffer-end .point. .buffer.)
                    (unless (%rt-maybe-rebottom-window-on-mark window .point.)
-                     (%rt-update-window-image window)))
-                 (%rt-update-window-image window)))))
+                     (update-window-image window)))
+                 (update-window-image window)))))
 
 (defun %rt-maybe-scroll-current-to-top-then-update-all-buffer-windows (buffer current)
   (loop for window in (buffer-windows buffer)
@@ -595,7 +595,7 @@
              (when (eq window current)
                (buffer-start .point. .buffer.)
                (move-mark (window-display-start window) .point.))
-             (%rt-update-window-image window))))
+             (update-window-image window))))
 
 
 
@@ -626,19 +626,19 @@
 ;; this one is for when you know you only have one window to update, such as echo-area-window
 (defun update-window (window)
   (with-render-thread (*app*)
-    (%rt-update-window-image window)))
+    (update-window-image window)))
 
 
 (defun update-all-windows ()
   (with-render-thread (*app*)
-    (mapcar #'%rt-update-window-image *window-list*)))
+    (mapcar #'update-window-image *window-list*)))
 
 (defun %rt-recenter-current-on-mark-then-update-all-buffer-windows (buffer mark current)
   (loop for window in (buffer-windows buffer)
         do (with-buffer-globals ((window-buffer window))
              (if (eq window current)
                  (%rt-center-window-on-mark window mark)
-                 (%rt-update-window-image window)))))
+                 (update-window-image window)))))
 
 (defun recenter-current-on-mark-then-update-all-buffer-windows (buffer mark current)
   (with-render-thread (*app*)

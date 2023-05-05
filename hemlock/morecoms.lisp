@@ -13,12 +13,9 @@
 
 (in-package :hemlock)
 
-(defhvar "Region Query Size"
-  "A number-of-lines threshold that destructive, undoable region commands
-   should ask the user about when the indicated region is too big."
-  :value 30)
 
-(defun check-region-query-size (region)
+
+(defun check-region-query-size (current-window region)
   "Checks the number of lines in region against \"Region Query Size\" and
    asks the user if the region crosses this threshold.  If the user responds
    negatively, then an editor error is signaled."
@@ -26,6 +23,7 @@
     (if (and (plusp threshold)
              (>= (count-lines region) threshold)
              (not (prompt-for-y-or-n
+                   current-window
                    :prompt "Region size exceeds \"Region Query Size\".  Confirm: "
                    :must-exist t)))
         (editor-error))))
@@ -47,14 +45,14 @@
 
 ;;;; Casing commands...
 
-(defcommand "Uppercase Word" (p)
+(defcommand "Uppercase Word" (window p)
   "Uppercase a word at point.
    With prefix argument uppercase that many words."
     "Uppercase p words at the point."
   (with-buffer-globals ((window-buffer (current-window)))
     (.filter-words. p .point. #'string-upcase)))
 
-(defcommand "Lowercase Word" (p)
+(defcommand "Lowercase Word" (window p)
   "Uppercase a word at point.
    With prefix argument uppercase that many words."
     "Uppercase p words at the point."
@@ -67,7 +65,7 @@
 ;;; the differences between Hemlock's notion of what a word is and Common
 ;;; Lisp's notion are too annoying.
 ;;;
-(defcommand "Capitalize Word" (p)
+(defcommand "Capitalize Word" (window p)
   "Lowercase a word capitalizing the first character.  With a prefix
   argument, capitalize that many words.  A negative argument capitalizes
   words before the point, but leaves the point where it was."
@@ -99,7 +97,7 @@
 
 ;;; TWIDDLE-REGION implements "Uppercase Region" and "Lowercase Region".
 ;;;
-(defmacro .twiddle-region. (region function name)
+(defmacro .twiddle-region. (current-window region function name)
   (let ((region-sym (gensym "TWIDDLE-REGION_REGION"))
         (function-sym (gensym "TWIDDLE-REGION_FUNCTION"))
         (name-sym (gensym "TWIDDLE-REGION_NAME")))
@@ -111,23 +109,23 @@
               (end (copy-mark (region-end ,region-sym) :left-inserting)))
          (let* ((region (region start end))
                 (undo-region (copy-region region)))
-           (check-region-query-size region)
+           (check-region-query-size ,current-window region)
            (hi::.filter-region. ,function-sym region)
            (make-region-undo :twiddle ,name-sym region undo-region))))))
 
-(defcommand "Uppercase Region" (p)
+(defcommand "Uppercase Region" (window p)
   "Uppercase words from point to mark."
   "Uppercase words from point to mark."
   (declare (ignore p))
   (with-buffer-globals ((window-buffer (current-window)))
-    (.twiddle-region. (current-region .buffer.) #'string-upcase "Uppercase Region")))
+    (.twiddle-region. window (current-region .buffer.) #'string-upcase "Uppercase Region")))
 
-(defcommand "Lowercase Region" (p)
+(defcommand "Lowercase Region" (window p)
   "Lowercase words from point to mark."
   "Lowercase words from point to mark."
   (declare (ignore p))
   (with-buffer-globals ((window-buffer (current-window)))
-    (.twiddle-region. (current-region .buffer.) #'string-downcase "Lowercase Region")))
+    (.twiddle-region. window (current-region .buffer.) #'string-downcase "Lowercase Region")))
 
 
 
@@ -135,7 +133,7 @@
 
 ;;;; More stuff.
 
-(defcommand "Delete Previous Character Expanding Tabs" (p)
+(defcommand "Delete Previous Character Expanding Tabs" (window p)
   "Delete the previous character.
   When deleting a tab pretend it is the equivalent number of spaces.
   With prefix argument, do it that many times."
@@ -181,87 +179,94 @@
                              ("Buffer" . :buffer)
                              ("Mode" . :mode)))))
 
-(defun prompt-for-place (prompt help)
+(defun prompt-for-place (current-window prompt help)
   (multiple-value-bind (word val)
-                       (prompt-for-keyword *scope-table* :prompt prompt
+                       (prompt-for-keyword current-window *scope-table* :prompt prompt
                                            :help help :default "Global")
     (declare (ignore word))
     (case val
       (:buffer
-       (values :buffer (prompt-for-buffer :help "Buffer to be local to."
-                                          :default (current-buffer))))
+       (values :buffer (prompt-for-buffer current-window :help "Buffer to be local to."
+                                          :default (window-buffer current-window))))
       (:mode
        (values :mode (prompt-for-keyword
+                      current-window
                       (list *mode-names*)
                       :prompt "Mode: "
                       :help "Mode to be local to."
-                      :default (buffer-major-mode (current-buffer)))))
+                      :default (buffer-major-mode (window-buffer current-window)))))
       (:global :global))))
 
-(defcommand "Bind Key" (p)
+(defcommand "Bind Key" (window p)
   "Bind a command to a key.
   The command, key and place to make the binding are prompted for."
   "Prompt for stuff to do a bind-key."
   (declare (ignore p))
   (multiple-value-call #'bind-key
     (values (prompt-for-keyword
+             window
              (list *command-names*)
              :prompt "Command to bind: "
              :help "Name of command to bind to a key."))
     (values (prompt-for-key
+             window
              :prompt "Bind to: "  :must-exist nil
              :help "Key to bind command to, confirm to complete."))
-    (prompt-for-place "Kind of binding: "
+    (prompt-for-place window "Kind of binding: "
                       "The kind of binding to make.")))
 
-(defcommand "Delete Key Binding" (p)
+(defcommand "Delete Key Binding" (window p)
   "Delete a key binding.
   The key and place to remove the binding are prompted for."
   "Prompt for stuff to do a delete-key-binding."
   (declare (ignore p))
   (let ((key (prompt-for-key
+              window
               :prompt "Delete binding: " :must-exist nil
               :help "Key to delete binding from.")))
     (multiple-value-bind (kind where)
-                         (prompt-for-place "Kind of binding: "
+                         (prompt-for-place window "Kind of binding: "
                                            "The kind of binding to make.")
       (unless (get-command key kind where)
         (editor-error "No such binding: ~S" key))
       (delete-key-binding key kind where))))
 
 
-(defcommand "Set Variable" (p)
+(defcommand "Set Variable" (window p)
   "Prompt for a Hemlock variable and a new value."
   "Prompt for a Hemlock variable and a new value."
   (declare (ignore p))
   (multiple-value-bind (name var)
-                       (prompt-for-variable
+      (prompt-for-variable
+       window
                         :prompt "Variable: "
                         :help "The name of a variable to set.")
     (declare (ignore name))
     (setf (variable-value var)
           (handle-lisp-errors
-           (eval (prompt-for-expression
+            (eval (prompt-for-expression
+                   window
                   :prompt "Value: "
                   :help "Expression to evaluate for new value."))))))
 
-(defcommand "Defhvar" (p)
+(defcommand "Defhvar" (window p)
   "Define a hemlock variable in some location.  If the named variable exists
    currently, its documentation is propagated to the new instance, but this
    never prompts for documentation."
   "Define a hemlock variable in some location."
   (declare (ignore p))
-  (let* ((name (nstring-capitalize (prompt-for-variable :must-exist nil)))
+  (let* ((name (nstring-capitalize (prompt-for-variable window :must-exist nil)))
          (var (string-to-variable name))
          (doc (if (hemlock-bound-p var)
                   (variable-documentation var)
                   ""))
          (hooks (if (hemlock-bound-p var) (variable-hooks var)))
-         (val (prompt-for-expression :prompt "Variable value: "
+         (val (prompt-for-expression window :prompt "Variable value: "
                                      :help "Value for the variable.")))
     (multiple-value-bind
         (kind where)
         (prompt-for-place
+         window 
          "Kind of binding: "
          "Whether the variable is global, mode, or buffer specific.")
       (if (eq kind :global)
@@ -269,7 +274,7 @@
           (defhvar name doc kind where :value val :hooks hooks)))))
 
 
-(defcommand "List Buffers" (p)
+(defcommand "List Buffers" (window p)
   "Show a list of all buffers.
    If the buffer is modified then a * is displayed before the name.  If there
    is an associated file then it's name is displayed last.  With prefix
@@ -293,7 +298,7 @@
                 (format s "~A~68T~D Line~:P~%"
                         n (count-lines (buffer-region b))))))))))
 
-(defcommand "Select Random Typeout Buffer" (p)
+(defcommand "Select Random Typeout Buffer" (window p)
   "Select last random typeout buffer."
   "Select last random typeout buffer."
   (declare (ignore p))
@@ -302,7 +307,7 @@
       (editor-error "There are no random typeout buffers.")))
 
 
-(defcommand "Room" (p)
+(defcommand "Room" (window p)
   "Display stats on allocated storage."
   "Run Room into a With-Random-Typeout window."
   (declare (ignore p))
@@ -333,10 +338,10 @@
       (setf (current-window) win)
       (unless (eq (window-buffer win) buf)
         (setf (window-buffer win) buf))
-      (setf (current-buffer) buf)
+      (setf (current-buffer (window-buffer (krma.gui::focused-window (krma::main-window krma::*app*)))) buf)
       )))
 
-(defcommand "Exit Recursive Edit" (p)
+(defcommand "Exit Recursive Edit" (window p)
   "Exit a level of recursive edit.  Signals an error when not in a
    recursive edit."
   "Exit a level of recursive edit.  Signals an error when not in a
@@ -345,7 +350,7 @@
   (unless (in-recursive-edit) (editor-error "Not in a recursive edit!"))
   (exit-recursive-edit ()))
 
-(defcommand "Abort Recursive Edit" (p)
+(defcommand "Abort Recursive Edit" (window p)
   "Abort the current recursive edit.  Signals an error when not in a
    recursive edit."
   "Abort the current recursive edit.  Signals an error when not in a
@@ -366,7 +371,7 @@
 ;;; text at them.  We copy point into ipoint for insertion purposes since one
 ;;; of our four marks is the point.
 ;;;
-(defcommand "Transpose Regions" (p)
+(defcommand "Transpose Regions" (window p)
   "Transpose two regions with endpoints defined by the mark stack and point.
    To use:  mark start of region1, mark end of region1, mark start of region2,
    and place point at end of region2.  Invoking this immediately following
@@ -413,13 +418,14 @@
       (delete-mark delete3))))
 
 
-(defcommand "Goto Absolute Line" (p)
+(defcommand "Goto Absolute Line" (window p)
   "Goes to the indicated line, if you counted them starting at the beginning
    of the buffer with the number one.  If a prefix argument is supplied, that
    is the line numbe; otherwise, the user is prompted."
     "Go to a user perceived line number."
   (let ((buffer (window-buffer (current-window))))
     (let ((p (or p (prompt-for-expression
+                    window
                     :prompt "Line number: "
                     :help "Enter an absolute line number to goto."))))
       (unless (and (integerp p) (plusp p))
@@ -435,7 +441,7 @@
 
 ;;;; Mouse Commands.
 
-(defcommand "Do Nothing" (p)
+(defcommand "Do Nothing" (window p)
   "Do nothing.
   With prefix argument, do it that many times."
   "Do nothing p times."
@@ -446,10 +452,10 @@
   (declare (ignore args))
   nil)
 
-(defun maybe-change-window (window)
-  (unless (eq window (current-window))
+(defun maybe-change-window (window current-window)
+  (unless (eq window current-window)
     (when (or (eq window *echo-area-window*)
-              (eq (current-window) *echo-area-window*)
+              (eq current-window *echo-area-window*)
               (member window *random-typeout-buffers*
                       :key #'(lambda (cons)
                                (hi::random-typeout-stream-window (cdr cons)))))
@@ -457,10 +463,10 @@
       (editor-error "I'm afraid I can't let you do that Dave."))
     (setf (current-window) window)
     (let ((buffer (window-buffer window)))
-      (unless (eq (current-buffer) buffer)
-        (setf (current-buffer) buffer)))))
+      (unless (eq (window-buffer current-window) buffer)
+        (setf (window-buffer current-window) buffer)))))
 
-(defcommand "Top Line to Here" (p)
+(defcommand "Top Line to Here" (window p)
   "Move the top line to the line the mouse is on.
   If in the first two columns then scroll continuously until the button is
   released."
@@ -478,7 +484,7 @@
               (t
                (hi::.scroll-window. window (- y))))))))
 
-(defcommand "Here to Top of Window" (p)
+(defcommand "Here to Top of Window" (window p)
   "Move the line the mouse is on to the top of the window.
   If in the first two columns then scroll continuously until the button is
   released."
@@ -507,7 +513,7 @@
   (check-type fun function)
   (setf *generic-pointer-up-fun* fun))
 
-(defcommand "Generic Pointer Up" (p)
+(defcommand "Generic Pointer Up" (window p)
   "Other commands determine this command's action by supplying functions that
    this command invokes.  The following built-in commands supply the following
    generic up actions:
@@ -524,7 +530,7 @@
   (funcall *generic-pointer-up-fun*))
 
 
-(defcommand "Point to Here" (p)
+(defcommand "Point to Here" (window p)
     "Move the point to the position of the mouse.
    If in the modeline, move to the absolute position in the file indicated by
    the position within the modeline, pushing the old position on the mark
@@ -536,11 +542,11 @@
    mark off a region with the mouse."
     "Move the point to the position of the mouse."
   (declare (ignore p))
-  (multiple-value-bind (x y window) (last-key-event-cursorpos)
+  (multiple-value-bind (x y w) (last-key-event-cursorpos)
     (unless x (editor-error))
-    (let ((buffer (window-buffer window)))
+    (let ((buffer (window-buffer w)))
       (when buffer
-        (maybe-change-window window)
+        (maybe-change-window w window)
         (hi::with-render-thread (*app*)
           (if y
               (let ((m (cursorpos-to-mark x y window)))
@@ -571,7 +577,7 @@
               (move-mark .point. m))))))))
 
 
-(defcommand "Insert Kill Buffer" (p)
+(defcommand "Insert Kill Buffer" (window p)
     "Move current point to the mouse location and insert the kill buffer."
     "Move current point to the mouse location and insert the kill buffer."
   (declare (ignore p))
@@ -605,7 +611,7 @@
            (editor-error "No page numbered ~D." ,i-sym))
          (move-mark ,mark-sym m)))))
 
-(defcommand "Goto Page" (p)
+(defcommand "Goto Page" (window p)
     "Go to an absolute page number (argument).  If no argument, then go to
   next page.  A negative argument moves back that many pages if possible.
   If argument is zero, prompt for string and goto page with substring
@@ -614,15 +620,14 @@
   next page.  A negative argument moves back that many pages if possible.
   If argument is zero, prompt for string and goto page with substring
   in title."
-  (let* ((window (current-window))
-         (buffer (window-buffer window)))
+  (let* ((buffer (window-buffer window)))
     (with-buffer-globals (buffer)
       (let ((point .point.))
         (cond ((not p) (page-offset point 1))
 
               ((zerop p)
                (let* ((againp (eq (last-command-type) :goto-page-zero))
-                      (name (prompt-for-string :prompt "Substring of page title: "
+                      (name (prompt-for-string window :prompt "Substring of page title: "
                                                :default (if againp
                                                             *goto-page-last-string*
                                                             *parse-default*)))
@@ -652,9 +657,9 @@
               (t (.goto-page. point p)))
         (hi::with-render-thread (*app*)
           (line-start (move-mark (window-display-start window) point))
-          (hi::%rt-update-window-image window))))))
+          (hi::update-window-image window))))))
 
-(defcommand "View Page Directory" (p)
+(defcommand "View Page Directory" (window p)
   "Print a listing of the first non-blank line after each page mark
    in a pop-up window."
   "Print a listing of the first non-blank line after each page mark
@@ -666,7 +671,7 @@
       (with-pop-up-display (s :height (1+ (the fixnum (length dir))))
         (display-page-directory s dir)))))
 
-(defcommand "Insert Page Directory" (p)
+(defcommand "Insert Page Directory" (window p)
   "Insert a listing of the first non-blank line after each page mark at
    the beginning of the buffer.  A mark is dropped before going to the
    beginning of the buffer.  If an argument is supplied, insert the page
@@ -731,7 +736,7 @@
                  (return))))))))
 
 
-(defcommand "Previous Page" (p)
+(defcommand "Previous Page" (window p)
   "Move to the beginning of the current page.
   With prefix argument move that many pages."
   "Move backward P pages."
@@ -743,9 +748,9 @@
         (unless (page-offset point (- (or p 1)))
           (editor-error "No such page.")))
       (line-start (move-mark (window-display-start window) point))
-      (hi::%rt-update-window-image window))))
+      (hi::update-window-image window))))
 
-(defcommand "Next Page" (p)
+(defcommand "Next Page" (window p)
   "Move to the beginning of the next page.
   With prefix argument move that many pages."
   "Move forward P pages."
@@ -757,9 +762,9 @@
         (unless (page-offset point (or p 1))
           (editor-error "No such page.")))
       (line-start (move-mark (window-display-start window) point))
-      (hi::%rt-update-window-image window))))
+      (hi::update-window-image window))))
 
-(defcommand "Mark Page" (p)
+(defcommand "Mark Page" (window p)
   "Put point at beginning, mark at end of current page.
    With prefix argument, mark the page that many pages after the current one."
   "Mark the P'th page after the current one."
@@ -822,7 +827,7 @@
 
 ;;;; Counting some stuff
 
-(defcommand "Count Lines Page" (p)
+(defcommand "Count Lines Page" (window p)
   "Display number of lines in current page and position within page.
    With prefix argument do on entire buffer."
   "Count some lines, Man."
@@ -849,7 +854,7 @@
         (after (count-lines (region mark end))))
     (message "~A: ~D lines, ~D/~D" msg (+ before after) before after)))
 
-(defcommand "Count Lines" (p)
+(defcommand "Count Lines" (window p)
   "Display number of lines in the region."
   "Display number of lines in the region."
   (declare (ignore p))
@@ -857,7 +862,7 @@
     (message "~:[After point~;Active region~]: ~A lines"
              activep (count-lines region))))
 
-(defcommand "Count Words" (p)
+(defcommand "Count Words" (window p)
   "Prints in the Echo Area the number of words in the region
    between the point and the mark by using word-offset. The
    argument is ignored."
@@ -879,7 +884,7 @@
 
 ;;;; Some modes:
 
-(defcommand "Fundamental Mode" (p)
+(defcommand "Fundamental Mode" (window p)
   "Put the current buffer into \"Fundamental\" mode."
   "Put the current buffer into \"Fundamental\" mode."
   (declare (ignore p))
@@ -889,9 +894,9 @@
 ;;; Text mode.
 ;;;
 
-(defmode "Text" :major-p t)
 
-(defcommand "Text Mode" (p)
+
+(defcommand "Text Mode" (window p)
   "Put the current buffer into \"Text\" mode."
   "Put the current buffer into \"Text\" mode."
   (declare (ignore p))
@@ -901,9 +906,9 @@
 ;;; Caps-lock mode.
 ;;;
 
-(defmode "CAPS-LOCK")
 
-(defcommand "Caps Lock Mode" (p)
+
+(defcommand "Caps Lock Mode" (window p)
   "Simulate having a CAPS LOCK key.  Toggle CAPS-LOCK mode.  Zero or a
    negative argument turns it off, while a positive argument turns it
    on."
@@ -915,7 +920,7 @@
             (plusp p)
             (not (buffer-minor-mode (current-buffer) "CAPS-LOCK")))))
 
-(defcommand "Self Insert Caps Lock" (p)
+(defcommand "Self Insert Caps Lock" (window p)
   "Insert the last character typed, or the argument number of them.
    If the last character was an alphabetic character, then insert its
    capital form."

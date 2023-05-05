@@ -672,13 +672,14 @@
   (let ((tag (hi::line-tag (mark-line (current-point)))))
     (if tag (hi::tag-package tag) "C_LUSER")))
 
-(defcommand "Set Buffer Package" (p)
+(defcommand "Set Buffer Package" (window p)
   "Set the package to be used by Lisp evaluation and compilation commands
    while in this buffer.  When in a slave's interactive buffers, do NOT
    set the editor's package variable, but changed the slave's *package*."
   "Prompt for a package to make into a buffer-local variable current-package."
   (declare (ignore p))
   (let* ((name (string (prompt-for-expression
+                        window
                         :prompt "Package name: "
                         :help "Name of package to associate with this buffer.")))
          (buffer (current-buffer))
@@ -838,7 +839,7 @@
                        package)
                       s))))))))))
 
-(defcommand "Evaluate Expression" (p)
+(defcommand "Evaluate Expression" (window p)
   "Prompt for an expression to evaluate."
   "Prompt for an expression to evaluate."
   (declare (ignore p))
@@ -848,6 +849,7 @@
            (editor-evaluate-expression-command nil))
           (t
            (let ((exp (prompt-for-string
+                       window
                        :prompt "Eval: "
                        :help "Expression to evaluate.")))
              (message "=> ~{~#[~;~A~:;~A, ~]~}"
@@ -907,7 +909,7 @@
                           :context (format nil "evaluation of buffer ``~A''"
                                            (buffer-name b))))))))
 
-(defcommand "Load File" (p)
+(defcommand "Load File" (window p)
   "Prompt for a file to load into the current eval server."
   "Prompt for a file to load into the current eval server."
   (declare (ignore p))
@@ -917,6 +919,7 @@
            (editor-load-file-command nil))
           (t
            (let ((name (truename (prompt-for-file
+                                  window
                                   :default
                                   (or (value load-pathname-defaults)
                                       (buffer-default-pathname (current-buffer)))
@@ -929,7 +932,7 @@
                                        (pathname-for-remote-access name)
                                        name)))))))))
 
-(defcommand "Compile File" (p)
+(defcommand "Compile File" (window p)
   "Prompts for file to compile.  Does not compare source and binary write
    dates.  Does not check any buffer for that file for whether the buffer
    needs to be saved."
@@ -940,7 +943,7 @@
            (message "Compile File in the editor Lisp ...")
            (editor-compile-file-command nil))
           (t
-           (let ((pn (prompt-for-file :default
+           (let ((pn (prompt-for-file window :default
                                       (buffer-default-pathname (current-buffer))
                                       :prompt "File to compile: ")))
              (file-compile pn))))))
@@ -949,7 +952,7 @@
   "When set, \"Compile Buffer File\" prompts before doing anything."
   :value nil)
 
-(defcommand "Compile Buffer File" (p)
+(defcommand "Compile Buffer File" (window p)
   "Compile the file in the current buffer if its associated binary file
    (of type .fasl) is older than the source or doesn't exist.  When the
    binary file is up to date, the user is asked if the source should be
@@ -970,6 +973,7 @@
              (cond ((buffer-modified buf)
                     (when (or (not (value compile-buffer-file-confirm))
                               (prompt-for-y-or-n
+                               window
                                :default t :default-string "Y"
                                :prompt (list "Save and compile file ~A? "
                                              (namestring pn))))
@@ -978,11 +982,13 @@
                    ((older-or-non-existent-fasl-p pn p)
                     (when (or (not (value compile-buffer-file-confirm))
                               (prompt-for-y-or-n
+                               window
                                :default t :default-string "Y"
                                :prompt (list "Compile file ~A? " (namestring pn))))
                       (file-compile pn :buffer buf)))
                    ((or p
                         (prompt-for-y-or-n
+                         window
                          :default t :default-string "Y"
                          :prompt
                          "Fasl file up to date, compile source anyway? "))

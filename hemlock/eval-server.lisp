@@ -1,4 +1,4 @@
-;;;; -*- Mode: Lisp; indent-tabs-mode: nil -*-
+;;; -*- Mode: Lisp; indent-tabs-mode: nil -*-
 ;;;
 ;;; **********************************************************************
 ;;; This code was written as part of the CMU Common Lisp project at
@@ -358,7 +358,7 @@
 (defvar *clbuild-slave-command* '("clbuild" "run" "hemlock-slave"))
 (defvar *slave-command* *clbuild-slave-command*)
 
-(defun create-slave (command &optional name)
+(defun create-slave (current-window command &optional name)
   "This creates a slave that tries to connect to the editor.  A preliminary
    slave-information structure is returned immediately, whose details will
    be filled in later by the slave once the wire has been established.
@@ -373,6 +373,7 @@
           (pick-slave-buffer-names))
     (when (value confirm-slave-creation)
       (setf slave (prompt-for-string
+                   current-window
                    :prompt "New slave name? "
                    :help "Enter the name to use for the newly created slave."
                    :default slave
@@ -436,7 +437,7 @@
 
 ;;; CREATE-SLAVE-IN-THREAD -- Public.
 ;;;
-(defun create-slave-in-thread (&optional name)
+(defun create-slave-in-thread (current-window &optional name)
   "This creates a slave that tries to connect to the editor.  A preliminary
    slave-information structure is returned immediately, whose details will
    be filled in later by the slave once the wire has been established.
@@ -451,6 +452,7 @@
           (pick-slave-buffer-names))
     (when (value confirm-slave-creation)
       (setf slave (prompt-for-string
+                   current-window
                    :prompt "New slave name? "
                    :help "Enter the name to use for the newly created slave."
                    :default slave
@@ -500,7 +502,7 @@
 #+(or)                    ;disabled for now --dfl
 ;;; MAYBE-CREATE-SERVER -- Internal interface.
 ;;;
-(defun maybe-create-server ()
+(defun maybe-create-server (current-window)
   "If there is an existing server and \"Ask about Old Servers\" is set, then
    prompt for a server's name and return that server's info.  Otherwise,
    create a new server."
@@ -511,7 +513,7 @@
         (if first-server-info
             (multiple-value-bind
                 (name info)
-                (prompt-for-keyword (list *server-names*)
+                (prompt-for-keyword current-window (list *server-names*)
                                     :prompt "Existing server name: "
                                     :default first-server-name
                                     :default-string first-server-name
@@ -603,24 +605,25 @@
           (list "--editor" (get-editor-name)
                 "--backend" (symbol-name hi::*default-backend*))))
 
-(defun prompt-for-slave-command ()
+(defun prompt-for-slave-command (current-window)
   (cl-ppcre:split
    " "
    (hemlock-interface::prompt-for-string
+    current-window
     :prompt "Command: "
     :default (format nil "~{~A~^ ~}"
                      (slave-command-with-arguments)))))
 
-(defcommand "Start Slave Process" (p)
+(defcommand "Start Slave Process" (window p)
   "Create a new slave.  When given an argument, ask for a command first."
   ""
   (let ((info (create-slave (if p
-                                (prompt-for-slave-command)
+                                (prompt-for-slave-command window)
                                 (slave-command-with-arguments))
                             (pick-slave-buffer-names "Process"))))
     (change-to-buffer (server-info-slave-buffer info))))
 
-(defcommand "Start Slave Using Clbuild" (p)
+(defcommand "Start Slave Using Clbuild" (window p)
   "Create a new slave.  When given an argument, ask for a command first.
    Always defaults to clbuild as the slave startup method, even when
    the host lisp has a different default method."
@@ -628,13 +631,13 @@
   (let ((*slave-command* *clbuild-slave-command*))
     (start-slave-process-command p)))
 
-(defcommand "Start Slave Thread" (p)
+(defcommand "Start Slave Thread" (window p)
   "Create a new thread acting as a slave."
   ""
   (let ((info (create-slave-in-thread (pick-slave-buffer-names "Thread"))))
     (change-to-buffer (server-info-slave-buffer info))))
 
-(defcommand "Select Slave" (p)
+(defcommand "Select Slave" (window p)
   "" ""
   (let* ((info (or (get-current-eval-server)
                    (editor-error "No current eval server yet")))
@@ -643,7 +646,7 @@
       (editor-error "The current eval server doesn't have a slave buffer!"))
     (change-to-buffer slave)))
 
-(defcommand "Select Background" (p)
+(defcommand "Select Background" (window p)
   "Switch to the current slave's background buffer. When given an argument, use
    the current compile server instead of the current eval server."
   "Switch to the current slave's background buffer. When given an argument, use
@@ -658,7 +661,7 @@
     (change-to-buffer background)))
 
 #+NILGB
-(defcommand "Kill Slave" (p)
+(defcommand "Kill Slave" (window p)
   "This aborts any operations in the slave, tells the slave to QUIT, and shuts
    down the connection to the specified eval server.  This makes no attempt to
    assure the eval server actually dies."
@@ -671,6 +674,7 @@
     (multiple-value-bind
         (name info)
         (prompt-for-keyword
+         window
          (list *server-names*)
          :prompt "Kill Slave: "
          :help "Enter the name of the eval server you wish to destroy."
@@ -686,7 +690,7 @@
       (server-died info))))
 
 #+NILGB
-(defcommand "Kill Slave and Buffers" (p)
+(defcommand "Kill Slave and Buffers" (window p)
   "This is the same as \"Kill Slave\", but it also deletes the slaves
    interaction and background buffers."
   "This is the same as \"Kill Slave\", but it also deletes the slaves
@@ -697,6 +701,7 @@
     (multiple-value-bind
         (name info)
         (prompt-for-keyword
+         window
          (list *server-names*)
          :prompt "Kill Slave: "
          :help "Enter the name of the eval server you wish to destroy."
@@ -716,7 +721,7 @@
       (server-died info))))
 
 #+(or)
-(defcommand "Accept Slave Connections" (p)
+(defcommand "Accept Slave Connections" (window p)
   "This causes Hemlock to accept slave connections and displays the port of
    the editor's connections request server.  This is suitable for use with the
    Lisp's -slave switch.  Given an argument, this inhibits slave connections."
@@ -1423,7 +1428,8 @@
 ;;;;
 
 (defcommand "Start Swank Server"
-    (p &optional (port (hemlock-interface::prompt-for-integer
+    (window p &optional (port (hemlock-interface::prompt-for-integer
+                               window
                         :prompt "Port: "
                         :default-string "4005")))
   "" ""

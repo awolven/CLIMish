@@ -66,7 +66,7 @@
 
 ;;;; -- Commands --
 
-(defcommand "Undo" (p)
+(defcommand "Undo" (window p)
   "Undo last major change, kill, etc.
    Simple insertions and deletions cannot be undone.  If you change the buffer
    in this way before you undo, you may get slightly wrong results, but this
@@ -79,7 +79,7 @@
         (method-undo (undo-info-method-undo *undo-info*)))
     (if (not (eq buffer (current-buffer)))
         (editor-error "Undo info is for buffer ~S." (buffer-name buffer)))
-    (when (prompt-for-y-or-n :prompt (format nil "Undo the last ~A? "
+    (when (prompt-for-y-or-n window :prompt (format nil "Undo the last ~A? "
                                              (undo-info-name *undo-info*))
                              :must-exist t)
       (funcall (undo-info-method *undo-info*))

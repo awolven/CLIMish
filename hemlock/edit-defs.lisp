@@ -38,7 +38,7 @@
                  *definition-directory-translation-table*))
 
 
-(defcommand "Add Definition Directory Translation" (p)
+(defcommand "Add Definition Directory Translation" (window p)
   "Prompts for two directory namestrings and causes the first to be mapped to
    the second for definition editing commands.  Longer (more specific) directory
    specifications are match before shorter (more general) ones.  Successive
@@ -47,22 +47,22 @@
   "Prompts for two directory namestrings and causes the first to be mapped to
    the second for definition editing commands."
   (declare (ignore p))
-  (let* ((dir1 (prompt-for-file :prompt "Preimage dir1: "
+  (let* ((dir1 (prompt-for-file window :prompt "Preimage dir1: "
                                 :help "directory namestring."
                                 :must-exist nil))
-         (dir2 (prompt-for-file :prompt "Postimage dir2: "
+         (dir2 (prompt-for-file window :prompt "Postimage dir2: "
                                 :help "directory namestring."
                                 :must-exist nil)))
     (add-definition-dir-translation dir1 dir2)))
 
-(defcommand "Delete Definition Directory Translation" (p)
+(defcommand "Delete Definition Directory Translation" (window p)
   "Prompts for a directory namestring and deletes it from the directory
    translation table for the definition editing commands."
   "Prompts for a directory namestring and deletes it from the directory
    translation table for the definition editing commands."
   (declare (ignore p))
   (delete-definition-dir-translation
-   (prompt-for-file :prompt "Directory: "
+   (prompt-for-file window :prompt "Directory: "
                     :help "directory namestring."
                     :must-exist nil)))
 
@@ -127,7 +127,7 @@
    compilation."
   :value nil)
 
-(defcommand "Goto Definition" (p)
+(defcommand "Goto Definition" (window p)
   "Go to the current function/macro's definition.  If it isn't defined by a
    DEFUN or DEFMACRO form, then the defining file is simply found.  If the
    function is not compiled, then it is looked for in the current buffer."
@@ -142,11 +142,12 @@
       (let ((fun-name (region-to-string (region mark1 mark2))))
         (get-def-info-and-go-to-it fun-name)))))
 
-(defcommand "Edit Definition" (p)
+(defcommand "Edit Definition" (window p)
   "Prompts for function/macro's definition name and goes to it for editing."
   "Prompts for function/macro's definition name and goes to it for editing."
   (declare (ignore p))
   (let ((fun-name (prompt-for-string
+                   window
                    :prompt "Name: "
                    :help "Symbol name of function.")))
     (get-def-info-and-go-to-it fun-name)))
@@ -178,17 +179,17 @@
 ;;; "Go to Definition" for commands called as functions), fixing the code,
 ;;; or we can hack this command so everything works.
 ;;;
-(defcommand "Edit Command Definition" (p)
+(defcommand "Edit Command Definition" (window p)
   "Prompts for command definition name and goes to it for editing."
   "Prompts for command definition name and goes to it for editing."
   (multiple-value-bind
       (name command)
       (if p
           (multiple-value-bind (key cmd)
-                               (prompt-for-key :prompt "Edit command bound to: ")
+                               (prompt-for-key window :prompt "Edit command bound to: ")
             (declare (ignore key))
             (values (command-name cmd) cmd))
-          (prompt-for-keyword (list *command-names*)
+          (prompt-for-keyword window (list *command-names*)
                               :prompt "Command to edit: "))
     (go-to-definition (fun-defined-from-pathname (command-function command))
                       :function

@@ -96,15 +96,7 @@
         (unless (probe-file f)
           (return f))))))
 
-(defhvar "Auto Save Pathname Hook"
-  "This hook is called by Auto Save to get a checkpoint pathname when there
-   is no pathname associated with a buffer.  If this value is NIL, then
-   \"Save\" mode is turned off in the buffer.  Otherwise, the function
-   will be called. It should take a buffer as its argument and return either
-   NIL or a pathname.  If NIL is returned, then \"Save\" mode is turned off
-   in the buffer;  else the pathname returned is used as the checkpoint
-   pathname for the buffer."
-  :value #'make-unique-save-pathname)
+
 
 
 ;;; MAKE-BUFFER-CKP-PATHNAME attempts to form a pathname by using the buffer's
@@ -234,7 +226,7 @@
                (probe-file ckp-pathname))
       (delete-file ckp-pathname))))
 
-(add-hook write-file-hook 'cleanup-checkpoint)
+
 
 ;;;
 ;;; notice-buffer-modified -- Internal
@@ -248,7 +240,7 @@
   (when (not flag)
     (reset-auto-save-state buffer)))
 
-(add-hook buffer-modified-hook 'notice-buffer-modified)
+
 
 ;;;
 ;;; change-save-frequency -- Internal
@@ -307,45 +299,10 @@
               (setf (save-state-key-signature state) signature)
               (incf (save-state-key-count state)))))))))
 
-(add-hook input-hook 'auto-save-count-keys)
+
 
 
-;;;; Save Mode Hemlock Variables
 
-;;;
-;;; Hemlock variables/parameters for Auto-Save Mode
-;;;
-
-(defhvar "Auto Save Filename Pattern"
-  "This control-string is used with format to make the filename of the
-  checkpoint file.  Format is called with two arguments, the first
-  being the directory namestring and the second being the file
-  namestring of the default buffer pathname."
-  :value "~A~A.CKP")
-
-(defhvar "Auto Save Key Count Threshold"
-  "This value is the number of destructive/modifying keystrokes that will
-  automatically trigger an checkpoint.  This value may be NIL to turn this
-  feature off."
-  :value 256)
-
-(defhvar "Auto Save Cleanup Checkpoints"
-  "This variable controls whether or not \"Save\" mode will delete the
-  checkpoint file for a buffer after it is saved.  If this value is
-  non-NIL then cleanup will occur."
-  :value t)
-
-(defhvar "Auto Save Checkpoint Frequency"
-  "All modified buffers (in \"Save\" mode) will be checkpointed after this
-  amount of time (in seconds).  This value may be NIL (or non-positive)
-  to turn this feature off."
-  :value (* 2 60)
-  :hooks '(change-save-frequency))
-
-(defhvar "Auto Save State"
-  "Shadow magic.  This variable is seen when in buffers that are not
-  in \"Save\" mode.  Do not change this value or you will lose."
-  :value nil)
 
 
 ;;;; "Save" mode
@@ -387,6 +344,4 @@
   (delete-variable 'auto-save-state
                    :buffer buffer))
 
-(defmode "Save"
-  :setup-function 'setup-auto-save-mode
-  :cleanup-function 'cleanup-auto-save-mode)
+

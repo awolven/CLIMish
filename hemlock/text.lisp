@@ -17,10 +17,7 @@
 
 ;;;; -- New Variables --
 
-(defhvar "Paragraph Delimiter Function"
-  "The function that returns whether or not the current line should break the
-  paragraph."
-  :value 'default-para-delim-function)
+
 
 ;;; The standard paragraph delimiting function is DEFAULT-PARA-DELIM-FUNCTION
 (defun default-para-delim-function (mark)

@@ -254,7 +254,7 @@
 ;;; modifier identifier.
 ;;;
 (defvar *id-namestring*
-  (make-array 30 :adjustable t :fill-pointer 0 :element-type 'base-char))
+  (make-array 30 :adjustable t :fill-pointer 0 :element-type 'character))
 
 ;;; PARSE-KEY-FUN -- Internal.
 ;;;

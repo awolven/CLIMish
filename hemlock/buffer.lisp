@@ -1,10 +1,15 @@
 (in-package :hemlock-internals)
 
-(declaim (special *current-buffer* ; because it is defined too late --amb
+(declaim (special ;;*current-buffer* ; because it is defined too late --amb
                   *global-variable-names* ; defined in main.lisp --amb
                   ))
 
+
+
 ;;;; Some buffer structure support.
+
+(define-symbol-macro *current-buffer*
+    (window-buffer (current-window)))
 
 (defun buffer-writable (buffer)
   "Returns whether buffer may be modified."
@@ -141,27 +146,27 @@
 ;;; (buffer-mode-objects *current-buffer*) is clobbered.  If "mode" is NIL
 ;;; unwind all bindings.
 ;;;
-(defun unwind-bindings (mode)
-  (unbind-variable-bindings (buffer-var-values *current-buffer*))
-  (do ((curmode (buffer-mode-objects *current-buffer*))
+(defun unwind-bindings (mode current-buffer)
+  (unbind-variable-bindings (buffer-var-values current-buffer))
+  (do ((curmode (buffer-mode-objects current-buffer))
        (unwound ()) cw)
       (())
     (setf cw curmode  curmode (cdr curmode)  (cdr cw) unwound  unwound cw)
     (unbind-variable-bindings (mode-object-var-values (car unwound)))
     (when (or (null curmode) (eq (car unwound) mode))
-      (setf (buffer-mode-objects *current-buffer*) curmode)
+      (setf (buffer-mode-objects current-buffer) curmode)
       (return unwound))))
 
 ;;; WIND-BINDINGS  --  Internal
 ;;;
 ;;;    Add "modes" to the mode bindings currently in effect.
 ;;;
-(defun wind-bindings (modes)
-  (do ((curmode (buffer-mode-objects *current-buffer*)) cw)
-      ((null modes) (setf (buffer-mode-objects *current-buffer*) curmode))
+(defun wind-bindings (modes current-buffer)
+  (do ((curmode (buffer-mode-objects current-buffer)) cw)
+      ((null modes) (setf (buffer-mode-objects current-buffer) curmode))
     (bind-variable-bindings (mode-object-var-values (car modes)))
     (setf cw modes  modes (cdr modes)  (cdr cw) curmode  curmode cw))
-  (bind-variable-bindings (buffer-var-values *current-buffer*)))
+  (bind-variable-bindings (buffer-var-values current-buffer)))
 
 ;;;; BUFFER-MAJOR-MODE.
 
@@ -192,17 +197,17 @@
 ;;;other than the current buffer, and in the reverse order in the
 ;;;current buffer.
 ;;;
-(defun (setf buffer-major-mode) (name buffer)
+(defun (setf buffer-major-mode) (name buffer current-buffer)
   "Set the major mode of some buffer to the Name'd mode."
   (with-mode-and-buffer (name t buffer)
     (invoke-hook hemlock::buffer-major-mode-hook buffer name)
     (cond
-     ((eq buffer *current-buffer*)
+     ((eq buffer current-buffer)
       (let ((old-mode (car (last (buffer-mode-objects buffer)))))
         (invoke-hook (%value (mode-object-hook-name old-mode)) buffer nil)
         (funcall (mode-object-cleanup-function old-mode) buffer)
         (swap-char-attributes old-mode)
-        (wind-bindings (cons mode (cdr (unwind-bindings old-mode))))
+        (wind-bindings (cons mode (cdr (unwind-bindings old-mode current-buffer))) current-buffer)
         (swap-char-attributes mode)))
      (t
       (let ((old-mode (car (buffer-mode-objects buffer))))
@@ -235,7 +240,7 @@
 ;;;    Activate or deactivate a minor mode, with due respect for
 ;;; bindings.
 ;;;
-(defun (setf buffer-minor-mode) (new-value buffer name)
+(defun (setf buffer-minor-mode) (new-value buffer current-buffer name)
   "Turn a buffer minor mode on or off."
   (let ((objects (buffer-mode-objects buffer)))
     (with-mode-and-buffer (name nil buffer)
@@ -246,7 +251,7 @@
        ;; Adding a new mode.
        (new-value
         (cond
-         ((eq buffer *current-buffer*)
+         ((eq buffer current-buffer)
           ;;
           ;; Unwind bindings having higher precedence, cons on the new
           ;; mode and then wind them back on again.
@@ -257,9 +262,10 @@
                       (mode-object-precedence mode)))
                (wind-bindings
                 (cons mode (if prev
-                               (unwind-bindings prev)
+                               (unwind-bindings prev current-buffer)
                                (unbind-variable-bindings
-                                (buffer-var-values *current-buffer*))))))))
+                                (buffer-var-values current-buffer))))
+		current-buffer))))
          (t
           (do ((m (cdr objects) (cdr m))
                (prev objects m))
@@ -283,8 +289,8 @@
         (funcall (mode-object-cleanup-function mode) buffer)
         ;; In the current buffer, unwind buffer and any mode bindings on top
         ;; pop off the mode and wind the rest back on.
-        (cond ((eq buffer *current-buffer*)
-               (wind-bindings (cdr (unwind-bindings mode))))
+        (cond ((eq buffer current-buffer)
+               (wind-bindings (cdr (unwind-bindings mode current-buffer)) current-buffer))
               (t
                (setf (buffer-mode-objects buffer)
                      (delq mode (buffer-mode-objects buffer)))))
@@ -294,32 +300,32 @@
 
 ;;;; CURRENT-BUFFER, CURRENT-POINT, and buffer using setup and cleanup.
 
-(declaim (inline current-buffer))
+;;(declaim (inline current-buffer))
 
-(defun current-buffer () "Return the current buffer object." *current-buffer*)
+;;(defun current-buffer () "Return the current buffer object." (or *initial-buffer* *current-buffer*))
 
-(defun current-point ()
+(defun current-point (current-buffer)
   "Return the Buffer-Point of the current buffer."
-  (buffer-point *current-buffer*))
+  (buffer-point current-buffer))
 
 ;;; (SETF CURRENT-BUFFER)  --  Internal
 ;;;
 ;;;    Undo previous buffer and mode specific variables and character
 ;;;attributes and set up the new ones.  Set *current-buffer*.
 ;;;
-(defun (setf current-buffer) (buffer)
+(defun (setf current-buffer) (buffer current-buffer)
   "Set the current buffer, doing necessary stuff."
-  (let ((old-buffer *current-buffer*))
+  (let ((old-buffer current-buffer))
     (check-type buffer buffer)
     (invoke-hook hemlock::set-buffer-hook buffer)
     ;; Undo old bindings.
-    (setf (buffer-mode-objects *current-buffer*)
-          (unwind-bindings nil))
-    (swap-char-attributes (car (buffer-mode-objects *current-buffer*)))
-    (setq *current-buffer* buffer)
-    (swap-char-attributes (car (buffer-mode-objects *current-buffer*)))
+    (setf (buffer-mode-objects current-buffer)
+          (unwind-bindings nil current-buffer))
+    (swap-char-attributes (car (buffer-mode-objects current-buffer)))
+    (setf *current-buffer* buffer)
+    (swap-char-attributes (car (buffer-mode-objects current-buffer)))
     ;; Make new bindings.
-    (wind-bindings (shiftf (buffer-mode-objects *current-buffer*) nil))
+    (wind-bindings (shiftf (buffer-mode-objects current-buffer) nil) current-buffer)
     (invoke-hook hemlock::after-set-buffer-hook old-buffer))
   buffer)
 
@@ -328,23 +334,23 @@
 ;;;    This function is called by the use-buffer macro to wind on the
 ;;; new buffer's variable and key bindings and character attributes.
 ;;;
-(defun use-buffer-set-up (old-buffer)
-  (unless (eq old-buffer *current-buffer*)
+(defun use-buffer-set-up (old-buffer current-buffer)
+  (unless (eq old-buffer current-buffer)
     ;; Let new char attributes overlay old ones.
-    (swap-char-attributes (car (buffer-mode-objects *current-buffer*)))
+    (swap-char-attributes (car (buffer-mode-objects current-buffer)))
     ;; Wind on bindings of new current buffer.
-    (wind-bindings (shiftf (buffer-mode-objects *current-buffer*) nil))))
+    (wind-bindings (shiftf (buffer-mode-objects current-buffer) nil) current-buffer)))
 
 ;;; USE-BUFFER-CLEAN-UP  --  Internal
 ;;;
 ;;;    This function is called by use-buffer to clean up after it is done.
 ;;;
-(defun use-buffer-clean-up (old-buffer)
-  (unless (eq old-buffer *current-buffer*)
+(defun use-buffer-clean-up (old-buffer current-buffer)
+  (unless (eq old-buffer current-buffer)
     ;; When we leave, unwind the bindings,
-    (setf (buffer-mode-objects *current-buffer*) (unwind-bindings nil))
+    (setf (buffer-mode-objects current-buffer) (unwind-bindings nil current-buffer))
     ;; Restore the character attributes,
-    (swap-char-attributes (car (buffer-mode-objects *current-buffer*)))))
+    (swap-char-attributes (car (buffer-mode-objects current-buffer)))))
 
 ;;;; Recursive editing.
 
@@ -369,12 +375,12 @@
   the recursive edit to be aborted."
   (invoke-hook hemlock::enter-recursive-edit-hook)
   (multiple-value-bind (flag args)
-                       (let ((*in-a-recursive-edit* t))
-                         (catch 'leave-recursive-edit
-                           (if handle-abort
-                               (loop (catch 'editor-top-level-catcher
-                                       (%command-loop)))
-                               (%command-loop))))
+      (let ((*in-a-recursive-edit* t))
+	(catch 'leave-recursive-edit
+	  (if handle-abort
+	      (loop (catch 'editor-top-level-catcher
+		      (krma.gui::command-loop (krma.gui::main-window krma.gui::*app*))))
+	      (krma.gui::command-loop (krma.gui::main-window krma.gui::*app*)))))
     (case flag
       (:abort (apply #'editor-error args))
       (:exit (values-list args))
@@ -392,6 +398,7 @@
     (error "Not in a recursive edit!"))
   (invoke-hook hemlock::exit-recursive-edit-hook values)
   (throw 'leave-recursive-edit (values :exit values)))
+  
 
 ;;; ABORT-RECURSIVE-EDIT is intended to be called within the dynamic context
 ;;; of RECURSIVE-EDIT, causing EDITOR-ERROR to be called on args.  When not
@@ -434,7 +441,7 @@
 
 (defun defmode (name &key (setup-function #'identity)
                      (cleanup-function #'identity) major-p transparent-p
-                     precedence documentation)
+                     precedence documentation current-buffer)
   "Define a new mode, specifying whether it is a major mode, and what the
    setup and cleanup functions are.  Precedence, which defaults to 0.0, and is
    any integer or float, determines the order of the minor modes in a buffer.
@@ -461,7 +468,8 @@
      (t
       (defhvar hook-str
                (concatenate 'string "This is the mode hook variable for "
-               name " Mode."))
+			    name " Mode.")
+	:current-buffer current-buffer)			    
       (setq mode (make-mode-object
                   :variables (make-string-table)
                   :bindings (make-hash-table)
@@ -502,9 +510,12 @@
 
 (defvar *buffer-list* () "A list of all the buffer objects.")
 
-(defvar *current-buffer* ()
-  "Internal variable which might contain the current buffer." )
+;;(defvar *current-buffer* ()
+;;"Internal variable which might contain the current buffer." )
 
+
+
+#+NOMORE
 (defun make-buffer (name &key (modes (value hemlock::default-modes))
                               (modeline-fields
                                (value hemlock::default-modeline-fields))
@@ -541,10 +552,10 @@
            (invoke-hook hemlock::make-buffer-hook buffer)
            buffer))))
 
-(defun delete-buffer (buffer)
+(defun delete-buffer (buffer current-buffer)
   "Deletes a buffer.  If buffer is current, or if it is displayed in any
    windows, an error is signaled."
-  (when (eq buffer *current-buffer*)
+  (when (eq buffer current-buffer)
     (error "Cannot delete current buffer ~S." buffer))
   (when (buffer-windows buffer)
     (error "Cannot delete buffer ~S, which is displayed in ~R window~:P."
@@ -581,6 +592,7 @@
 ;;; init file.  After the main buffer is created we then define the real
 ;;; fundamental mode and bash it into the buffer.
 ;;;
+
 (defun setup-initial-buffer ()
   ;; Make it look like the mode is there so make-buffer doesn't die.
   (setf (getstring "Fundamental" *mode-names*)
@@ -590,15 +602,18 @@
   (setf (get 'hemlock::make-buffer-hook 'hemlock-variable-value)
         (make-variable-object "foo" "bar"))
 
-  (setq *current-buffer* (make-instance 'krma.gui::text-editor-buffer :name "Main" :modes '("Fundamental")
-                                             :modeline-fields nil))
+  (let ((initial-buffer (make-instance 'buffer :name "Main" :modes '("Fundamental")
+				       :modeline-fields nil)))
 
-  ;; Make the bogus variable go away...
-  #+NIL(remf (symbol-plist 'hemlock::make-buffer-hook) 'hemlock-variable-value)
-  ;; Make it go away so defmode doesn't die.
-  (setf (getstring "Fundamental" *mode-names*) nil)
-  (defmode "Fundamental" :major-p t)
-  ;; Bash the real mode object into the buffer.
-  (let ((obj (getstring "Fundamental" *mode-names*)))
-    (setf (car (buffer-mode-objects *current-buffer*)) obj
-          (car (buffer-modes *current-buffer*)) (mode-object-name obj))))
+    ;; Make the bogus variable go away...
+    #+NIL(remf (symbol-plist 'hemlock::make-buffer-hook) 'hemlock-variable-value)
+    ;; Make it go away so defmode doesn't die.
+    (setf (getstring "Fundamental" *mode-names*) nil)
+    (defmode "Fundamental" :major-p t :current-buffer initial-buffer)
+    ;; Bash the real mode object into the buffer.
+    (let ((obj (getstring "Fundamental" *mode-names*)))
+      (setf (car (buffer-mode-objects initial-buffer)) obj
+	    (car (buffer-modes initial-buffer)) (mode-object-name obj)))
+    initial-buffer))
+
+

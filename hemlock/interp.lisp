@@ -387,8 +387,8 @@
 (defvar *current-command* (make-array 10 :fill-pointer 0 :adjustable t))
 (defvar *current-translation* (make-array 10 :fill-pointer 0 :adjustable t))
 
-(defvar *invoke-hook* #'(lambda (command p)
-                          (funcall (command-function command) p))
+(defvar *invoke-hook* #'(lambda (command window p)
+                          (funcall (command-function command) window p))
   "This function is called by the command interpreter when it wants to invoke a
   command.  The arguments are the command to invoke and the prefix argument.
   The default value just calls the Command-Function with the prefix argument.")

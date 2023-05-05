@@ -1,8 +1,5 @@
 (in-package :cl-user)
 
-;; deleteme
-(defpackage :osicat)
-
 (defpackage :hemlock-interface
     (:use)
   (:export

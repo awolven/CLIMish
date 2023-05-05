@@ -2,12 +2,10 @@
 
 (in-package :hemlock)
 
-(defmode "Grep" :major-p t
-  :documentation
-  "Grep results")
+
 
 (defcommand "Grep"
-    (p &optional (command (hi::prompt-for-string
+    (window p &optional (command (hi::prompt-for-string window
                            :prompt "Run grep (like this): "
                            :default "grep -nH -e "))
                  (directory (default-directory)))
@@ -16,7 +14,7 @@
   (setf (buffer-major-mode (shell-command-command p command directory))
         "Grep"))
 
-(defcommand "Grep Goto" (p)
+(defcommand "Grep Goto" (window p)
   "" ""
   (declare (ignore p))
   (cl-ppcre:register-groups-bind (file line)

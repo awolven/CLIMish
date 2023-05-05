@@ -218,8 +218,10 @@
 ;;;
 ;;;    Define a Hemlock variable somewhere.
 ;;;
-(defun defhvar (name documentation &key mode buffer (hooks nil hook-p)
-                     (value nil value-p))
+(defun defhvar (name documentation &key mode buffer
+				     (hooks nil hook-p)
+				     (value nil value-p)
+				     current-buffer)
   (let* ((symbol-name (string-to-variable name))
          (new-binding (make-variable-object documentation name))
          (plist (symbol-plist symbol-name))
@@ -235,10 +237,10 @@
          (setq string-table (mode-object-variables obj))
          (unless (find-binding symbol-name vars)
            (let ((binding (make-binding prop new-binding vars symbol-name)))
-             (cond ((member obj (buffer-mode-objects (current-buffer)))
-                    (let ((l (unwind-bindings obj)))
+             (cond ((member obj (buffer-mode-objects current-buffer))
+                    (let ((l (unwind-bindings obj current-buffer)))
                       (setf (mode-object-var-values obj) binding)
-                      (wind-bindings l)))
+                      (wind-bindings l current-buffer)))
                    (t
                     (setf (mode-object-var-values obj) binding)))))))
       (buffer
@@ -248,16 +250,16 @@
          (unless (find-binding symbol-name vars)
            (let ((binding (make-binding prop new-binding vars symbol-name)))
              (setf (buffer-var-values buffer) binding)
-             (when (eq buffer (current-buffer))
+             (when (eq buffer current-buffer)
                (setf (variable-object-down new-binding) (car prop)
                      (car prop) new-binding))))))
       (t
        (setq string-table *global-variable-names*)
        (unless (hemlock-bound-p symbol-name :global)
          (setf (variable-object-down new-binding) :global)
-         (let ((l (unwind-bindings nil)))
+         (let ((l (unwind-bindings nil current-buffer)))
            (setf (car prop) new-binding)
-           (wind-bindings l)))))
+           (wind-bindings l current-buffer)))))
     (setf (getstring name string-table) symbol-name)
     (when hook-p
       (setf (variable-hooks symbol-name kind where) hooks))

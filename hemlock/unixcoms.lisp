@@ -66,7 +66,7 @@
     (print-something (:input s))))
 
 
-(defcommand "Print Buffer" (p)
+(defcommand "Print Buffer" (window p)
   "Prints the current buffer using the program defined by the hvar
    \"Print Utility\" with the options from the hvar \"Print Utility
    Options\".   Errors appear in the echo area."
@@ -75,7 +75,7 @@
   (message "Printing buffer...~%")
   (print-region (buffer-region (current-buffer))))
 
-(defcommand "Print Region" (p)
+(defcommand "Print Region" (window p)
   "Prints the current region using the program defined by the hvar
    \"Print Utility\" with the options from the hvar \"Print Utility
    Options\".  Errors appear in the echo area."
@@ -84,13 +84,13 @@
   (message "Printing region...~%")
   (print-region (current-region)))
 
-(defcommand "Print File" (p)
+(defcommand "Print File" (window p)
   "Prompts for a file and prints it usings the program defined by
    the hvar \"Print Utility\" with the options from the hvar \"Print
    Utility Options\".  Errors appear in the echo area."
   "Prints a file."
   (declare (ignore p))
-  (let* ((pn (prompt-for-file :prompt "File to print: "
+  (let* ((pn (prompt-for-file window :prompt "File to print: "
                               :help "Name of file to print."
                               :default (buffer-default-pathname (current-buffer))
                               :must-exist t))
@@ -102,7 +102,7 @@
 
 ;;;; Scribe.
 
-(defcommand "Scribe File" (p)
+(defcommand "Scribe File" (window p)
   "Scribe a file with the default directory set to the directory of the
    specified file.  The output from running Scribe is sent to the
    \"Scribe Warnings\" buffer.  See \"Scribe Utility\" and \"Scribe Utility
@@ -110,7 +110,7 @@
   "Scribe a file with the default directory set to the directory of the
    specified file."
   (declare (ignore p))
-  (scribe-file (prompt-for-file :prompt "Scribe file: "
+  (scribe-file (prompt-for-file window :prompt "Scribe file: "
                                 :default
                                 (buffer-default-pathname (current-buffer)))))
 
@@ -119,7 +119,7 @@
    anything."
   :value t)
 
-(defcommand "Scribe Buffer File" (p)
+(defcommand "Scribe Buffer File" (window p)
   "Scribe the file associated with the current buffer.  The default directory
    set to the directory of the file.  The output from running Scribe is sent to
    the \"Scribe Warnings\" buffer.  See \"Scribe Utility\" and \"Scribe Utility
@@ -134,6 +134,7 @@
          (modified (buffer-modified buffer)))
     (when (or (not (value scribe-buffer-file-confirm))
               (prompt-for-y-or-n
+               window
                :default t :default-string "Y"
                :prompt (list "~:[S~;Save and s~]cribe file ~A? "
                              modified (namestring pathname))))
@@ -172,7 +173,7 @@
 
 ;;;; UNIX Filter Region
 
-(defcommand "Unix Filter Region" (p)
+(defcommand "Unix Filter Region" (window p)
   "Unix Filter Region prompts for a UNIX program and then passes the current
   region to the program as standard input.  The standard output from the
   program is used to replace the region.  This command is undo-able."
@@ -181,6 +182,7 @@
   (declare (ignore p))
   (let* ((region (current-region))
          (filter-and-args (prompt-for-string
+                           window
                            :prompt "Filter: "
                            :help "Unix program to filter the region through."))
          (filter-and-args-list (listify-unix-filter-string filter-and-args))
@@ -223,12 +225,12 @@
 
 ;;;; Man pages.
 
-(defcommand "Manual Page" (p)
+(defcommand "Manual Page" (window p)
   "Read the Unix manual pages in a View buffer.
    If given an argument, this will put the man page in a Pop-up display."
   "Read the Unix manual pages in a View buffer.
    If given an argument, this will put the man page in a Pop-up display."
-  (let ((topic (prompt-for-string :prompt "Man topic: ")))
+  (let ((topic (prompt-for-string window :prompt "Man topic: ")))
     (if p
         (with-pop-up-display (stream)
           (execute-man topic stream))

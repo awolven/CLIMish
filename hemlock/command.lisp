@@ -15,24 +15,24 @@
 
 ;;; Make a mark for buffers as they're consed:
 
-(defun hcmd-new-buffer-hook-fun (buff)
+(defun hcmd-new-buffer-hook-fun (buff current-buffer)
   (let ((ring (make-ring 10 #'delete-mark)))
     (defhvar "Buffer Mark Ring"
       "This variable holds this buffer's mark ring."
       :buffer buff
-      :value ring)
+      :value ring
+      :current-buffer current-buffer)
     (ring-push (copy-mark (buffer-point buff) :right-inserting) ring)))
 
-(add-hook make-buffer-hook #'hcmd-new-buffer-hook-fun)
-(dolist (buff *buffer-list*) (hcmd-new-buffer-hook-fun buff))
 
-(defcommand "Exit Hemlock" (p)
+
+(defcommand "Exit Hemlock" (window p)
   "Exit hemlock returning to the Lisp top-level read-eval-print loop."
   "Exit hemlock returning to the Lisp top-level read-eval-print loop."
   (declare (ignore p))
   (exit-hemlock))
 
-(defcommand "Pause Hemlock" (p)
+(defcommand "Pause Hemlock" (window p)
   "Pause the Hemlock/Lisp process returning to the process that invoked the
    Lisp."
   "Pause the Hemlock/Lisp process returning to the process that invoked the
@@ -44,7 +44,8 @@
 
 ;;;; Simple character manipulation:
 
-(defcommand "Self Insert" (p)
+#+NIL
+(defcommand "Self Insert" (window p)
   "Insert the last character typed.
   With prefix argument insert the character that many times."
   "Implements ``Self Insert'', calling this function is not meaningful."
@@ -59,7 +60,7 @@
     (hi::update-all-buffer-windows
      buffer)))
 
-(defcommand "Quoted Insert" (p)
+(defcommand "Quoted Insert" (window p)
   "Read a character from the terminal and insert it.
   With prefix argument, insert the character that many times."
   "Reads a key-event from *editor-input* and inserts it at the point."
@@ -74,14 +75,13 @@
     (hi::update-all-buffer-windows
      buffer )))
 
-(defcommand "Forward Character" (p)
+(defcommand "Forward Character" (window p)
     "Move the point forward one character.
    With prefix argument move that many characters, with negative argument
    go backwards."
     "Move the point of the current buffer forward p characters."
   (let ((p (or p 1)))
-    (let* ((window (current-window))
-           (buffer (window-buffer window)))
+    (let* ((buffer (window-buffer window)))
       (with-buffer-globals (buffer)
         (cond ((character-offset .point. p))
               ((= p 1)
@@ -96,14 +96,14 @@
       (maybe-rebottom-current-on-mark-then-update-all-buffer-windows
        buffer (buffer-point buffer) window))))
 
-(defcommand "Backward Character" (p)
+(defcommand "Backward Character" (window p)
   "Move the point backward one character.
   With prefix argument move that many characters backward."
   "Move the point p characters backward."
-  (forward-character-command (if p (- p) -1)))
+  (forward-character-command window (if p (- p) -1)))
 
 #|
-(defcommand "Delete Next Character" (p)
+(defcommand "Delete Next Character" (window p)
   "Deletes the character to the right of the point.
   With prefix argument, delete that many characters to the right
   (or left if prefix is negative)."
@@ -112,7 +112,7 @@
     (buffer-end (current-point))
     (editor-error "No next character.")))
 
-(defcommand "Delete Previous Character" (p)
+(defcommand "Delete Previous Character" (window p)
   "Deletes the character to the left of the point.
   With prefix argument, delete that many characters to the left
   (or right if prefix is negative)."
@@ -121,26 +121,26 @@
     (editor-error "No previous character.")))
 |#
 
-(defcommand "Delete Next Character" (p)
+(defcommand "Delete Next Character" (window p)
   "Deletes the character to the right of the point.
    With prefix argument, delete that many characters to the right
   (or left if prefix is negative)."
     "Deletes p characters to the right of the point."
-  (cond ((with-buffer-globals ((current-buffer))
+  (cond ((with-buffer-globals ((window-buffer window))
            (.kill-characters. .point. (or p 1))))
         ((and p (minusp p))
          (editor-error "Not enough previous characters."))
         (t
          (editor-error "Not enough next characters."))))
 
-(defcommand "Delete Previous Character" (p)
+(defcommand "Delete Previous Character" (window p)
   "Deletes the character to the left of the point.
    Will push characters from successive deletes on to the kill ring."
   "Deletes the character to the left of the point.
    Will push characters from successive deletes on to the kill ring."
-  (delete-next-character-command (- (or p 1))))
+  (delete-next-character-command window (- (or p 1))))
 
-(defcommand "Transpose Characters" (p)
+(defcommand "Transpose Characters" (window p)
     "Exchanges the characters on either side of the point and moves forward
   With prefix argument, does this that many times.  A negative prefix
   argument causes the point to be moved backwards instead of forwards."
@@ -192,7 +192,7 @@
           ((null (find-attribute mark :word-delimiter))
            (return nil))))))
 
-(defcommand "Forward Word" (p)
+(defcommand "Forward Word" (window p)
   "Moves forward one word.
   With prefix argument, moves the point forward over that many words."
     "Moves the point forward p words."
@@ -205,11 +205,11 @@
            (buffer-end .point. .buffer.)
            (editor-error "No next word.")))))
 
-(defcommand "Backward Word" (p)
+(defcommand "Backward Word" (window p)
   "Moves forward backward word.
   With prefix argument, moves the point back over that many words."
   "Moves the point backward p words."
-  (forward-word-command (- (or p 1))))
+  (forward-word-command window (- (or p 1))))
 
 
 
@@ -222,7 +222,7 @@
        *target-column*
        (setq *target-column* (hi::.mark-column. ,mark))))
 
-(defcommand "Next Line" (p)
+(defcommand "Next Line" (window p)
     "Moves the point to the next line.
    With prefix argument, moves the point that many lines down (or up if
    the prefix is negative)."
@@ -257,21 +257,21 @@
     (maybe-recenter-current-on-mark-then-update-all-buffer-windows
      b (buffer-point b) cw)))
 
-(defcommand "Previous Line" (p)
+(defcommand "Previous Line" (window p)
   "Moves the point to the previous line.
   With prefix argument, moves the point that many lines up (or down if
   the prefix is negative)."
   "Moves the point up p lines."
-  (next-line-command (- (or p 1))))
+  (next-line-command window (- (or p 1))))
 
-(defcommand "Mark to End of Buffer" (p)
+(defcommand "Mark to End of Buffer" (window p)
   "Sets the current region from point to the end of the buffer."
   "Sets the current region from point to the end of the buffer."
   (declare (ignore p))
   (with-buffer-globals ((window-buffer (current-window)))
     (push-buffer-mark .buffer. (buffer-end (copy-mark .point.) .buffer.) t)))
 
-(defcommand "Mark to Beginning of Buffer" (p)
+(defcommand "Mark to Beginning of Buffer" (window p)
   "Sets the current region from the beginning of the buffer to point."
   "Sets the current region from the beginning of the buffer to point."
   (declare (ignore p))
@@ -279,7 +279,7 @@
     (push-buffer-mark .buffer. (buffer-start (copy-mark .point.) .buffer.) t)))
 
 
-(defcommand "Beginning of Buffer" (p)
+(defcommand "Beginning of Buffer" (window p)
   "Moves the point to the beginning of the current buffer."
     "Moves the point to the beginning of the current buffer."
   (let* ((window (current-window))
@@ -292,7 +292,7 @@
     (maybe-recenter-current-on-mark-then-update-all-buffer-windows
      buffer (buffer-point buffer) window)))
 
-(defcommand "End of Buffer" (p)
+(defcommand "End of Buffer" (window p)
   "Moves the point to the end of the current buffer."
     "Moves the point to the end of the current buffer."
   (let* ((window (current-window))
@@ -302,7 +302,7 @@
     (maybe-rebottom-current-on-mark-then-update-all-buffer-windows
      buffer (buffer-point buffer) window)))
 
-(defcommand "Beginning of Line" (p)
+(defcommand "Beginning of Line" (window p)
   "Moves the point to the beginning of the current line.
   With prefix argument, moves the point to the beginning of the prefix'th
   next line."
@@ -314,7 +314,7 @@
         (unless (line-offset point (if p p 0)) (editor-error "No such line."))
         (line-start point)))))
 
-(defcommand "End of Line" (p)
+(defcommand "End of Line" (window p)
   "Moves the point to the end of the current line.
   With prefix argument, moves the point to the end of the prefix'th next line."
     "Moves the point down p lines and then to the end of the line."
@@ -325,22 +325,9 @@
         (unless (line-offset point (if p p 0)) (editor-error "No such line."))
         (line-end point)))))
 
-(defhvar "Scroll Overlap"
-  "The \"Scroll Window\" commands leave this much overlap between screens."
-  :value 2)
 
-(defhvar "Scroll Redraw Ratio"
-  "This is a ratio of \"inserted\" lines to the size of a window.  When this
-   ratio is exceeded, insert/delete line terminal optimization is aborted, and
-   every altered line is simply redrawn as efficiently as possible.  For example,
-   setting this to 1/4 will cause scrolling commands to redraw the entire window
-   instead of moving the bottom two lines of the window to the top (typically
-   3/4 of the window is being deleted upward and inserted downward, hence a
-   redraw); however, commands line \"New Line\" and \"Open Line\" will still
-   efficiently, insert a line moving the rest of the window's text downward."
-  :value 1/4)
 
-(defcommand "Scroll Window Down" (p &optional (window (current-window)))
+(defcommand "Scroll Window Down" (window p)
   "Move down one screenfull.
   With prefix argument scroll down that many lines."
   "If P is NIL then scroll Window, which defaults to the current
@@ -368,7 +355,7 @@
               (hi::.scroll-window. window (if (<= height overlap)
                                               height (- height overlap)))))))))
 
-(defcommand "Scroll Window Up" (p &optional (window (current-window)))
+(defcommand "Scroll Window Up" (window p)
     "Move up one screenfull.
   With prefix argument scroll up that many lines."
     "If P is NIL then scroll Window, which defaults to the current
@@ -385,7 +372,7 @@
               (hi::.scroll-window. window (if (>= height overlap)
                                               height (- height overlap)))))))))
 
-(defcommand "Mousewheel Scroll" (p)
+(defcommand "Mousewheel Scroll" (window p)
     "Use mousewheel to scroll."
     "Use mousewheel to scroll."
   (declare (ignore p))
@@ -397,21 +384,21 @@
       (with-buffer-globals ((window-buffer window))
         (hi::.scroll-window. window (- (* 2 (round y))))))))
 
-(defcommand "Scroll Next Window Down" (p)
+(defcommand "Scroll Next Window Down" (window p)
   "Do a \"Scroll Window Down\" on the next window."
   "Do a \"Scroll Window Down\" on the next window."
   (let ((win (next-window (current-window))))
     (when (eq win (current-window)) (editor-error "Only one window."))
     (scroll-window-down-command p win)))
 
-(defcommand "Scroll Next Window Up" (p)
+(defcommand "Scroll Next Window Up" (window p)
   "Do a \"Scroll Window Up\" on the next window."
   "Do a \"Scroll Window Up\" on the next window."
   (let ((win (next-window (current-window))))
     (when (eq win (current-window)) (editor-error "Only one window."))
     (scroll-window-up-command p win)))
 
-(defcommand "Top of Window" (p)
+(defcommand "Top of Window" (window p)
   "Move the point to the top of the current window.
   The point is left before the first character displayed in the window."
   "Move the point to the top of the current window."
@@ -421,7 +408,7 @@
       (with-buffer-globals ((window-buffer window))
         (move-mark .point. (window-display-start window))))))
 
-(defcommand "Bottom of Window" (p)
+(defcommand "Bottom of Window" (window p)
   "Move the point to the bottom of the current window.
   The point is left at the start of the bottom line."
   "Move the point to the bottom of the current window."
@@ -439,7 +426,7 @@
 ;;; WINDOW-DISPLAY-START instead of SCROLL-WINDOW, but using the latter
 ;;; messed with point and did other hard to predict stuff.
 ;;;
-(defcommand "Refresh Screen" (p)
+(defcommand "Refresh Screen" (window p)
   "Refreshes everything in the window, centering current line.
    Given an argument, scroll that many lines."
   "Refreshes everything in the window, centering current line.
@@ -452,7 +439,7 @@
 
 
 
-(defcommand "Track Buffer Point" (p)
+(defcommand "Track Buffer Point" (window p)
   "Make the current window track the buffer's point.
    This means that each time Hemlock redisplays, it will make sure the buffer's
    point is visible in the window.  This is useful for windows into buffer's
@@ -466,29 +453,27 @@
   (declare (ignore buffer))
   (setf (window-display-recentering window) nil))
 ;;;
-(add-hook window-buffer-hook #'reset-window-display-recentering)
 
-(defcommand "Extended Command" (p)
+
+(defcommand "Extended Command" (window p)
   "Prompts for and executes an extended command."
   "Prompts for and executes an extended command.  The prefix argument is
   passed to the command."
-  (let* ((name (prompt-for-keyword (list *command-names*)
+  (let* ((name (prompt-for-keyword window (list *command-names*)
                                    :prompt "Extended Command: "
                                    :help "Name of a Hemlock command")))
     (hi::update-window *echo-area-window*)
     (let ((function (command-function (getstring name *command-names*))))
       (funcall function p))))
 
-(defcommand "Eval Expresion" (p)
+(defcommand "Eval Expresion" (window p)
   "" ""
   (declare (ignore p))
-  (message "~S" (eval (prompt-for-expression))))
+  (message "~S" (eval (prompt-for-expression window))))
 
-(defhvar "Universal Argument Default"
-  "Default value for \"Universal Argument\" command."
-  :value 4)
 
-(defcommand "Universal Argument" (p)
+
+(defcommand "Universal Argument" (window p)
   "Sets prefix argument for next command.
   Typing digits, regardless of any modifier keys, specifies the argument.
   Optionally, you may first type a sign (- or +).  While typing digits, if you
@@ -517,7 +502,7 @@
            (universal-argument-loop key-event 1)))
         (universal-argument-loop key-event 1))))
 
-(defcommand "Negative Argument" (p)
+(defcommand "Negative Argument" (window p)
   "This command is equivalent to invoking \"Universal Argument\" and typing
    a minus sign (-).  It waits for more digits and a command to which to give
    the prefix argument."
@@ -528,7 +513,7 @@
   (finish-output *echo-area-stream*)
   (universal-argument-loop (get-key-event *editor-input*) -1))
 
-(defcommand "Argument Digit" (p)
+(defcommand "Argument Digit" (window p)
   "This command is equivalent to invoking \"Universal Argument\" and typing
    the digit used to invoke this command.  It waits for more digits and a
    command to which to give the prefix argument."

@@ -956,8 +956,8 @@ hemlock.x11::(defun hunk-reset (hunk) hunk)
 ;; why, and I don't know if we can repair it.
 ;; --GB
 
-(unless *hemlock-initialized*
-  (%init-hemlock))
+;;(unless *hemlock-initialized*
+  ;;(%init-hemlock))
 
 (defvar *installation-directory* nil)
 

@@ -19,67 +19,7 @@
 ;;; Fill Mode should be defined with some transparent bindings (linefeed and
 ;;; return) but with some that are not (space), so until this is possible, we
 ;;; kludge this effect by altering Auto Fill Linefeed and Auto Fill Return.
-(defmode "Fill")
 
-
-
-;;;; -- Variables --
-
-(defhvar "Fill Column"
-  "Used to determine at what column to force text to the next line."
-  :value 75)
-
-(defhvar "Fill Prefix"
-  "String to put before each line when filling."
-  :value ())
-
-(defhvar "Auto Fill Space Indent"
-  "When non-nil, uses \"Indent New Comment Line\" to break lines instead of
-   \"New Line\".  However, if there is a fill prefix, it is still preferred."
-  :value nil)
-
-
-
-;;;; -- New Attributes --
-
-(defattribute "Paragraph Delimiter"
-  "is a character that delimits a paragraph by beginning a line."
-  '(mod 2)
-  0)
-
-
-;;; (setf (character-attribute :paragraph-delimiter #\@) 1)
-;;; (setf (character-attribute :paragraph-delimiter #\\) 1)
-;;; (setf (character-attribute :paragraph-delimiter #\/) 1)
-;;; (setf (character-attribute :paragraph-delimiter #\-) 1)
-;;; (setf (character-attribute :paragraph-delimiter #\') 1)
-;;; (setf (character-attribute :paragraph-delimiter #\.) 1)
-;;;    These are useful for making certain text formatting command lines
-;;; delimit paragraphs.  Anyway, this is what EMACS documentation states,
-;;; and #\' and #\. are always paragraph delimiters (don't ask me).
-
-(setf (character-attribute :paragraph-delimiter #\space) 1)
-(setf (character-attribute :paragraph-delimiter #\linefeed) 1)
-(setf (character-attribute :paragraph-delimiter
-                           #+CMU #\formfeed #+(or sbcl EXCL CLISP OpenMCL scl) #\page) 1)
-(setf (character-attribute :paragraph-delimiter #\tab) 1)
-(setf (character-attribute :paragraph-delimiter #\newline) 1)
-
-
-
-(defattribute "Sentence Closing Char"
-  "is a delimiting character that may follow a sentence terminator
-   such as quotation marks and parentheses."
-  '(mod 2)
-  0)
-
-
-(setf (character-attribute :sentence-closing-char #\") 1)
-(setf (character-attribute :sentence-closing-char #\') 1)
-(setf (character-attribute :sentence-closing-char #\)) 1)
-(setf (character-attribute :sentence-closing-char #\]) 1)
-(setf (character-attribute :sentence-closing-char #\|) 1)
-(setf (character-attribute :sentence-closing-char #\>) 1)
 
 
 ;;;; -- Commands --

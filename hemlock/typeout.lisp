@@ -9,9 +9,7 @@
      for buf = (apply #'make-buffer name keys)
      when buf do (return buf)))
 
-(defmode "Typeout" :major-p t
-  :documentation
-  "Typeout is a read-only buffer for pop up displays.")
+
 
 (defcommand "Dismiss Typeout" (p)
   "Close the Typeout Buffer" ""

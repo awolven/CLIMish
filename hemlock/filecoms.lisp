@@ -15,11 +15,11 @@
 (defvar *buffer-history* ()
   "A list of buffers, in order from most recently to least recently selected.")
 
-(defun change-to-buffer (buffer &optional (window (current-window)))
+(defun change-to-buffer (buffer &optional window)
   "Switches to buffer in the current window maintaining *buffer-history*."
   (let* ((cb (window-buffer window)))
     (setq *buffer-history* (cons cb (delq cb *buffer-history*)))
-    (setf (current-buffer) buffer)
+    (setf (current-buffer (window-buffer (krma.gui::focused-window (krma::main-window krma::*app*)))) buffer)
     (setf (window-buffer window) buffer)
     (if (bufferp (window-buffer window))
         (window-buffer window)
@@ -147,44 +147,13 @@
                         (car (push (cons ,str nil) *file-type-hooks*))))
                #',fun)))))
 
-(define-file-type-hook ("pas" "pasmac" "macro" "defs" "spc" "bdy")
-                       (buffer type)
-  (declare (ignore type))
-  (setf (buffer-major-mode buffer) "Pascal"))
 
-(define-file-type-hook ("lisp" "slisp" "l" "lsp" "mcl") (buffer type)
-  (declare (ignore type))
-  (setf (buffer-major-mode buffer) "Lisp"))
-
-(define-file-type-hook ("txt" "text" "tx") (buffer type)
-  (declare (ignore type))
-  (setf (buffer-major-mode buffer) "Text"))
 
 
 
 ;;;; Support for file hacking commands:
 
-(defhvar "Pathname Defaults"
-  "This variable contains a pathname which is used to supply defaults
-   when we don't have anything better."
-  :value (pathname ""))
 
-(defhvar "Last Resort Pathname Defaults"
-  "This variable contains a pathname which is used to supply defaults when
-   we don't have anything better, but unlike \"Pathname Defaults\", this is
-   never set to some buffer's pathname."
-  :value (pathname ""))
-
-(defhvar "Last Resort Pathname Defaults Function"
-  "This variable contains a function that is called when a default pathname is
-   needed, the buffer has no pathname, and the buffer's name is not entirely
-   composed of alphanumerics.  The default value is a function that simply
-   returns \"Last Resort Pathname Defaults\".  The function must take a buffer
-   as an argument, and it must return some pathname."
-  :value #'(lambda (buffer)
-             (declare (ignore buffer))
-             (merge-pathnames (value last-resort-pathname-defaults)
-                              (value pathname-defaults))))
 
 (defun buffer-default-pathname (buffer)
   "Returns \"Buffer Pathname\" if it is bound.  If it is not, and buffer's name
@@ -221,20 +190,20 @@
 
 ;;;; File hacking commands.
 
-(defcommand "Process File Options" (p)
+(defcommand "Process File Options" (window p)
   "Reprocess this buffer's file options."
   "Reprocess this buffer's file options."
   (declare (ignore p))
   (let ((buffer (window-buffer (current-window))))
     (process-file-options buffer)))
 
-(defcommand "Insert File" (p &optional pathname (buffer (window-buffer (current-window))))
+(defcommand "Insert File" (window p &optional pathname (buffer (window-buffer window)))
   "Inserts a file which is prompted for into the current buffer at the point.
   The prefix argument is ignored."
   "Inserts the file named by Pathname into Buffer at the point."
   (declare (ignore p))
   (let* ((pn (or pathname
-                 (prompt-for-file :default (buffer-default-pathname buffer)
+                 (prompt-for-file window :default (buffer-default-pathname buffer)
                                   :prompt "Insert File: "
                                   :help "Name of file to insert")))
          (point (buffer-point buffer))
@@ -247,14 +216,14 @@
     (read-file pn end)
     (make-region-undo :delete "Insert File" region)))
 
-(defcommand "Write Region" (p &optional pathname)
+(defcommand "Write Region" (window p &optional pathname)
   "Writes the current region to a file. "
   "Writes the current region to a file. "
   (declare (ignore p))
   (let ((buffer (window-buffer (current-window))))
     (let ((region (current-region buffer))
           (pn (or pathname
-                  (prompt-for-file :prompt "File to Write: "
+                  (prompt-for-file window :prompt "File to Write: "
                                    :help "The name of the file to write the region to. "
                                    :default (buffer-default-pathname buffer)
                                    :must-exist nil))))
@@ -265,7 +234,7 @@
 
 ;;;; Visiting and reverting files.
 
-(defcommand "Visit File" (p &optional pathname (buffer (window-buffer (current-window))))
+(defcommand "Visit File" (window p &optional pathname (buffer (window-buffer window)))
   "Replaces the contents of Buffer with the file Pathname.  The prefix
    argument is ignored.  The buffer is set to be writable, so its region
    can be deleted."
@@ -273,10 +242,10 @@
    which is prompted for.  The prefix argument is, of course, ignored p times."
   (declare (ignore p))
   (when (and (buffer-modified buffer)
-             (prompt-for-y-or-n :prompt "Buffer is modified, save it? "))
+             (prompt-for-y-or-n window :prompt "Buffer is modified, save it? "))
     (save-file-command () buffer))
   (let ((pn (or pathname
-                (prompt-for-file :prompt "Visit File: "
+                (prompt-for-file window :prompt "Visit File: "
                                  :must-exist nil
                                  :help "Name of file to visit."
                                  :default (buffer-default-pathname buffer)))))
@@ -298,11 +267,9 @@
             (return)))))))
 
 
-(defhvar "Revert File Confirm"
-  "If this is true, Revert File will prompt before reverting."
-  :value t)
 
-(defcommand "Revert File" (p)
+
+(defcommand "Revert File" (window p)
   "Unless in Save Mode, reads in the last saved version of the file in
    the current buffer. When in Save Mode, reads in the last checkpoint or
    the last saved version, whichever is more recent. An argument will always
@@ -324,6 +291,7 @@
       (when (or (not (value revert-file-confirm))
                 (not (buffer-modified buffer))
                 (prompt-for-y-or-n
+                 window
                  :prompt
                  "Buffer contains changes, are you sure you want to revert? "
                  :help (list
@@ -361,7 +329,8 @@
 
 ;;;; Find file.
 
-(defcommand "Find File" (p &optional pathname)
+#+NOTNOW
+(defcommand "Find File" (window p &optional pathname)
   "Visit a file in its own buffer.
    If the file is already in some buffer, select that buffer,
    otherwise make a new buffer with the same name as the file and
@@ -371,6 +340,7 @@
   (declare (ignore p))
   (let* ((pn (or pathname
                  (prompt-for-file
+                  window
                   :prompt "Find File: "
                   :must-exist nil
                   :help "Name of file to read into its own buffer."
@@ -379,7 +349,7 @@
     (change-to-buffer buffer)
     buffer))
 
-(defun find-file-buffer (pathname)
+(defun find-file-buffer (current-window pathname)
   "Return a buffer assoicated with the file Pathname, reading the file into a
    new buffer if necessary.  The second value is T if we created a buffer, NIL
    otherwise.  If the file has already been read, we check to see if the file
@@ -400,22 +370,23 @@
                        (found (getstring name *buffer-names*))
                        (use (if found
                                 (prompt-for-buffer
+                                 current-window
                                  :prompt "Buffer to use: "
                                  :help
                                  "Buffer name in use; give another buffer name, or confirm to reuse."
                                  :default found
                                  :must-exist nil)
-                                (make-buffer name)))
+                                (make-instance 'buffer :name name)))
                        (buffer (if (stringp use) (make-buffer use) use)))
                   (when (and (buffer-modified buffer)
-                             (prompt-for-y-or-n :prompt
+                             (prompt-for-y-or-n current-window :prompt
                                                 "Buffer is modified, save it? "))
                     (save-file-command () buffer))
                   (read-buffer-file pathname buffer)
                   (values buffer (stringp use))))
                (t
                 (editor-error "cannot open a file of type ~A" kind)))))
-          ((check-disk-version-consistent pathname found)
+          ((check-disk-version-consistent current-window pathname found)
            (values found nil))
           (t
            (read-buffer-file pathname found)
@@ -428,7 +399,7 @@
 ;;; harrassing the user if not.  We return true if the buffer is O.K., and
 ;;; false if the file should be read.
 ;;;
-(defun check-disk-version-consistent (pathname buffer)
+(defun check-disk-version-consistent (current-window pathname buffer)
   (let ((ndate (file-write-date pathname))
         (odate (buffer-write-date buffer)))
     (cond ((not (and ndate odate (/= ndate odate)))
@@ -450,8 +421,10 @@
              ((:confirm :yes)
  "Prompt for a file to write the buffer out to, then read in the disk version."
               (write-buffer-file
+               current-window
                buffer
                (prompt-for-file
+                current-window
                 :prompt "File to save changes in: "
                 :help (list "Save buffer ~S to this file before reading ~A."
                             (buffer-name buffer) (namestring pathname))
@@ -465,7 +438,7 @@
               "Read in the new version, clobbering the changes in the buffer."
               nil)))
            (t
-            (not (prompt-for-yes-or-no :prompt
+            (not (prompt-for-yes-or-no current-window :prompt
                                        (list
  "File has been changed on disk since it was read.~
  ~%Read in the disk version of ~A? "
@@ -475,10 +448,7 @@
                                        :default t))))))
 
 
-(defhvar "Read File Hook"
-  "These functions are called when a file is read into a buffer.  Each function
-   must take two arguments -- the buffer the file was read into and whether the
-   file existed (non-nil) or not (nil).")
+
 
 (defun read-buffer-file (pathname buffer)
   "Delete the buffer's region, and uses READ-FILE to read pathname into it.
@@ -512,22 +482,9 @@
 
 ;;;; File writing.
 
-(defhvar "Add Newline at EOF on Writing File"
-  "This controls whether WRITE-BUFFER-FILE adds a newline at the end of the
-   file when it ends at the end of a non-empty line.  When set, this may be
-   :ask-user and WRITE-BUFFER-FILE will prompt; otherwise, just add one and
-   inform the user.  When nil, never add one and don't ask."
-  :value :ask-user)
 
-(defhvar "Keep Backup Files"
-  "When set, .BAK files will be saved upon file writing.  This defaults to nil."
-  :value nil)
 
-(defhvar "Write File Hook"
-  "These functions are called when a buffer has been written.  Each function
-   must take the buffer as an argument.")
-
-(defun write-buffer-file (buffer pathname)
+(defun write-buffer-file (current-window buffer pathname)
   "Write's buffer to pathname.  This assumes pathname is somehow related to
    the buffer's pathname, and if the buffer's write date is not the same as
    pathname's, then this prompts the user for confirmation before overwriting
@@ -543,7 +500,7 @@
                  (equal (make-pathname :version nil :defaults buffer-pn)
                         (make-pathname :version nil :defaults pathname))
                  (/= date file-date))
-        (unless (prompt-for-yes-or-no :prompt (list
+        (unless (prompt-for-yes-or-no current-window :prompt (list
  "File has been changed on disk since it was read.~%Overwrite ~A anyway? "
  (namestring buffer-pn))
                                       :help
@@ -556,6 +513,7 @@
           (unless (start-line-p end)
             (when (if (eq val :ask-user)
                       (prompt-for-y-or-n
+                       current-window
                        :prompt
                        (list "~A~%File does not have a newline at EOF, add one? "
                              (buffer-name buffer))
@@ -576,42 +534,43 @@
           (setf (buffer-name buffer) name)))))
   (invoke-hook write-file-hook buffer))
 
-(defcommand "Write File" (p &optional pathname (buffer (window-buffer (current-window))))
+(defcommand "Write File" (window p &optional pathname (buffer (window-buffer (current-window))))
   "Writes the contents of Buffer, which defaults to the current buffer to
   the file named by Pathname.  The prefix argument is ignored."
   "Prompts for a file to write the contents of the current Buffer to.
   The prefix argument is ignored."
   (declare (ignore p))
   (write-buffer-file
+   window
    buffer
    (or pathname
-       (prompt-for-file :prompt "Write File: "
+       (prompt-for-file window :prompt "Write File: "
                         :must-exist nil
                         :help "Name of file to write to"
                         :default (buffer-default-pathname buffer)))))
 
-(defcommand "Save File" (p &optional (buffer (window-buffer (current-window))))
+(defcommand "Save File" (window p &optional (buffer (window-buffer (current-window))))
   "Writes the contents of the current buffer to the associated file.  If there
   is no associated file, once is prompted for."
   "Writes the contents of the current buffer to the associated file."
   (declare (ignore p))
   (when (or (buffer-modified buffer)
             (prompt-for-y-or-n
+             window
              :prompt "Buffer is unmodified, write it anyway? "
              :default t))
     (write-buffer-file
+     window
      buffer
      (or (buffer-pathname buffer)
-         (prompt-for-file :prompt "Save File: "
+         (prompt-for-file
+          window :prompt "Save File: "
                           :help "Name of file to write to"
                           :default (buffer-default-pathname buffer)
                           :must-exist nil)))))
 
-(defhvar "Save All Files Confirm"
-  "When non-nil, prompts for confirmation before writing each modified buffer."
-  :value t)
 
-(defcommand "Save All Files" (p)
+(defcommand "Save All Files" (window p)
   "Saves all modified buffers in their associated files.
   If a buffer has no associated file it is ignored even if it is modified.."
   "Saves each modified buffer that has a file."
@@ -625,32 +584,33 @@
                  pn
                  (or (not (value save-all-files-confirm))
                      (prompt-for-y-or-n
+                      window
                       :prompt (list
                                "Write ~:[buffer ~A as file ~S~;file ~*~S~], ~
                                Y or N: "
                                (string= (pathname-to-buffer-name pn) name)
                                name (namestring pn))
                       :default t)))
-          (write-buffer-file b pn)
+          (write-buffer-file window b pn)
           (incf saved-count))))
     (if (zerop saved-count)
         (message "No files were saved.")
         (message "Saved ~S file~:P." saved-count))))
 
-(defcommand "Save All Files and Exit" (p)
+(defcommand "Save All Files and Exit" (window p)
   "Save all modified buffers in their associated files and exit;
   a combination of \"Save All Files\" and \"Exit Hemlock\"."
   "Do a save-all-files-command and then an exit-hemlock."
   (declare (ignore p))
-  (save-all-files-command ())
+  (save-all-files-command window ())
   (exit-hemlock))
 
-(defcommand "Backup File" (p)
+(defcommand "Backup File" (window p)
     "Write the buffer to a file without changing the associated name."
     "Write the buffer to a file without changing the associated name."
   (declare (ignore p))
   (let ((buffer (window-buffer (current-window))))
-    (let ((file (prompt-for-file :prompt "Backup to File: "
+    (let ((file (prompt-for-file window :prompt "Backup to File: "
                                  :help
                                  "Name of a file to backup the current buffer in."
                                  :default (buffer-default-pathname buffer)
@@ -685,14 +645,14 @@
         (setf (cdr ele) new-stuff)
         (setf *buffer-history* new-stuff))))
 ;;;
-(add-hook make-buffer-hook 'add-buffer-history-hook)
+
 
 ;;; DELETE-BUFFER-HISTORY-HOOK makes sure we never end up in a dead buffer.
 ;;;
 (defun delete-buffer-history-hook (buffer)
   (setq *buffer-history* (delq buffer *buffer-history*)))
 ;;;
-(add-hook delete-buffer-hook 'delete-buffer-history-hook)
+
 
 
 
@@ -711,19 +671,19 @@
     (dolist (w (buffer-windows buffer))
       (setf (window-buffer w) new-buf))
     (when (eq buffer (current-buffer))
-      (setf (current-buffer) new-buf)))
+      (setf (current-buffer (window-buffer (krma.gui::focused-window (krma::main-window krma::*app*)))) new-buf)))
   (delete-buffer buffer))
 
 
 (defvar *create-buffer-count* 0)
 
-(defcommand "Create Buffer" (p &optional buffer-name)
+(defcommand "Create Buffer" (window p &optional buffer-name)
   "Create a new buffer.  If a buffer with the specified name already exists,
    then go to it."
   "Create or go to the buffer with the specifed name."
   (declare (ignore p))
   (let ((name (or buffer-name
-                  (prompt-for-buffer :prompt "Create Buffer: "
+                  (prompt-for-buffer window :prompt "Create Buffer: "
                                      :default-string
                                      (format nil "Buffer ~D"
                                              (incf *create-buffer-count*))
@@ -734,7 +694,7 @@
                               (make-buffer name))
                           (current-window)))))
 
-(defcommand "Select Buffer" (p)
+(defcommand "Select Buffer" (window p)
   "Select a different buffer.
    The buffer to go to is prompted for."
   "Select a different buffer.
@@ -743,7 +703,7 @@
   ;; what to do about (previous-buffer) ?
   ;; (previous-window-buffer (current-window)) ?
   ;; or some global previous buffer?
-  (let ((buf (prompt-for-buffer :prompt "Select Buffer: "
+  (let ((buf (prompt-for-buffer window :prompt "Select Buffer: "
                                 :default (previous-buffer))))
     (when (eq buf *echo-area-buffer*)
       (editor-error "Cannot select Echo Area buffer."))
@@ -753,7 +713,7 @@
 (defvar *buffer-history-ptr* ()
   "The successively previous buffer to the current buffer.")
 
-(defcommand "Select Previous Buffer" (p)
+(defcommand "Select Previous Buffer" (window p)
   "Select the buffer selected before this one.  If called repeatedly
    with an argument, select the successively previous buffer to the
    current one leaving the buffer history as it is."
@@ -769,7 +729,7 @@
         (setf *buffer-history-ptr* (cddr *buffer-history*))
         (setf (last-command-type) :previous-buffer))))
 
-(defcommand "Circulate Buffers" (p)
+(defcommand "Circulate Buffers" (window p)
   "Advance through buffer history, selecting successively previous buffer."
   "Advance through buffer history, selecting successively previous buffer."
   (declare (ignore p))
@@ -784,20 +744,20 @@
             (setf *buffer-history-ptr*
                   (or (cdr *buffer-history*) *buffer-history*))
             (setf b (car *buffer-history*)))
-          (setf (current-buffer) b)
+          (setf (current-buffer (window-buffer (krma.gui::focused-window (krma::main-window krma::*app*)))) b)
           (setf (window-buffer window) b) ;; setf window buffer happens in render thread
           (setf (last-command-type) :previous-buffer))
-        (select-previous-buffer-command nil))))
+        (select-previous-buffer-command window nil))))
 
 
-(defcommand "Buffer Not Modified" (p)
+(defcommand "Buffer Not Modified" (window p)
   "Make the current buffer not modified."
   "Make the current buffer not modified."
   (declare (ignore p))
   (setf (buffer-modified (window-buffer (current-window))) nil)
   (message "Buffer marked as unmodified."))
 
-(defcommand "Check Buffer Modified" (p)
+(defcommand "Check Buffer Modified" (window p)
   "Say whether the buffer is modified or not."
   "Say whether the current buffer is modified or not."
   (declare (ignore p))
@@ -806,7 +766,7 @@
     (message "Buffer ~S ~:[is not~;is~] modified."
              (buffer-name cb) (buffer-modified cb))))
 
-(defcommand "Set Buffer Read-Only" (p)
+(defcommand "Set Buffer Read-Only" (window p)
   "Toggles the read-only flag for the current buffer."
   "Toggles the read-only flag for the current buffer."
   (declare (ignore p))
@@ -815,7 +775,7 @@
              (buffer-name buffer)
              (setf (buffer-writable buffer) (not (buffer-writable buffer))))))
 
-(defcommand "Set Buffer Writable" (p)
+(defcommand "Set Buffer Writable" (window p)
   "Make the current buffer modifiable."
   "Make the current buffer modifiable."
   (declare (ignore p))
@@ -826,13 +786,10 @@
 
 ;;; TODO: If this is true, it is possible to make Hemlock unusable by
 ;;; killing last buffer and selecting Echo Area as the new buffer.
-(defhvar "Ask for New Buffer"
-  "If true, user is prompted for new buffer after current buffer is
-   deleted.  If false then previous buffer is selected automatically."
-  :value nil)
 
 
-(defcommand "Kill Buffer" (p &optional buffer-name)
+
+(defcommand "Kill Buffer" (window p &optional buffer-name)
   "Prompts for a buffer to delete.
   If the buffer is modified, then let the user save the file before doing so.
   When deleting the current buffer, prompts for a new buffer to select.  If
@@ -844,19 +801,20 @@
   (let ((wb (window-buffer (current-window))))
     (let ((buffer (if buffer-name
                       (getstring buffer-name *buffer-names*)
-                      (prompt-for-buffer :prompt "Kill Buffer: "
+                      (prompt-for-buffer window :prompt "Kill Buffer: "
                                          :default wb))))
       (unless buffer
         (editor-error "No buffer named ~S" buffer-name))
       (when (and (buffer-modified buffer)
                  (buffer-pathname buffer)
-                 (prompt-for-y-or-n :prompt "Save it first? "))
-        (save-file-command nil buffer))
+                 (prompt-for-y-or-n window :prompt "Save it first? "))
+        (save-file-command window nil buffer))
       (if (eq buffer wb)
           (let* ((previous (or (previous-buffer)
                                (editor-error "Cannot kill last buffer.")))
                  (new (if (value ask-for-new-buffer)
                           (prompt-for-buffer
+                           window
                            :prompt "New Buffer: "
                            :default previous
                            :help "Buffer to change to after the current one is killed.")
@@ -865,13 +823,13 @@
               (editor-error "You must select a different buffer."))
             (dolist (w (buffer-windows buffer))
               (setf (window-buffer w) new))
-            (setf (current-buffer) new))
+            (setf (current-buffer (window-buffer (krma.gui::focused-window (krma::main-window krma::*app*)))) new))
           (dolist (w (buffer-windows buffer))
             (delete-window w)))
       (delete-buffer buffer))))
 
 
-(defcommand "Rename Buffer" (p)
+(defcommand "Rename Buffer" (window p)
   "Change the current buffer's name.
   The name, which is prompted for, defaults to the name of the associated
   file."
@@ -880,7 +838,7 @@
   (let* ((buf (window-buffer (current-window)))
          (pn (buffer-pathname buf))
          (name (if pn (pathname-to-buffer-name pn) (buffer-name buf)))
-         (new (prompt-for-string :prompt "New Name: "
+         (new (prompt-for-string window :prompt "New Name: "
                                  :help "Give a new name for the current buffer"
                                  :default name)))
     (multiple-value-bind (entry foundp) (getstring new *buffer-names*)
@@ -889,13 +847,14 @@
             (t (editor-error "Name ~S already in use." new))))))
 
 
-(defcommand "Insert Buffer" (p)
+(defcommand "Insert Buffer" (window p)
   "Insert the contents of a buffer.
   The name of the buffer to insert is prompted for."
   "Prompt for a buffer to insert at the point."
   (declare (ignore p))
   (let ((buffer (window-buffer (current-window)))
         (region (buffer-region (prompt-for-buffer
+                                window
                                 ;; previous buffer needs to kinda be some global thing
                                 :default (previous-buffer)
                                 :help
@@ -1281,13 +1240,14 @@
 
 ;;;; File utility commands:
 
-(defcommand "Directory" (p)
+(defcommand "Directory" (window p)
   "Do a directory into a pop-up window.  If an argument is supplied, then
    dot files are listed too (as with ls -a).  Prompts for a pathname which
    may contain wildcards in the name and type."
   "Do a directory into a pop-up window."
   (let* ((dpn (value pathname-defaults))
          (pn (prompt-for-file
+              window
               :prompt "Directory: "
               :help "Pathname to do directory on."
               :default (make-pathname :device (pathname-device dpn)
@@ -1297,13 +1257,14 @@
     (with-pop-up-display (s)
       (print-directory pn s :all p))))
 
-(defcommand "Verbose Directory" (p)
+(defcommand "Verbose Directory" (window p)
   "Do a directory into a pop-up window.  If an argument is supplied, then
    dot files are listed too (as with ls -a).  Prompts for a pathname which
    may contain wildcards in the name and type."
   "Do a directory into a pop-up window."
   (let* ((dpn (value pathname-defaults))
          (pn (prompt-for-file
+              window
               :prompt "Verbose Directory: "
               :help "Pathname to do directory on."
               :default (make-pathname :device (pathname-device dpn)
@@ -1317,33 +1278,7 @@
 
 ;;;; Change log stuff:
 
-(define-file-option "Log" (buffer value)
-  (defhvar "Log File Name"
-    "The name of the file for the change log for the file in this buffer."
-    :buffer buffer  :value value))
 
-(defhvar "Log Entry Template"
-  "The format string used to generate the template for a change-log entry.
-  Three arguments are given: the file, the date (create if available, now
-  otherwise) and the file author, or NIL if not available.  The last \"@\"
-  is deleted and the point placed where it was."
-  :value "~A, ~A, Edit by ~:[???~;~:*~:(~A~)~].~%  @~2%")
-
-(defmode "Log"
-  :major-p t
-  :setup-function
-  #'(lambda (buffer)
-      (setf (buffer-minor-mode buffer "Fill") t))
-  :cleanup-function
-  #'(lambda (buffer)
-      (setf (buffer-minor-mode buffer "Fill") nil)))
-
-(defhvar "Fill Prefix" "The fill prefix in Log mode."
-  :value "  "  :mode "Log")
-
-(define-file-type-hook ("log") (buffer type)
-  (declare (ignore type))
-  (setf (buffer-major-mode buffer) "Log"))
 
 (defun universal-time-to-string (ut)
   (multiple-value-bind (sec min hour day month year)
@@ -1356,7 +1291,7 @@
             hour min sec)))
 
 (defvar *back-to-@-pattern* (new-search-pattern :character :backward #\@))
-(defcommand "Log Change" (p)
+(defcommand "Log Change" (window p)
   "Make an entry in the change-log file for this buffer.
   Saves the file in the current buffer if it is modified, then finds the file
   specified in the \"Log\" file option, adds the template for a change-log
@@ -1369,7 +1304,7 @@
   (let* ((buffer (current-buffer))
          (pathname (buffer-pathname buffer)))
     (when (or (buffer-modified buffer) (null pathname))
-      (save-file-command ()))
+      (save-file-command window ()))
     (unwind-protect
         (progn
           (find-file-command nil (merge-pathnames
@@ -1387,7 +1322,7 @@
             (when (find-pattern point *back-to-@-pattern*)
               (delete-characters point 1)))
           (do-recursive-edit)
-          (when (buffer-modified (current-buffer)) (save-file-command ())))
+          (when (buffer-modified (window-buffer window)) (save-file-command window ())))
       (if (member buffer *buffer-list* :test #'eq)
           (change-to-buffer buffer)
           (editor-error "Old buffer has been deleted.")))))
@@ -1403,7 +1338,7 @@
   If the next window is the bottom window then wrap around to the top window."
   (declare (ignore p))
   (let* ((next (next-window (current-window))))
-    (setf (current-buffer) (window-buffer next))
+    (setf (current-buffer (window-buffer (krma.gui::focused-window (krma::main-window krma::*app*)))) (window-buffer next))
     (setf (current-window) next)))
 
 (defcommand "Previous Window" (p)
@@ -1413,7 +1348,7 @@
   If the Previous window is the top window then wrap around to the bottom."
   (declare (ignore p))
   (let* ((previous (previous-window (current-window))))
-    (setf (current-buffer) (window-buffer previous))
+    (setf (current-buffer (window-buffer (krma.gui::focused-window (krma::main-window krma::*app*)))) (window-buffer previous))
     (setf (current-window) previous)))
 
 (defcommand "Split Window" (p)
@@ -1511,7 +1446,7 @@
     (when info
       (change-to-buffer (server-info-slave-buffer info)))))
 
-(defun quickselect-help (&optional *)
+(defun quickselect-help (current-window &optional *)
   (with-pop-up-display (s)
     (format s "Quickselect:~%")
     (terpri s)
@@ -1524,10 +1459,10 @@
     (format s "  C  Coned~%"))
   (message "Press q to dismiss this help."))
 
-(defcommand "Quickselect" (p)
+(defcommand "Quickselect" (window p)
   "" ""
   p
-  (funcall (let ((old-window (current-window)))
+  (funcall (let ((old-window window))
              (unwind-protect
                   (progn
                     (setf (current-window) *echo-area-window*)

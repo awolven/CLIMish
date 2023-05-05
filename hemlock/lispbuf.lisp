@@ -303,7 +303,7 @@
     region))
 
 #+NIL
-(defun get-interactive-input ()
+(defun get-interactive-input (current-window)
   "Tries to return a region.  When the point is not past the input mark, and
    the user has \"Unwedge Interactive Input Confirm\" set, the buffer is
    optionally fixed up, and nil is returned.  Otherwise, an editor error is
@@ -325,6 +325,7 @@
      ((value unwedge-interactive-input-confirm)
       (beep)
       (when (prompt-for-y-or-n
+             current-window
              :prompt (concatenate 'simple-string
                                   "Point not past input mark.  "
                                   (value unwedge-interactive-input-string))
@@ -488,7 +489,7 @@
 
 ;;; Other stuff.
 
-(defmode "Editor")
+
 
 (defcommand "Editor Mode" (p)
   "Turn on \"Editor\" mode in the current buffer.  If it is already on, turn it
@@ -505,11 +506,7 @@
   (setf (buffer-minor-mode buffer "Editor") t))
 
 
-(defhvar "Editor Definition Info"
-  "When this is non-nil, the editor Lisp is used to determine definition
-   editing information; otherwise, the slave Lisp is used."
-  :value t
-  :mode "Editor")
+
 
 
 (defcommand "Editor Compile Defun" (p)
@@ -633,18 +630,19 @@
                                                      (read s))))
                          rts)))))))
 #+NIL
-(defcommand "Editor Evaluate Expression" (p)
+(defcommand "Editor Evaluate Expression" (window p)
   "Prompt for an expression to evaluate in the editor Lisp."
   "Prompt for an expression to evaluate in the editor Lisp."
   (declare (ignore p))
   (in-lisp
    (multiple-value-call #'message "=> ~@{~#[~;~S~:;~S, ~]~}"
-     (eval (prompt-for-expression
+                        (eval (prompt-for-expression
+                               window
             :prompt "Editor Eval: "
             :help "Expression to evaluate")))))
 
 #+NIL
-(defcommand "Editor Evaluate Buffer" (p)
+(defcommand "Editor Evaluate Buffer" (window p)
   "Evaluates the text in the current buffer in the editor Lisp."
   "Evaluates the text in the current buffer redirecting *Standard-Output* to
    the echo area.  This occurs in the editor Lisp.  The prefix argument is
@@ -687,13 +685,13 @@
          (setf (current-window) ,old-window)))))
 
 #+MIL
-(defcommand "Editor Compile File" (p)
+(defcommand "Editor Compile File" (window p)
   "Prompts for file to compile in the editor Lisp.  Does not compare source
    and binary write dates.  Does not check any buffer for that file for
    whether the buffer needs to be saved."
   "Prompts for file to compile."
   (declare (ignore p))
-  (let ((pn (prompt-for-file :default
+  (let ((pn (prompt-for-file window :default
                              (buffer-default-pathname (current-buffer))
                              :prompt "File to compile: ")))
     (with-output-to-window (*error-output* "Compiler Warnings")
@@ -707,7 +705,7 @@
         (< (file-write-date obj-pn) (file-write-date pathname)))))
 
 #+NIL
-(defcommand "Editor Compile Buffer File" (p)
+(defcommand "Editor Compile Buffer File" (window p)
   "Compile the file in the current buffer in the editor Lisp if its associated
    binary file (of type .fasl) is older than the source or doesn't exist.  When
    the binary file is up to date, the user is asked if the source should be
@@ -722,6 +720,7 @@
     (cond ((buffer-modified buf)
            (when (or (not (value compile-buffer-file-confirm))
                      (prompt-for-y-or-n
+                      window
                       :default t :default-string "Y"
                       :prompt (list "Save and compile file ~A? "
                                     (namestring pn))))
@@ -731,12 +730,14 @@
           ((older-or-non-existent-fasl-p pn p)
            (when (or (not (value compile-buffer-file-confirm))
                      (prompt-for-y-or-n
+                      window
                       :default t :default-string "Y"
                       :prompt (list "Compile file ~A? " (namestring pn))))
              (with-output-to-window (*error-output* "Compiler Warnings")
                (in-lisp (compile-file (namestring pn) #+cmu :error-file #+cmu nil)))))
           (t (when (or p
                        (prompt-for-y-or-n
+                        window
                         :default t :default-string "Y"
                         :prompt
                         "Fasl file up to date, compile source anyway? "))
@@ -786,11 +787,12 @@
   "The default pathname used by the load command.")
 
 #+NIL
-(defcommand "Editor Load File" (p)
+(defcommand "Editor Load File" (window p)
   "Prompt for a file to load into Editor Lisp."
   "Prompt for a file to load into the Editor Lisp."
   (declare (ignore p))
   (let ((name (truename (prompt-for-file
+                         window
                          :default
                          (or (value load-pathname-defaults)
                              (buffer-default-pathname (current-buffer)))
@@ -885,13 +887,14 @@
            (form-offset (move-mark mark2 mark1) 1)))))
 
 #+NIL
-(defcommand "Editor Describe" (p)
+(defcommand "Editor Describe" (window p)
   "Call Describe on a Lisp object.
   Prompt for an expression which is evaluated to yield the object."
   "Prompt for an object to describe."
   (declare (ignore p))
   (in-lisp
-   (let* ((exp (prompt-for-expression
+    (let* ((exp (prompt-for-expression
+                 window
                 :prompt "Object: "
                 :help "Expression to evaluate to get object to describe."))
           (obj (eval exp)))
@@ -899,7 +902,7 @@
        (describe obj)))))
 
 #+NIL
-(defcommand "Filter Region" (p)
+(defcommand "Filter Region" (window p)
   "Apply a Lisp function to each line of the region.
   An expression is prompted for which should evaluate to a Lisp function
   from a string to a string.  The function must neither modify its argument
@@ -907,6 +910,7 @@
   "Call prompt for a function, then call Filter-Region with it and the region."
   (declare (ignore p))
   (let* ((exp (prompt-for-expression
+               window
                :prompt "Function: "
                :help "Expression to evaluate to get function to use as filter."))
          (fun (in-lisp (eval exp)))

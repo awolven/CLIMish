@@ -14,34 +14,10 @@
 
 (in-package :hemlock)
 
-(defhvar "Source Compare Ignore Extra Newlines"
-  "If T, Source Compare and Source Merge will treat all groups of newlines
-  as if they were a single newline.  The default is T."
-  :value t)
-
-(defhvar "Source Compare Ignore Case"
-  "If T, Source Compare and Source Merge will treat all letters as if they
-  were of the same case.  The default is Nil."
-  :value nil)
-
-(defhvar "Source Compare Ignore Indentation"
-  "This determines whether comparisons ignore initial whitespace on a line or
-   use the whole line."
-  :value nil)
-
-(defhvar "Source Compare Number of Lines"
-  "This variable controls the number of lines Source Compare and Source Merge
-  will compare when resyncronizing after a difference has been encountered.
-  The default is 3."
-  :value 3)
-
-(defhvar "Source Compare Default Destination"
-  "This is a sticky-default buffer name to offer when comparison commands prompt
-   for a results buffer."
-  :value "Differences")
 
 
-(defcommand "Buffer Changes" (p)
+
+(defcommand "Buffer Changes" (window p)
   "Generate a comparison of the current buffer with its file on disk."
   "Generate a comparison of the current buffer with its file on disk."
   (declare (ignore p))
@@ -61,7 +37,7 @@
 ;;; These get deleted when we're done.  Buffer-a and Buffer-b are used for
 ;;; names is banners in either case.
 ;;;
-(defcommand "Compare Buffers" (p &optional buffer-a buffer-b dest-buffer)
+(defcommand "Compare Buffers" (window p &optional buffer-a buffer-b dest-buffer)
   "Performs a source comparison on two specified buffers.  If the prefix
    argument is supplied, only compare the regions in the buffer."
   "Performs a source comparison on two specified buffers, Buffer-A and
@@ -101,7 +77,7 @@
 ;;; These get deleted when we're done.  Buffer-a and Buffer-b are used for
 ;;; names is banners in either case.
 ;;;
-(defcommand "Merge Buffers" (p &optional buffer-a buffer-b dest-buffer)
+(defcommand "Merge Buffers" (window p &optional buffer-a buffer-b dest-buffer)
   "Performs a source merge on two specified buffers.  If the prefix
    argument is supplied, only compare the regions in the buffer."
   "Performs a source merge on two specified buffers, Buffer-A and Buffer-B,
@@ -180,18 +156,18 @@
       (delete-buffer delete-buffer-a)
       (delete-buffer delete-buffer-b))))
 
-(defun get-srccom-buffers (first-prompt buffer-a buffer-b dest-buffer p)
+(defun get-srccom-buffers (current-window first-prompt buffer-a buffer-b dest-buffer p)
   (unless buffer-a
-    (setf buffer-a (prompt-for-buffer :prompt first-prompt
+    (setf buffer-a (prompt-for-buffer current-window :prompt first-prompt
                                       :must-exist t
                                       :default (current-buffer))))
   (unless buffer-b
-    (setf buffer-b (prompt-for-buffer :prompt "With buffer: "
+    (setf buffer-b (prompt-for-buffer current-window :prompt "With buffer: "
                                       :must-exist t
                                       :default (previous-buffer))))
   (unless dest-buffer
     (setf dest-buffer
-          (prompt-for-buffer :prompt "Putting results in buffer: "
+          (prompt-for-buffer current-window :prompt "Putting results in buffer: "
                              :must-exist nil
                              :default-string
                              (value source-compare-default-destination))))
@@ -220,20 +196,20 @@
                                                (buffer-point buffer-b))))))
     (values buffer-a buffer-b (current-point) alt-buffer-a alt-buffer-b)))
 #|
-(defun get-srccom-buffers (first-prompt buffer-a buffer-b dest-buffer p)
+(defun get-srccom-buffers (current-window first-prompt buffer-a buffer-b dest-buffer p)
   (unless buffer-a
-    (setf buffer-a (prompt-for-buffer :prompt first-prompt
+    (setf buffer-a (prompt-for-buffer current-window :prompt first-prompt
                                       :must-exist t
                                       :default (current-buffer))))
   (unless buffer-b
-    (setf buffer-b (prompt-for-buffer :prompt "With buffer: "
+    (setf buffer-b (prompt-for-buffer current-window :prompt "With buffer: "
                                       :must-exist t
                                       :default (previous-buffer))))
   (unless dest-buffer
     (let* ((name (value source-compare-default-destination))
            (temp-default (getstring name *buffer-names*))
            (default (or temp-default (make-buffer name))))
-      (setf dest-buffer (prompt-for-buffer :prompt "Putting results in buffer: "
+      (setf dest-buffer (prompt-for-buffer current-window :prompt "Putting results in buffer: "
                                            :must-exist nil
                                            :default default))
       ;; Delete the default buffer if it did already exist and was not chosen.

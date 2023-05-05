@@ -325,7 +325,7 @@
 ;;; This prompts for a known shell buffer to which it sets "Current Shell".
 ;;; It signals an error if there are none.
 ;;;
-(defun set-current-shell ()
+(defun set-current-shell (window)
   (let ((old-buffer (value current-shell))
         (first-old-shell (do-strings (var val *shell-names* nil)
                            (declare (ignore val))
@@ -337,7 +337,7 @@
                              first-old-shell)))
       (multiple-value-bind
           (new-buffer-name new-buffer)
-          (prompt-for-keyword (list *shell-names*)
+          (prompt-for-keyword window (list *shell-names*)
                               :must-exist t
                               :default default-shell
                               :default-string default-shell
@@ -379,19 +379,21 @@
 ;;; This makes new shells for us dealing with prompting for various things and
 ;;; setting "Current Shell" according to user documentation.
 ;;;
-(defun make-new-shell (prompt-for-command-p
+(defun make-new-shell (window prompt-for-command-p
                        &optional (set-current-shell-p t)
                                  (command-line (get-command-line) clp)
                                  suppress-shell-executable)
   (let* ((command (or (and clp command-line)
                       (if prompt-for-command-p
                           (prompt-for-string
+                           window
                            :default command-line :trim t
                            :prompt "Command to execute: "
                            :help "Shell command line to execute.")
                           command-line)))
          (buffer-name (if prompt-for-command-p
                           (prompt-for-string
+                           window
                            :default
                            (concatenate 'simple-string command " process")
                            :trim t
@@ -567,14 +569,15 @@
                    (editor-error)))
                 (t (editor-error "No such file exists."))))))))
 
-(defcommand "Kill Main Process" (p)
+(defcommand "Kill Main Process" (window p)
   "Kills the process in the current buffer."
   "Kills the process in the current buffer."
   (declare (ignore p))
   (unless (hemlock-bound-p 'process-connection :buffer (current-buffer))
     (editor-error "Not in a process buffer."))
   (when (or (not (value kill-process-confirm))
-            (prompt-for-y-or-n :default nil
+            (prompt-for-y-or-n window
+                               :default nil
                                :prompt "Really blow away shell? "
                                :default nil
                                :default-string "no"))
@@ -658,7 +661,7 @@
   (process-kill process signal :pty-process-group))
 
 (defcommand "Shell Command"
-    (p &optional (command (hi::prompt-for-string :prompt "Shell command: "))
+    (window p &optional (command (hi::prompt-for-string window :prompt "Shell command: "))
                  (directory (default-directory)))
   "" ""
   (declare (ignore p))

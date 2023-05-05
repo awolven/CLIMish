@@ -13,32 +13,12 @@
 ;;;
 (in-package :hemlock)
 
-(defhvar "Beep on Ambiguity"
-  "If non-NIL, beep when completion of a parse is ambiguous."
-  :value t)
 
-(defhvar "Ignore File Types"
-  "File types to ignore when trying to complete a filename."
-  :value
-  (list "fasl" "pmaxf" "sparcf" "rtf" "hpf" "axpf" "sgif" "err"
-        "x86f" "lbytef" "core" "trace"      ; Lisp
-        "BAK" "CKP"                         ; Backups & Checkpoints
-        "PS" "ps" "press" "otl" "dvi" "toc" ; Formatting
-        "bbl" "lof" "idx" "lot" "aux"       ; Formatting
-        "mo" "elc"                          ; Other editors
-        "bin" "lbin"                        ; Obvious binary extensions.
-        "o" "a" "aout" "out"                ; UNIXY stuff
-        "bm" "onx" "snf"                    ; X stuff
-        "UU" "uu" "arc" "Z" "gz" "tar"      ; Binary encoded files
-        ))
 
 
 ;;; Field separator characters separate fields for TOPS-20 ^F style
 ;;; completion.
-(defattribute "Parse Field Separator"
-  "A value of 1 for this attribute indicates that the corresponding character
-  should be considered to be a field separator by the prompting commands.")
-(setf (character-attribute :parse-field-separator #\space) 1)
+
 
 
 ;;; Find-All-Completions  --  Internal
@@ -53,7 +33,7 @@
                    res #'string-lessp)))
       ((null table) res)))
 
-(defcommand "Help on Parse" (p)
+(defcommand "Help on Parse" (window p)
   "Display help for parse in progress.
   If there are a limited number of options then display them."
   "Display the *Parse-Help* and any possibly completions of the current
@@ -123,7 +103,7 @@
     (when (and (not win) (value beep-on-ambiguity))
       (editor-error))))
 
-(defcommand "Complete Keyword" (p)
+(defcommand "Complete Keyword" (window p)
   "Trys to complete the text being read in the echo area as a string in
   *parse-string-tables*"
   "Complete the keyword being parsed as far as possible.
@@ -156,7 +136,7 @@
 (defun field-separator-p (x)
   (plusp (character-attribute :parse-field-separator x)))
 
-(defcommand "Complete Field" (p)
+(defcommand "Complete Field" (window p)
   "Complete a field in a parse.
   Fields are defined by the :field separator attribute,
   the text being read in the echo area as a string in *parse-string-tables*"
@@ -168,7 +148,7 @@
     (declare (simple-string typein))
     (case *parse-type*
       (:string
-       (self-insert-command p))
+       (self-insert-command window p))
       (:file
        (file-completion-action typein))
       (:keyword
@@ -205,7 +185,7 @@
 (defvar *echo-history-pointer* 0
   "This is our current position to the ring during a historical exploration.")
 
-(defcommand "Confirm Parse" (p)
+(defcommand "Confirm Parse" (window p)
   "Terminate echo-area input.
   If the input is invalid then an editor-error will signalled."
   "If no input has been given, exits the recursive edit with the default,
@@ -224,7 +204,7 @@
       (unless (or res flag) (editor-error))
       (exit-recursive-edit res))))
 
-(defcommand "Previous Parse" (p)
+(defcommand "Previous Parse" (window p)
   "Rotate the echo-area history forward.
   If current input is non-empty and different from what is on the top
   of the ring then push it on the ring before inserting the new input."
@@ -252,33 +232,29 @@
         (setq *echo-history-pointer* base))))
     (setf (last-command-type) :echo-history)))
 
-(defcommand "Next Parse" (p)
+(defcommand "Next Parse" (window p)
   "Rotate the echo-area history backward.
   If current input is non-empty and different from what is on the top
   of the ring then push it on the ring before inserting the new input."
   "Push the *echo-area-history* ring buffer."
-  (previous-parse-command (- (or p 1))))
+  (previous-parse-command window (- (or p 1))))
 
-(defcommand "Illegal" (p)
+(defcommand "Illegal" (window p)
   "This signals an editor-error.
   It is useful for making commands locally unbound."
   "Just signals an editor-error."
   (declare (ignore p))
   (editor-error))
 
-(add-hook window-buffer-hook
-          #'(lambda (window new-buff)
-              (when (and (eq window *echo-area-window*)
-                         (not (eq new-buff *echo-area-buffer*)))
-                (editor-error "Can't change echo area window."))))
 
-(defcommand "Beginning Of Parse" (p)
+
+(defcommand "Beginning Of Parse" (window p)
   "Moves to immediately after the prompt when in the echo area."
   "Move the point of the echo area buffer to *parse-starting-mark*."
   (declare (ignore p))
   (move-mark (buffer-point *echo-area-buffer*) *parse-starting-mark*))
 
-(defcommand "Echo Area Delete Previous Character" (p)
+(defcommand "Echo Area Delete Previous Character" (window p)
   "Delete the previous character.
   Don't let the luser rub out the prompt."
   "Signal an editor-error if we would nuke the prompt,
@@ -286,9 +262,9 @@
   (with-mark ((tem (buffer-point *echo-area-buffer*)))
     (unless (character-offset tem (- (or p 1))) (editor-error))
     (when (mark< tem *parse-starting-mark*) (editor-error))
-    (delete-previous-character-command p)))
+    (delete-previous-character-command window p)))
 
-(defcommand "Echo Area Kill Previous Word" (p)
+(defcommand "Echo Area Kill Previous Word" (window p)
   "Kill the previous word.
   Don't let the luser rub out the prompt."
   "Signal an editor-error if we would mangle the prompt, otherwise
@@ -296,11 +272,11 @@
   (with-mark ((tem (buffer-point *echo-area-buffer*)))
     (unless (word-offset tem (- (or p 1))) (editor-error))
     (when (mark< tem *parse-starting-mark*) (editor-error))
-    (kill-previous-word-command p)))
+    (kill-previous-word-command window p)))
 
 (declaim (special *kill-ring*))
 
-(defcommand "Kill Parse" (p)
+(defcommand "Kill Parse" (window p)
   "Kills any input so far."
   "Kills *parse-input-region*."
   (declare (ignore p))
@@ -309,7 +285,7 @@
       (ring-push (delete-and-save-region *parse-input-region*)
                  *kill-ring*)))
 
-(defcommand "Insert Parse Default" (p)
+(defcommand "Insert Parse Default" (window p)
   "Inserts the default for the parse in progress.
   The text is inserted at the point."
   "Inserts *parse-default* at the point of the *echo-area-buffer*.
@@ -318,22 +294,22 @@
   (unless *parse-default* (editor-error))
   (insert-string (buffer-point *echo-area-buffer*) *parse-default*))
 
-(defcommand "Echo Area Backward Character" (p)
+(defcommand "Echo Area Backward Character" (window p)
   "Go back one character.
   Don't let the luser move into the prompt."
   "Signal an editor-error if we try to go into the prompt, otherwise
   do a backward-character command."
-  (backward-character-command p)
+  (backward-character-command window p)
   (when (mark< (buffer-point *echo-area-buffer*) *parse-starting-mark*)
-    (beginning-of-parse-command ())
+    (beginning-of-parse-command window ())
     (editor-error)))
 
-(defcommand "Echo Area Backward Word" (p)
+(defcommand "Echo Area Backward Word" (window p)
   "Go back one word.
   Don't let the luser move into the prompt."
   "Signal an editor-error if we try to go into the prompt, otherwise
   do a backward-word command."
-  (backward-word-command p)
+  (backward-word-command window p)
   (when (mark< (buffer-point *echo-area-buffer*) *parse-starting-mark*)
-    (beginning-of-parse-command ())
+    (beginning-of-parse-command window ())
     (editor-error)))

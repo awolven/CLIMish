@@ -302,13 +302,14 @@
     mark))
 |#
 
+#+NIL
 (defmacro use-buffer (buffer &body forms)
   "Use-Buffer Buffer {Form}*
   Has The effect of making Buffer the current buffer during the evaluation
   of the Forms.  For restrictions see the manual."
   (let ((gensym (gensym)))
-    `(let ((,gensym *current-buffer*)
-           (*current-buffer* ,buffer))
+    `(let ((,gensym *initial-buffer*)
+           (*initial-buffer* ,buffer))
        (unwind-protect
         (progn
          (use-buffer-set-up ,gensym)
@@ -397,7 +398,8 @@
 (defmacro command-case ((&key (change-window t)
                               (prompt "Command character: ")
                               (help "Choose one of the following characters:")
-                              (bind (gensym)))
+                              (bind (gensym))
+                              current-window)
                         &body forms)
   "This is analogous to the Common Lisp CASE macro.  Commands such as \"Query
    Replace\" use this to get a key-event, translate it to a character, and
@@ -432,7 +434,7 @@
            (block ,bname
              (let* ((,n-prompt ,prompt)
                     (,n-change ,change-window)
-                    (,bind (prompt-for-key-event* ,n-prompt ,n-change))
+                    (,bind (prompt-for-key-event* ,current-window ,n-prompt ,n-change))
                     (,bind-char (hemlock-ext:key-event-char ,bind)))
                (tagbody
                 ,again

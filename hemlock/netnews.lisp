@@ -228,7 +228,7 @@
    of this group.  The default is 300."
   :value 300)
 
-(defcommand "Netnews" (p &optional group-name from-end-p browse-buf (updatep t))
+(defcommand "Netnews" (window p &optional group-name from-end-p browse-buf (updatep t))
   "Enter a headers buffer and read groups from \"Netnews Group File\".
    With an argument prompts for a group and reads it."
   "Enter a headers buffer and read groups from \"Netnews Group File\".
@@ -237,7 +237,7 @@
    ((and *nn-headers-buffer* (not p) (not group-name))
     (change-to-buffer *nn-headers-buffer*))
    (t
-    (let* ((single-group (if p (prompt-for-string :prompt "Group to read: "
+    (let* ((single-group (if p (prompt-for-string window :prompt "Group to read: "
                                                   :help "Type the name of ~
                                                   the group you want ~
                                                   to scan."
@@ -368,13 +368,13 @@
    all the headers.  This will take a long time if there are a lot."
   :value nil)
 
-(defcommand "Netnews Look at Newsgroup" (p)
+(defcommand "Netnews Look at Newsgroup" (window p)
   "Prompts for the name of a newsgroup and reads it, regardless of what is
    in and not modifying the \"Netnews Database File\"."
   "Prompts for the name of a newsgroup and reads it, regardless of what is
    in and not modifying the \"Netnews Database File\"."
   (declare (ignore p))
-  (netnews-command nil (prompt-for-string :prompt "Group to look at: "
+  (netnews-command nil (prompt-for-string window :prompt "Group to look at: "
                                           :help "Type the name of ~
                                           the group you want ~
                                           to look at."
@@ -388,7 +388,7 @@
 ;;; appropriate slots in the nn-info structure.  The first batch of messages
 ;;; is then requested and inserted, and room for message-ids is allocated.
 ;;;
-(defun setup-group (group-name nn-info buffer &optional from-end-p)
+(defun setup-group (current-window group-name nn-info buffer &optional from-end-p)
   ;; Do not bind stream or header-stream because if a timeout has occurred
   ;; before these calls are invoked, they would be bogus.
   ;;
@@ -434,6 +434,7 @@
                                             (value
                                              netnews-start-over-threshold))
                                          (prompt-for-y-or-n
+                                          current-window
                                           :prompt
                                           `("There are ~D new messages.  ~
                                              Read from the end of this ~
@@ -838,7 +839,7 @@
 
 ;;;; Commands for viewing articles.
 
-(defcommand "Netnews Show Article" (p)
+(defcommand "Netnews Show Article" (window p)
   "Show the message the point is on.  If it is the same message that is
    already in the message buffer and \"Netnews Read Style\" is :multiple,
    then just scroll the window down prefix argument lines"
@@ -847,7 +848,7 @@
    then just scroll the window down prefix argument lines"
   (nn-show-article (value netnews-info) p))
 
-(defcommand "Netnews Next Article" (p)
+(defcommand "Netnews Next Article" (window p)
   "Show the next article in the current newsgroup."
   "Shows the article on the line preceeding the point in the headers buffer."
   (declare (ignore p))
@@ -862,7 +863,7 @@
                                        :buffer (nn-get-headers-buffer))
                        t))))
 
-(defcommand "Netnews Previous Article" (p)
+(defcommand "Netnews Previous Article" (window p)
   "Show the previous article in the current newsgroup."
   "Shows the article on the line after the point in the headers buffer."
   (declare (ignore p))
@@ -947,7 +948,7 @@
                                              :headers))
                  (:single (change-to-buffer message-buffer))))))))))
 
-(defcommand "Netnews Message Quit" (p)
+(defcommand "Netnews Message Quit" (window p)
   "Destroy this message buffer, and pop back to the associated headers buffer."
   "Destroy this message buffer, and pop back to the associated headers buffer."
   (declare (ignore p))
@@ -969,7 +970,7 @@
   :value nil)
 
 
-(defcommand "Netnews Show Whole Header" (p)
+(defcommand "Netnews Show Whole Header" (window p)
   "This command will display the entire header of the message currently
    being read."
   "This command will display the entire header of the message currently
@@ -1160,7 +1161,7 @@
         (t nil)))
 
 
-(defcommand "Netnews Previous Line" (p &optional
+(defcommand "Netnews Previous Line" (window p &optional
                                        (headers-buffer (current-buffer)))
   "Moves the point to the last header before the point that is not in your
    kill file.  If you move off the end of the buffer and there are more
@@ -1206,7 +1207,7 @@
   :value :next-headers)
 
 (defcommand "Netnews Next Line"
-            (p &optional (headers-buffer (current-buffer)))
+            (window p &optional (headers-buffer (current-buffer)))
   "Moves the point to the next header that is not in your kill file.  If you
    move off the end of the buffer and there are more headers, then get them.
    Otherwise go on to the next group in \"Netnews Groups\"."
@@ -1235,7 +1236,7 @@
                (unless (string= (region-to-string (region start end)) "K")
                  (return t))))))))
 
-(defcommand "Netnews Headers Scroll Window Up" (p)
+(defcommand "Netnews Headers Scroll Window Up" (window p)
   "Does what \"Scroll Window Up\" does, but fetches backward when the point
    reaches the start of the headers buffer."
   "Does what \"Scroll Window Up\" does, but fetches backward when the point
@@ -1250,7 +1251,7 @@
       (buffer-start (current-point))
       (netnews-previous-line-command nil))))
 
-(defcommand "Netnews Headers Scroll Window Down" (p)
+(defcommand "Netnews Headers Scroll Window Down" (window p)
   "Does what \"Scroll Window Down\" does, but when the point reaches the end of
    the headers buffer, pending headers are inserted."
   "Does what \"Scroll Window Down\" does, but when the point reaches the end of
@@ -1263,7 +1264,7 @@
       (buffer-end (current-point))
       (netnews-next-line-command nil))))
 
-(defcommand "Netnews Message Keep Buffer" (p)
+(defcommand "Netnews Message Keep Buffer" (window p)
   "Specifies that you don't want Hemlock to reuse the current message buffer."
   "Specifies that you don't want Hemlock to reuse the current message buffer."
   (declare (ignore p))
@@ -1271,7 +1272,7 @@
     (editor-error "Not in a News-Message buffer."))
   (setf (nm-info-keep-p (value netnews-message-info)) t))
 
-(defcommand "Netnews Goto Headers Buffer" (p)
+(defcommand "Netnews Goto Headers Buffer" (window p)
   "From \"Message Mode\", switch to the associated headers buffer."
   "From \"Message Mode\", switch to the associated headers buffer."
   (declare (ignore p))
@@ -1281,7 +1282,7 @@
     (unless headers-buffer (editor-error "Headers buffer has been deleted"))
     (change-to-buffer headers-buffer)))
 
-(defcommand "Netnews Goto Post Buffer" (p)
+(defcommand "Netnews Goto Post Buffer" (window p)
   "Change to the associated \"Post\" buffer (if there is one) from a
    \"News-Message\" buffer."
   "Change to the associated \"Post\" buffer (if there is one) from a
@@ -1293,7 +1294,7 @@
     (unless post-buffer (editor-error "No associated post buffer."))
     (change-to-buffer post-buffer)))
 
-(defcommand "Netnews Goto Draft Buffer" (p)
+(defcommand "Netnews Goto Draft Buffer" (window p)
   "Change to the associated \"Draft\" buffer (if there is one) from a
    \"News-Message\" buffer."
   "Change to the associated \"Draft\" buffer (if there is one) from a
@@ -1305,7 +1306,7 @@
     (unless draft-buffer (editor-error "No associated post buffer."))
     (change-to-buffer draft-buffer)))
 
-(defcommand "Netnews Select Message Buffer" (p)
+(defcommand "Netnews Select Message Buffer" (window p)
   "Change to the associated message buffer (if there is one) in \"Post\" or
    \"News-Headers\" modes."
   "Change to the associated message buffer (if there is one) in \"Post\" or
@@ -1367,8 +1368,7 @@
    that you are at the end of the buffer."
   :value t)
 
-(defcommand "Netnews Message Scroll Down" (p &optional (buffer (current-buffer))
-                                             (window (current-window)))
+(defcommand "Netnews Message Scroll Down" (window p &optional (buffer (window-buffer window)))
   "Scrolls the current window down one screenful, checking to see if we need
    to get the next message."
   "Scrolls the current window down one screenful, checking to see if we need
@@ -1379,7 +1379,7 @@
           (editor-error "At end of buffer."))
       (scroll-window-down-command p window)))
 
-(defcommand "Netnews Go to Next Group" (p)
+(defcommand "Netnews Go to Next Group" (window p)
   "Goes on to the next group in \"Netnews Group File\", setting the group
    pointer for this group to the the latest message read.  With an argument
    does not modify the group pointer."
@@ -1388,7 +1388,7 @@
    does not modify the group pointer."
   (nn-punt-headers (if p :none :latest)))
 
-(defcommand "Netnews Group Punt Messages" (p)
+(defcommand "Netnews Group Punt Messages" (window p)
   "Go on to the next group in \"Netnews Group File\" setting the netnews
    pointer for this group to the last message.  With an argument, set the
    pointer to the last visible message in this group."
@@ -1397,7 +1397,7 @@
    pointer to the last visible message in this group."
   (nn-punt-headers (if p :last-visible :punt)))
 
-(defcommand "Netnews Quit Starting Here" (p)
+(defcommand "Netnews Quit Starting Here" (window p)
   "Go on to the next group in \"Netnews Group File\", setting the group
    pointer for this group to the message before the currently displayed one
    or the message under the point if none is currently displayed."
@@ -1434,7 +1434,7 @@
           (when response (with-input-from-nntp (string stream))))))
     (change-to-next-group nn-info headers-buffer)))
 
-(defcommand "Fetch All Headers" (p)
+(defcommand "Fetch All Headers" (window p)
   "Fetches the rest of the headers in the current group.
    Warning: This will take a while if there are a lot."
   "Fetches the rest of the headers in the current group.
@@ -1454,7 +1454,7 @@
     (nn-write-headers-to-mark nn-info headers-buffer)))
 
 
-(defcommand "List All Groups" (p &optional buffer)
+(defcommand "List All Groups" (window p &optional buffer)
   "Shows all available newsgroups in a buffer."
   "Shows all available newsgroups in a buffer."
   (declare (ignore p))
@@ -1506,7 +1506,7 @@
    want to.  If this variable is NIL, you will not be prompted."
   :value t)
 
-(defcommand "Netnews Exit" (p &optional no-prompt-p
+(defcommand "Netnews Exit" (window p &optional no-prompt-p
                               (headers-buf (nn-get-headers-buffer)))
   "Exit Netnews from a netnews headers or netnews message buffer."
   "Exit Netnews from a netnews headers or netnews message buffer."
@@ -1516,7 +1516,7 @@
     (when (or browse-buffer
               no-prompt-p
               (not (value netnews-exit-confirm))
-              (prompt-for-y-or-n :prompt "Exit Netnews? "
+              (prompt-for-y-or-n window :prompt "Exit Netnews? "
                                  :default "Y"
                                  :default-string "Y"
                                  :help "Yes exits netnews mode."))
@@ -1539,7 +1539,7 @@
 
 ;;;; Commands to append messages to a file or file messages into mail folders.
 
-(defcommand "Netnews Append to File" (p)
+(defcommand "Netnews Append to File" (window p)
   "In a \"News-Headers\" buffer, appends the message under the point onto
    the file named by \"Netnews Message File\".  In a \"News-Message\" buffer,
    appends the message in the current buffer to the same file."
@@ -1548,7 +1548,7 @@
    appends the message in the current buffer to the same file."
   (let* ((filename (merge-pathnames (value netnews-message-file)
                                     (user-homedir-pathname)))
-         (file (prompt-for-file :prompt "Append to what file: "
+         (file (prompt-for-file window :prompt "Append to what file: "
                                 :must-exist nil
                                 :default filename
                                 :default-string (namestring filename))))
@@ -1580,7 +1580,7 @@
       (write-line "" f)
       (terpri f))))
 
-(defcommand "Netnews Headers File Message" (p)
+(defcommand "Netnews Headers File Message" (window p)
   "Files the message under the point into a folder of your choice.  If the
    folder you select does not exist, it is created."
   "Files the message under the point into a folder of your choice.  If the
@@ -1588,7 +1588,7 @@
   (declare (ignore p))
   (nn-file-message (value netnews-info) :headers))
 
-(defcommand "Netnews Message File Message" (p)
+(defcommand "Netnews Message File Message" (window p)
   "Files the message in the current buffer into a folder of your choice.  If
    folder you select does not exist, it is created."
   "Files the message in the current buffer into a folder of your choice.  If
@@ -1602,10 +1602,11 @@
   (let ((article-number (array-element-from-mark (current-point)
                                                  (nn-info-message-ids nn-info)
                                                  "No header under point."))
-        (folder (prompt-for-folder :prompt "MH Folder: "
+        (folder (prompt-for-folder window :prompt "MH Folder: "
                                    :must-exist nil)))
     (unless (folder-existsp folder)
       (if (prompt-for-y-or-n
+           window
            :prompt "Destination folder doesn't exist.  Create it? "
            :default t :default-string "Y")
           (create-folder folder)
@@ -1647,7 +1648,7 @@
 (defvar *draft-newsgroups-pattern*
   (new-search-pattern :string-insensitive :forward "Newsgroups:"))
 
-(defcommand "Netnews Post Message" (p)
+(defcommand "Netnews Post Message" (window p)
   "Set up a buffer for posting to netnews."
   "Set up a buffer for posting to netnews."
   (declare (ignore p))
@@ -1663,7 +1664,7 @@
                                      'netnews-info :buffer headers-buf))))
     (nn-post-message nil post-buf)))
 
-(defcommand "Netnews Abort Post" (p)
+(defcommand "Netnews Abort Post" (window p)
   "Abort the current post."
   "Abort the current post."
   (declare (ignore p))
@@ -1777,7 +1778,7 @@
                (member message-window *window-list*))
       (delete-window message-window))))
 
-(defcommand "Netnews Reply to Group" (p)
+(defcommand "Netnews Reply to Group" (window p)
   "Set up a POST buffer and insert the proper newgroups: and subject: fields.
    Should be invoked from a \"News-Message\" or \"News-Headers\" buffer.
    In a message buffer, reply to the message in that buffer, in a headers
@@ -1790,7 +1791,7 @@
   (let ((*netnews-post-frob-windows-hook* #'nn-reply-using-current-window))
     (nn-reply-to-message)))
 
-(defcommand "Netnews Reply to Group in Other Window" (p)
+(defcommand "Netnews Reply to Group in Other Window" (window p)
   "Does exactly what \"Netnews Reply to Group\" does, but makes two windows.
    One of the windows displays the message being replied to, and the other
    displays the reply."
@@ -1827,7 +1828,7 @@
     (values draft-buffer message-buffer)))
 
 
-(defcommand "Netnews Forward Message" (p)
+(defcommand "Netnews Forward Message" (window p)
   "Creates a Draft buffer and places a copy of the current message in
    it, delimited by forwarded message markers."
   "Creates a Draft buffer and places a copy of the current message in
@@ -1870,13 +1871,13 @@
       (nn-reply-using-current-window nil draft-buffer)
       (values draft-buffer message-buffer))))
 
-(defcommand "Netnews Reply to Sender" (p)
+(defcommand "Netnews Reply to Sender" (window p)
   "Reply to the sender of a message via mail using the Hemlock mailer."
   "Reply to the sender of a message via mail using the Hemlock mailer."
   (declare (ignore p))
   (nn-reply-to-sender))
 
-(defcommand "Netnews Reply to Sender in Other Window" (p)
+(defcommand "Netnews Reply to Sender in Other Window" (window p)
   "Reply to the sender of a message via mail using the Hemlock mailer.  The
    screen will be split in half, displaying the post and the draft being
    composed."
@@ -1990,7 +1991,7 @@
    before posting the current message."
   :value t)
 
-(defcommand "Netnews Deliver Post" (p)
+(defcommand "Netnews Deliver Post" (window p)
   "Deliver the current Post buffer to the NNTP server.  If the file named by
    the value of \"Netnews Signature Filename\" exists, it is appended to the
    end of the message after adding a newline."
@@ -1998,7 +1999,7 @@
    we need and landing us in the headers buffer if this was a reply."
   (declare (ignore p))
   (when (or (not (value netnews-deliver-post-confirm))
-            (prompt-for-y-or-n :prompt "Post message? " :default t))
+            (prompt-for-y-or-n window :prompt "Post message? " :default t))
     (let* ((*nntp-timeout-handler* #'nn-recover-from-posting-timeout)
            (stream (post-info-stream (value post-info))))
       (nntp-post stream)
@@ -2059,7 +2060,7 @@
    related commands, or by editing this file."
   :value ".hemlock-groups")
 
-(defcommand "Netnews Browse" (p)
+(defcommand "Netnews Browse" (window p)
   "Puts all netnews groups in a buffer and provides commands for reading them
    and adding them to the file specified by the merge of \"Netnews Group File\"
    and your home directory."
@@ -2074,13 +2075,13 @@
            (setf (buffer-writable buffer) nil))
           (t (change-to-buffer (getstring "Netnews Browse" *buffer-names*))))))
 
-(defcommand "Netnews Quit Browse" (p)
+(defcommand "Netnews Quit Browse" (window p)
   "Exit News-Browse Mode."
   "Exit News-Browse Mode."
   (declare (ignore p))
   (delete-buffer-if-possible (current-buffer)))
 
-(defcommand "Netnews Browse Read Group" (p &optional (mark (current-point)))
+(defcommand "Netnews Browse Read Group" (window p &optional (mark (buffer-point (window-buffer window))))
   "Read the group on the line under the current point paying no attention to
     the \"Hemlock Database File\" entry for this group.  With an argument, use
     and modify the database file."
@@ -2092,7 +2093,7 @@
                                  0 (position #\: group-info-string))
                      nil (current-buffer) p)))
 
-(defcommand "Netnews Browse Pointer Read Group" (p)
+(defcommand "Netnews Browse Pointer Read Group" (window p)
   "Read the group on the line where you just clicked paying no attention to the
    \"Hemlock Databse File\" entry for this group.  With an argument, use and
    modify the databse file."
@@ -2104,7 +2105,7 @@
     (unless y (editor-error "There is no group in the modeline."))
     (netnews-browse-read-group-command p (cursorpos-to-mark x y window))))
 
-(defcommand "Netnews Browse Add Group to File" (p &optional
+(defcommand "Netnews Browse Add Group to File" (window p &optional
                                                       (mark (current-point)))
   "Append the newsgroup on the line under the point to the file specified by
    \"Netnews Group File\".  With an argument, delete all groups that were
@@ -2123,7 +2124,7 @@
       (write-line group s))
     (message "Adding ~S to newsgroup file." group)))
 
-(defcommand "Netnews Browse Pointer Add Group to File" (p)
+(defcommand "Netnews Browse Pointer Add Group to File" (window p)
   "Append the newsgroup you just clicked on to the file specified by
    \"Netnews Group File\"."
   "Append the newsgroup you just clicked on to the file specified by

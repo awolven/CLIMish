@@ -281,7 +281,7 @@
 ;;; Output a single character to stream.
 ;;;
 (defmethod hi::stream-write-char ((stream ts-stream) char)
-  (declare (base-char char))
+  (declare (character char))
   (when (= (fill-pointer (ts-stream-output-buffer stream))
            #+NIL(ts-stream-output-buffer-index stream)
            ts-stream-output-buffer-size)

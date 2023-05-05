@@ -44,7 +44,7 @@
   :documentation
   "List of slaves")
 
-(defcommand "Mark Slave" (p)
+(defcommand "Mark Slave" (window p)
   "" ""
   (declare (ignore p))
   (let* ((point (current-point))
@@ -55,7 +55,7 @@
         (setf (next-character (line-start point)) #\*))
       (line-offset point 1))))
 
-(defcommand "Unmark Slave" (p)
+(defcommand "Unmark Slave" (window p)
   "" ""
   (declare (ignore p))
   (with-writable-buffer (*slave-list-buffer*)
@@ -66,25 +66,25 @@
       (setf (next-character (line-start point)) #\space))
     (line-offset (current-point) 1)))
 
-(defcommand "Quit Slave List" (p)
+(defcommand "Quit Slave List" (window p)
   "" ""
   (declare (ignore p))
   (when *slave-list-buffer* (delete-buffer-if-possible *slave-list-buffer*)))
 
-(defcommand "Goto Slave" (p)
+(defcommand "Goto Slave" (window p)
   "" ""
   (let ((info (slave-list-item-info
                (array-element-from-mark (current-point) *slave-list-items*))))
     (change-to-buffer
      (or (server-info-slave-buffer info)
          (editor-error "Slave has no buffer")))
-    (unless (or p (not (prompt-for-y-or-n :prompt "Set as current slave? "
+    (unless (or p (not (prompt-for-y-or-n window :prompt "Set as current slave? "
                                           :default t
                                           :must-exist t
                                           :default-string "Y")))
       (setf (variable-value 'current-eval-server :global) info))))
 
-(defcommand "Activate Slave" (p)
+(defcommand "Activate Slave" (window p)
   "" ""
   (declare (ignore p))
   (setf (variable-value 'current-eval-server :global)
@@ -112,7 +112,7 @@
                    (slave-list-write-line c s)))
       (buffer-start (current-point) .buffer.))))
 
-(defcommand "List Slaves" (p)
+(defcommand "List Slaves" (window p)
   "" ""
   (declare (ignore p))
   (let ((buf (or *slave-list-buffer*
@@ -134,7 +134,7 @@
       (buffer-start (buffer-point buf) buf))
     (change-to-buffer buf)))
 
-(defcommand "Refresh Slave List" (p)
+(defcommand "Refresh Slave List" (window p)
   "" ""
   (declare (ignore p))
   (when *slave-list-buffer*
@@ -148,7 +148,7 @@
             (server-info-implementation-type info)
             (server-info-implementation-version info))))
 
-(defcommand "Slave-List Help" (p)
+(defcommand "Slave-List Help" (window p)
   "Show this help."
   "Show this help."
   (declare (ignore p))

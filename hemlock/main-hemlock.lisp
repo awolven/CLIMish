@@ -23,20 +23,21 @@
   ;; This function is defined in Buffer.Lisp.  It creates fundamental mode
   ;; and the buffer main.  Until this is done it is not possible to define
   ;; or use Hemlock variables.
-  (setup-initial-buffer)
-  ;;
-  ;; Define some of the system variables.
-  (define-some-variables)
-  ;;
-  ;; Site initializations such as window system variables.
-;;  (site-init)
-  ;;
-  ;; Set up syntax table data structures.
-  (%init-syntax-table)
-  ;;
-  ;; Define print representations for funny characters.
-  (%init-line-image)
-  (setq *hemlock-initialized* t))
+  (let ((initial-buffer (setup-initial-buffer)))
+    ;;
+    ;; Define some of the system variables.
+    (define-some-variables initial-buffer)
+    ;;
+    ;; Site initializations such as window system variables.
+    ;;  (site-init)
+    ;;
+    ;; Set up syntax table data structures.
+    (%init-syntax-table)
+    ;;
+    ;; Define print representations for funny characters.
+    (%init-line-image)
+    (setq *hemlock-initialized* t)
+    initial-buffer))
 
 ;;;; Define some globals.
 
@@ -95,99 +96,130 @@
                hemlock::*completion-mode-possibility*))
 
 
-(defun define-some-variables ()
+(defun define-some-variables (initial-buffer)
   (defhvar "Default Modes"
     "This variable contains the default list of modes for new buffers."
-    :value '("Fundamental" "Save")) ;; todo: fixme once save mode is defined
+    :value '("Fundamental" "Save")
+    :current-buffer initial-buffer) ;; todo: fixme once save mode is defined
   (defhvar "Echo Area Height"
     "Number of lines in the echo area window."
-    :value 3)
+    :value 3
+    :current-buffer initial-buffer)
   (defhvar "Make Buffer Hook"
-    "This hook is called with the new buffer whenever a buffer is created.")
+      "This hook is called with the new buffer whenever a buffer is created."
+    :current-buffer initial-buffer)
   (defhvar "Delete Buffer Hook"
-    "This hook is called with the buffer whenever a buffer is deleted.")
+      "This hook is called with the buffer whenever a buffer is deleted."
+    :current-buffer initial-buffer)
   (defhvar "Enter Recursive Edit Hook"
     "This hook is called with the new buffer when a recursive edit is
-     entered.")
+     entered."
+    :current-buffer initial-buffer)
   (defhvar "Exit Recursive Edit Hook"
     "This hook is called with the value returned when a recursive edit
-     is exited.")
+     is exited."
+    :current-buffer initial-buffer)
   (defhvar "Abort Recursive Edit Hook"
     "This hook is called with the editor-error args when a recursive
-     edit is aborted.")
+     edit is aborted."
+    :current-buffer initial-buffer)
   (defhvar "Buffer Major Mode Hook"
     "This hook is called with the buffer and the new mode when a buffer's
-     major mode is changed.")
+     major mode is changed."
+    :current-buffer initial-buffer)
   (defhvar "Buffer Minor Mode Hook"
     "This hook is called a minor mode is changed.  The arguments are
      the buffer, the mode affected and T or NIL depending on when the
-     mode is being turned on or off.")
+     mode is being turned on or off."
+    :current-buffer initial-buffer)
   (defhvar "Buffer Writable Hook"
     "This hook is called whenever someone sets whether the buffer is
-     writable.")
+     writable."
+    :current-buffer initial-buffer)
   (defhvar "Buffer Name Hook"
     "This hook is called with the buffer and the new name when the name of a
-     buffer is changed.")
+     buffer is changed."
+    :current-buffer initial-buffer)
   (defhvar "Buffer Pathname Hook"
     "This hook is called with the buffer and the new Pathname when the Pathname
-     associated with the buffer is changed.")
+     associated with the buffer is changed."
+    :current-buffer initial-buffer)
   (defhvar "Buffer Modified Hook"
     "This hook is called whenever a buffer changes from unmodified to modified
      and vice versa.  It takes the buffer and the new value for modification
-     flag.")
+     flag."
+    :current-buffer initial-buffer)
   (defhvar "Set Buffer Hook"
-    "This hook is called with the new buffer when the current buffer is set.")
+      "This hook is called with the new buffer when the current buffer is set."
+    :current-buffer initial-buffer)
   (defhvar "After Set Buffer Hook"
     "This hook is invoked with the old buffer after the current buffer has
-     been changed.")
+     been changed."
+    :current-buffer initial-buffer)
   (defhvar "Set Window Hook"
     "This hook is called with the new window when the current window
-     is set.")
+     is set."
+    :current-buffer initial-buffer)
   (defhvar "Make Window Hook"
-    "This hook is called with a new window when one is created.")
+      "This hook is called with a new window when one is created."
+    :current-buffer initial-buffer)
   (defhvar "Delete Window Hook"
-    "This hook is called with a window before it is deleted.")
+      "This hook is called with a window before it is deleted."
+    :current-buffer initial-buffer)
   (defhvar "Window Buffer Hook"
     "This hook is invoked with the window and new buffer when a window's
-     buffer is changed.")
+     buffer is changed."
+    :current-buffer initial-buffer)
   (defhvar "Delete Variable Hook"
     "This hook is called when a variable is deleted with the args to
-     delete-variable.")
+     delete-variable."
+    :current-buffer initial-buffer)
   (defhvar "Entry Hook"
-    "this hook is called when the editor is entered.")
+      "this hook is called when the editor is entered."
+    :current-buffer initial-buffer)
   (defhvar "Exit Hook"
-    "This hook is called when the editor is exited.")
+      "This hook is called when the editor is exited."
+    :current-buffer initial-buffer)
   (defhvar "Redisplay Hook"
     "This is called on the current window from REDISPLAY after checking the
      window display start, window image, and recentering.  After calling the
      functions in this hook, we do the above stuff and call the smart
      redisplay method for the device."
-    :value nil)
+    :value nil
+    :current-buffer initial-buffer)
   (defhvar "Key Echo Delay"
     "Wait this many seconds before echoing keys in the command loop.  This
      feature is inhibited when nil."
-    :value 1.0)
+    :value 1.0
+    :current-buffer initial-buffer)
   (defhvar "Input Hook"
     "The functions in this variable are invoked each time a character enters
      Hemlock."
-    :value nil)
+    :value nil
+    :current-buffer initial-buffer)
   (defhvar "Abort Hook"
     "These functions are invoked when ^G is typed.  No arguments are passed."
-    :value nil)
+    :value nil
+    :current-buffer initial-buffer)
   (defhvar "Command Abort Hook"
     "These functions get called when commands are aborted, such as with
      EDITOR-ERROR."
-    :value nil)
+    :value nil
+    :current-buffer initial-buffer)
   (defhvar "Character Attribute Hook"
     "This hook is called with the attribute, character and new value
-     when the value of a character attribute is changed.")
+     when the value of a character attribute is changed."
+    :current-buffer initial-buffer)
   (defhvar "Shadow Attribute Hook"
-    "This hook is called when a mode character attribute is made.")
+      "This hook is called when a mode character attribute is made."
+    :current-buffer initial-buffer)
   (defhvar "Unshadow Attribute Hook"
-    "This hook is called when a mode character attribute is deleted.")
+      "This hook is called when a mode character attribute is deleted."
+    :current-buffer initial-buffer)
   (defhvar "Default Modeline Fields"
     "The default list of modeline-fields for MAKE-WINDOW."
-    :value *default-modeline-fields*)
+    :value *default-modeline-fields*
+    :current-buffer initial-buffer)
   (defhvar "Default Status Line Fields"
     "This is the default list of modeline-fields for the echo area window's
      modeline which is used for general information."
@@ -195,18 +227,20 @@
                   :name :hemlock-banner
                   :function #'(lambda (buffer window)
                                 (declare (ignore buffer window))
-                                (format nil "Hemlock ~A on ~A "
+                                #+NIL(format nil "Hemlock ~A on ~A "
                                         *hemlock-version*
                                         (lisp-implementation-type))))
                  (modeline-field :edit-level)
-                 (modeline-field :completion)))
+                 (modeline-field :completion))
+    :current-buffer initial-buffer)
   (defhvar "Maximum Modeline Pathname Length"
     "When set, this variable is the maximum length of the display of a pathname
      in a modeline.  When the pathname is too long, the :buffer-pathname
      modeline-field function chops off leading directory specifications until
      the pathname fits.  \"...\" indicates a truncated pathname."
     :value 30
-    :hooks (list 'maximum-modeline-pathname-length-hook)))
+    :hooks (list 'maximum-modeline-pathname-length-hook)
+    :current-buffer initial-buffer))
 
 (defvar *background-image* :auto
   "Path to a background image in SVG format, or one of :AUTO, NIL.
@@ -271,14 +305,14 @@
 ;;                       :action ,(let ((b b))
 ;;                                  (alexandria:curry #'quick-backend b))))))))
 
-#-(or cmu scl)
+#-(and nil (or cmu scl))
 (defun show-cmd-line-help ()
-  (format t "This is hemlock ~A.~%Usage:~%~%" *hemlock-version*)
+  ;;(format t "This is hemlock ~A.~%Usage:~%~%" *hemlock-version*)
   (format t "   ~A [OPTIONS] file...~%~%"
           (or #+sbcl (car sb-ext:*posix-argv*)
               "hemlock"))
   (format t "Options are:~%~%")
-  (show-option-help *command-line-spec*)  )
+  #+NIL(show-option-help *command-line-spec*)  )
 
 ;; The following function is copy&paste from the system
 ;; command-line-arguments.
@@ -364,8 +398,8 @@
 ;; why, and I don't know if we can repair it.
 ;; --GB
 
-(unless *hemlock-initialized*
-  (%init-hemlock))
+;;(unless *hemlock-initialized*
+  ;;(%init-hemlock))
 
 (defvar *installation-directory* nil)
 

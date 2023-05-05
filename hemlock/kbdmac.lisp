@@ -114,7 +114,7 @@
   (insert-character (buffer-point (current-buffer)) character))
 
 (defun key-vector-to-string (key-vector)
-  (let ((string (make-array (length key-vector) :element-type 'base-char)))
+  (let ((string (make-array (length key-vector) :element-type 'character)))
     (dotimes (i (length key-vector) string)
       (setf (aref string i) (hemlock-ext:key-event-char (aref key-vector i))))))
 
@@ -317,7 +317,7 @@
 #+NOTYET
 (defmode "Def" :major-p nil)
 
-(defcommand "Define Keyboard Macro" (p)
+(defcommand "Define Keyboard Macro" (window p)
   "Define a keyboard macro."
   "Define a keyboard macro."
   (declare (ignore p))
@@ -331,7 +331,7 @@
    clobbering an existing key binding."
   :value t)
 
-(defcommand "Define Keyboard Macro Key" (p)
+(defcommand "Define Keyboard Macro Key" (window p)
   "Prompts for a key before going into a mode for defining keyboard macros.
    The macro definition is bound to the key.  IF the key is already bound,
    this asks for confirmation before clobbering the binding."
@@ -358,16 +358,17 @@
 ;;; if the user "aborts", otherwise it returns the key and location (kind
 ;;; where) of the binding.
 ;;;
-(defun get-keyboard-macro-key ()
-  (let* ((key (prompt-for-key :prompt "Bind keyboard macro to key: "
+(defun get-keyboard-macro-key (current-window)
+  (let* ((key (prompt-for-key current-window :prompt "Bind keyboard macro to key: "
                               :must-exist nil)))
     (multiple-value-bind (kind where)
-                         (prompt-for-place "Kind of binding: "
+                         (prompt-for-place current-window "Kind of binding: "
                                            "The kind of binding to make.")
       (let* ((cmd (get-command key kind where)))
         (cond ((not cmd) (values key kind where))
               ((commandp cmd)
                (if (prompt-for-y-or-n
+                    current-window
                     :prompt `("~A is bound to ~A.  Rebind it? "
                               ,(with-output-to-string (s)
                                  (hemlock-ext:print-pretty-key key s))
@@ -377,6 +378,7 @@
                    nil))
               ((eq cmd :prefix)
                (if (prompt-for-y-or-n
+                    current-window 
                     :prompt `("~A is a prefix for more than one command.  ~
                                Clobber it? "
                               ,(with-output-to-string (s)
@@ -404,7 +406,7 @@
     (setf (buffer-minor-mode (current-buffer) "Def") nil)))
 
 
-(defcommand "End Keyboard Macro" (p)
+(defcommand "End Keyboard Macro" (window p)
   "End the definition of a keyboard macro."
   "End the definition of a keyboard macro."
   (declare (ignore p))
@@ -415,27 +417,28 @@
 (define-kbdmac-transform "End Keyboard Macro" #'do-nothing-kbdmac-transform)
 
 
-(defcommand "Last Keyboard Macro" (p)
+(defcommand "Last Keyboard Macro" (window p)
   "Execute the last keyboard macro defined.
   With prefix argument execute it that many times."
   "Execute the last keyboard macro P times."
   (declare (ignore p))
   (editor-error "No keyboard macro defined."))
 
-(defcommand "Name Keyboard Macro" (p &optional name)
+(defcommand "Name Keyboard Macro" (window p &optional name)
   "Name the \"Last Keyboard Macro\".
   The last defined keboard macro is made into a named command."
   "Make the \"Last Keyboard Macro\" a named command."
   (declare (ignore p))
   (unless name
     (setq name (prompt-for-string
+                window
                 :prompt "Macro name: "
                 :help "String name of command to make from keyboard macro.")))
   (make-command
     name "This is a named keyboard macro."
    (command-function (getstring "Last Keyboard Macro" *command-names*))))
 
-(defcommand "Keyboard Macro Query" (p)
+(defcommand "Keyboard Macro Query" (window p)
   "Keyboard macro conditional.
   During the execution of a keyboard macro, this command prompts for
   a single character command, similar to those of \"Query Replace\"."
@@ -446,7 +449,8 @@
       (command-case (:prompt "Keyboard Macro Query: "
                      :help "Type one of these characters to say what to do:"
                      :change-window nil
-                     :bind key-event)
+                     :bind key-event
+                     :current-window window)
         (:exit
          "Exit this keyboard macro immediately."
          (throw 'exit-kbdmac nil))

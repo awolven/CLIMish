@@ -1,7 +1,6 @@
 (in-package :hemlock)
 
-(defmode "Character-Stream" :major-p nil :setup-function 'setup-character-stream-mode)
-(defmode "Interactive-Character-Stream" :major-p nil :setup-function 'setup-interactive-character-stream-mode)
+
 
 (defcommand "Character-Stream Mode" (p)
     "Put buffer in Character-Stream Mode"
@@ -118,6 +117,8 @@
 
 
 (defun f-o (stream)
+  (mapcar #'krma.gui::redraw-buffer (hi::buffer-windows (hemlock-character-io-stream-buffer stream)))
+  #+NIL
   (maybe-rebottom-current-on-mark-then-update-all-buffer-windows
    (hemlock-character-io-stream-buffer stream)
    (buffer-point (hemlock-character-io-stream-buffer stream))

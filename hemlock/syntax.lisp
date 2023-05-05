@@ -391,13 +391,13 @@
 
 
 
-(declaim (special *mode-names* *current-buffer*))
+(declaim (special *mode-names* #+NIL *current-buffer*))
 
 ;;; SHADOW-ATTRIBUTE  --  Public
 ;;;
 ;;;    Stick mode character attribute information in the mode object.
 ;;;
-(defun shadow-attribute (attribute character value mode)
+(defun shadow-attribute (current-buffer attribute character value mode)
   "Make a mode specific character attribute value.  The value of
   Attribute for Character when we are in Mode will be Value."
   (let ((desc (gethash attribute *character-attributes*))
@@ -418,7 +418,7 @@
                 (push cons (cdr current))))
           (push (list desc cons)
                 (mode-object-character-attributes obj)))
-      (when (member obj (buffer-mode-objects *current-buffer*))
+      (when (member obj (buffer-mode-objects current-buffer))
         (let ((vals (list cons)))
           (swap-one-attribute attribute char-set vals hooks)))
       (invoke-hook hemlock::shadow-attribute-hook attribute character value mode)))

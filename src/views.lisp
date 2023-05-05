@@ -1,56 +1,14 @@
 (in-package :krma.gui)
 
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  
-  (defclass command-table-mixin ()
-    ((ht :initform (make-hash-table) :reader command-table-table)))
-
-  (defmethod table-lookup ((table command-table-mixin) key)
-    (gethash key (command-table-table table)))
-
-  (defmethod (setf table-lookup) (thing (table command-table-mixin) key)
-    (setf (gethash key (command-table-table table)) thing))
-  
-  (defclass command-table (command-table-mixin)
-    ())
-
-  (defclass command-table-with-classes-mixin (command-table-mixin)
-    ())
-  
-  (defclass toplevel-command-table (command-table-with-classes-mixin)
-    ()))
-
-(defvar *toplevel-command-table* (make-instance 'toplevel-command-table))
-
-
-(eval-when (:compile-toplevel :load-toplevel :execute)
-
-  (defclass homemade-window-class (adhoc:adhoc-class)
-    ((command-table :initform (make-instance 'toplevel-command-table))))
-
-  (defmethod command-table (class)
-    (loop for c in (class-precedence-list class)
-	  when (slot-exists-p c 'command-table)
-	    do (return (slot-value c 'command-table))
-	  finally (return *toplevel-command-table*)))    
-  
-  (defmethod validate-superclass ((subclass homemade-window-class) (superclass adhoc:adhoc-class))
-    t))
-
 (defclass event-queue-mixin ()
   ((input-event-queue
     :initform (lparallel.queue:make-queue)
     :reader input-event-queue)))
 
-(defmethod command-table-p ((thing command-table-mixin))
-  t)
-
-(defmethod command-table-p (thing)
-  (declare (ignore thing))
-  nil)
-
 (defclass krma-gui-window-mixin (event-queue-mixin krma-window-mixin)
-  ((focused-window :initform nil :accessor focused-window)))
+  ((focused-window :initform nil :accessor focused-window)
+   (resize-window :initform nil :accessor window-to-resize)
+   (command-loop-go-semaphore :initform (bt:make-semaphore :name "command-loop-go-semaphore") :accessor command-loop-go-semaphore)))
 
 #+win32
 (defclass win32::krma-gui-window (krma-gui-window-mixin win32:krma-enabled-window-mixin) ())
@@ -101,16 +59,80 @@
    (window-title-align-x-mm 1/4)
    (window-title-align-x (* (the window-title-align-x-mm) (the px-per-mm-width)))
    (window-menu-button-position :right)
-   (title-bar-height-mm 8)
+   (title-bar-height-mm 4)
    (title-bar-height (* (the title-bar-height-mm) (the px-per-mm-height)))
    (default-window-border-size-mm 1/4)
    (default-window-border-size (* (the default-window-border-size-mm) (the px-per-mm-width)))
-   (default-initial-window-height-mm 90)
+   (default-initial-window-height-mm 45)
    (default-initial-window-height (* (the default-initial-window-height-mm) (the px-per-mm-height)))
-   (default-initial-window-width-mm 160)
+   (default-initial-window-width-mm 65)
    (default-initial-window-width (* (the default-initial-window-width-mm) (the px-per-mm-width)))
    
-   (current-font (default-system-font (the display)))))
+   (current-font (the roboto-font (bmfonts 2.75) bmfont)))
+
+  :components
+  ((roboto-font :type 'font
+		ttf-file (asdf/system:system-relative-pathname
+			  :krma "submodules/krma-fonts/Roboto_Mono/static/RobotoMono-Medium.ttf")
+		style self)))
+
+(defobject bmfont ()
+  :inputs
+  ((style)
+   (font)
+   (px-per-mm))
+  
+  :attributes
+  ((mm-size (the index))
+   (px-size (round (* (the mm-size) (the px-per-mm))))
+   (cache-filename (asdf/system:system-relative-pathname :krma (concatenate 'string "submodules/krma-fonts/"
+									    (pathname-name (the font ttf-file))
+									    "-"
+									    (format nil "~A" (the px-size))
+									    ".json")))
+   (bmfont (maybe-update-cache self))))
+
+(defmethod maybe-update-cache ((self bmfont))
+  (let ((cache-filename (the cache-filename)))
+    (unless (probe-file cache-filename)
+      (sdf-bmfont:create-bmfont (the font ttf-file)
+				cache-filename
+				:size (the px-size)
+				:mode :msdf+a
+				:type :json
+				:spread 8))
+    (let* ((dpy (the style display))
+	   (device (vk::default-logical-device dpy))
+	   (index (vk::queue-family-index (vk::render-surface (clui::helper-window dpy))))
+	   (queue (vk::find-queue device index))
+	   (sampler (krma::krma-texture-sampler (the style display)))
+	   (texture-dsl (vk::create-descriptor-set-layout
+			 device
+			 :bindings (list (make-instance 'vk::descriptor-set-layout-binding
+							:type vk::VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
+							:count 1
+							:flags vk::VK_SHADER_STAGE_FRAGMENT_BIT
+							:samplers (list sampler)))))
+	   (command-pool (vk::find-command-pool device index))
+	   (descriptor-pool (vk::default-descriptor-pool dpy))
+	   (command-buffer (elt (vk::command-buffers command-pool) 0)))
+	  
+      (krma::vulkan-make-font device queue sampler texture-dsl descriptor-pool command-buffer :cache-file cache-filename))))
+			    
+									    
+
+(defobject font ()
+  :inputs
+  ((style)
+   (ttf-file)
+   (font-sizes `((2) (2.5) (2.75) (3) (3.5) (4) (4.5) (5))))
+
+  :components
+  ((bmfonts :type 'bmfont
+	    :aggregate (:indices (the font-sizes))
+	    style (the style)
+	    font self
+	    px-per-mm (the style px-per-mm-height))))
 
 (defun lerp (a b s)
   (map 'vector #'+ a (map 'vector #'(lambda (x) (* x s)) (map 'vector #'- a b))))
@@ -175,19 +197,9 @@
    (nav-windowing-dim-bg-color     #(0.80f0 0.80f0 0.80f0 0.20f0))
    (modal-window-dim-bg-color      #(0.20f0 0.20f0 0.20f0 0.35f0))))
 
-(defclass krma-gui-application-mixin (krma-application-mixin)
-  ())
 
-(defclass krma-gui-application (krma-gui-application-mixin)
-  ())
 
-(defmethod initialize-instance :after ((app krma-gui-application) &rest initargs)
-  (declare (ignore initargs))
-  (unless (boundp '*style*)
-    (setq *style* (make-instance 'classic-style
-				 'display (application-display app)
-				 'monitor (clui::get-primary-monitor (application-display app)))))
-  (values))				 
+				 
 
 (defmethod transform-coordinate ((vec vec2) (node node-mixin))
   (transform-coordinate (vec3 (vx vec) (vy vec) 0) node))
@@ -256,7 +268,11 @@
   :attributes
   ((layer (if (the superior)
 	      (1+ (the superior layer))
-	      0))))
+	      0)))
+
+  :components
+  ((client-rect :type 'client-rect)))
+		
 
 (defmethod view-p (object)
   (declare (ignore object))
@@ -266,6 +282,109 @@
   t)
 
 (defobject group-owner-view-mixin (group-owner-mixin view-mixin))
+
+(defobject resize-border (selectable-mixin group-mixin view-mixin)
+  :inputs
+  ((color #x00000000))
+
+  :attributes
+  ((layer (ecase (the index)
+	    ((:north :south) (+ (the root layer) 15))
+	    ((:east :west) (+ (the root layer) 14))))))
+
+(defmethod clui:handle-event ((self resize-border) (event clui::pointer-enter-event-mixin))
+  (let* ((north-id (the root (resize-borders :north) object-id))
+	 (south-id (the root (resize-borders :south) object-id))
+	 (east-id (the root (resize-borders :east) object-id))
+	 (west-id (the root (resize-borders :west) object-id))
+	 (display (clui::window-display (clui::window-parent (the root))))
+	 (hovered (krma::focused-hovered-2d (krma::krma-select-box-2d display) 0 0))
+	 (cursor-class (when hovered
+			 (cond ((find north-id hovered)
+				(cond ((find west-id hovered) 'clui::NWSE-cursor)
+				      ((find east-id hovered) 'clui::NESW-cursor)				      
+				      (t 'NS-cursor)))
+			       ((find south-id hovered)
+				(cond ((find west-id hovered) 'clui::NESW-cursor)
+				      ((find east-id hovered) 'clui::NWSE-cursor)				      
+				      (t 'clui::NS-cursor)))
+			       ((or (find east-id hovered)
+				    (find west-id hovered))
+				'clui::EW-cursor)
+			       (t nil)))))
+    (when cursor-class
+      (setf (clui::window-cursor (clui::window-parent (the root))) (make-instance cursor-class :display display)))))
+
+(defmethod clui:handle-event ((self resize-border) (event clui::pointer-button-press-event-mixin))
+  (let* ((north-id (the root (resize-borders :north) object-id))
+	 (south-id (the root (resize-borders :south) object-id))
+	 (east-id (the root (resize-borders :east) object-id))
+	 (west-id (the root (resize-borders :west) object-id))
+	 (display (clui::window-display (clui::window-parent (the root))))
+	 (hovered (krma::focused-hovered-2d (krma::krma-select-box-2d display) 0 0))
+	 (resize-mode (when hovered
+			 (cond ((find north-id hovered)
+				(cond ((find west-id hovered) :northwest)
+				      ((find east-id hovered) :northeast)				      
+				      (t :north)))
+			       ((find south-id hovered)
+				(cond ((find west-id hovered) :southwest)
+				      ((find east-id hovered) :southeast)				      
+				      (t :south)))
+			       ((find east-id hovered) :east)
+			       ((find west-id hovered) :west)
+			       (t nil)))))
+    (setf (resize-mode (the root)) resize-mode)
+    (when resize-mode
+      (setf (window-to-resize (clui::window-parent (the root))) (the root)))
+    (values)))
+
+(defmethod clui:handle-event :after ((self krma-gui-window-mixin) (event clui::pointer-button-release-event-mixin))
+  (let ((resize-window (window-to-resize self)))
+    (when resize-window  
+      (setf (resize-mode resize-window) nil)
+      (setf (window-to-resize self) nil)
+      (clui:handle-event resize-window (make-instance 'clui:window-resize-event :window resize-window))))
+  (values))
+
+(defmethod clui:handle-event :after ((self krma-gui-window-mixin) (event clui::pointer-motion-event-mixin))
+  (let ((resize-window (window-to-resize self)))
+    (when resize-window
+      (multiple-value-bind (x y) (clui:window-position resize-window)
+	(multiple-value-bind (width height) (clui:window-size resize-window)
+	  (ecase (resize-mode resize-window)
+	    (:north (resize-window resize-window x (clui::pointer-event-y event) width (max (+ (- y (clui::pointer-event-y event)) height) 20)))
+	    (:northwest)
+	    (:northeast)
+	    (:south)
+	    (:southwest)
+	    (:southeast)
+	    (:east (resize-window resize-window x y (max (- (clui::pointer-event-x event) x) 20) height))
+	    (:west 
+		   ))))))
+  (lparallel.queue:push-queue (clui::input-event-id event) (input-event-queue self))
+  (values))
+
+(defgeneric resize-window (window new-x new-y new-width new-height))
+
+(defmethod resize-window ((window homemade-window-mixin) new-x new-y new-width new-height)
+  (clui:set-window-size window new-width new-height)
+  (clui:set-window-position window new-x new-y)
+  (values))
+
+(defmethod clui:handle-event ((self resize-border) (event clui::pointer-exit-event-mixin))
+  (setf (clui::window-cursor (clui::window-parent (the root))) (make-instance 'clui::arrow-cursor :display (clui::window-display (clui::window-parent (the root)))))
+  (values))
+
+(defmethod rm-draw-node ((self resize-border))
+  (let ((scene (the scene)))
+    (push
+     (scene-add-filled-2d-rectangle-list-primitive
+      scene (the group) nil (the color)
+      (list (the x0) (the y0) (the x1) (the y1))
+      (the object-id)
+      (the layer))
+     (the primitive-handles))))  
 
 (defobject title-bar-button-mixin (selectable-mixin group-mixin view-mixin)
   :inputs
@@ -363,10 +482,14 @@
        (the object-id)
        (1+ (the layer))))))
 
-(defobject resize-grips (selectable-mixin group-mixin view-mixin))
-
 (defobject homemade-window-mixin (selectable-mixin group-owner-view-mixin)
   :metaclass homemade-window-class
+
+  
+  :slots
+  ((command-table :initform (make-hash-table :test #'eq) :reader command-table)
+   (resize-mode :initform nil :accessor resize-mode))
+
 
   :inputs
   ((parent (main-window *app*))
@@ -374,7 +497,7 @@
    (style *style*)
    (font (the style current-font))
    (collapsed? nil)
-   (resizable? nil)
+   (resizable? t)
    (menu-bar? nil)
    (scrollbar-x? nil)
    (scrollbar-y? nil)
@@ -413,7 +536,20 @@
 
    (menu-bar :type (if (the menu-bar?) 'menu-bar 'null-object))
 
-   (resize-grips :type (if (the resizable?) 'resize-grips 'null-object))
+   (resize-borders :type (if (the resizable?) 'resize-border 'null-object)
+		   :aggregate (:indices '((:north) (:south) (:east) (:west)))
+		   x (ecase (the-part index)
+		       ((:west :north :south) (+ (the x) -3))
+		       ((:east) (+ (the x) (the width) -3)))
+		   y (ecase (the-part index)
+		       ((:west :east :north) (+ (the y) -3))
+		       ((:south) (+ (the y) (the height) -3)))
+		   width (ecase (the-part index)
+			   ((:north :south) (+ 6 (the width)))
+			   ((:east :west) 6))
+		   height (ecase (the-part index)
+			   ((:north :south) 6)
+			   ((:east :west) (+ 6 (the height)))))
 
    (horizontal-scrollbar :type (if (the scrollbar-x?) 'scrollbar 'null-object)
 			 axis :horizontal)
@@ -486,17 +622,25 @@
     (let ((coord (untransform-global-coordinate (vec3 x y 0) self)))
       (values (vx coord) (vy coord)))))
       
-      
+
+(defmethod destroy-window ((homemade-window homemade-window-mixin))
+  (rm-erase-node-recursively homemade-window)
+  (let ((scene (send homemade-window scene)))
+    ;; remove the graphical representation from the draw-lists
+    (setf (krma::node-children scene)
+	  (remove homemade-window (krma::node-children scene)))
+    (when (eq homemade-window (focused-window (clui::window-parent homemade-window)))
+      (setf (focused-window (clui::window-parent homemade-window)) hi::*echo-area-window*))
+    (forget-object-recursively homemade-window)
+    (unless (krma::node-children scene)
+      (setf (krma::immediate-mode-work-function-1 (clui::window-display (window-parent homemade-window))) nil))
+    #+ccl(ccl:gc)
+    #+sbcl(sb-sys::gc :full t)
+    (values)))
 
 (defmethod clui:handle-event ((button close-button) (event clui::pointer-button-press-event-mixin))
-  ;; remove the graphical representation from the draw-lists
   (let ((homemade-window (send button window)))
-    (rm-erase-node-recursively homemade-window)
-    (setf (krma::node-children (send homemade-window scene))
-	  (remove homemade-window (krma::node-children (send homemade-window scene))))
-    (forget-object-recursively homemade-window)
-    #+ccl(ccl:gc)
-    #+sbcl(gc t)))
+    (destroy-window homemade-window)))
 
 (defmethod clui:handle-event ((button title-bar-button-mixin) (event clui::pointer-boundary-event-mixin))
   (call-next-method)
@@ -569,6 +713,7 @@
 	
     (setf (the z-index) (1+ highest-z-index))
     (setf (krma::node-children (the scene)) (append (krma::node-children (the scene)) (list self)))
+    
     (setf (focused-window (window-parent (the root))) self))
 
   (values))
@@ -874,7 +1019,7 @@
   (clui:focus-window (the window)))
 
 (defmethod clui:handle-event ((window krma-window-mixin) (event clui::pointer-button-press-event-mixin))
-  (call-next-method)
+  ;;(call-next-method)
   (let* ((hovered (krma::most-specifically-hovered-2d (krma::krma-select-box-2d (clui::window-display window)) 0 0)))
     (when hovered
       (let ((object (krma::object-from-id hovered)))

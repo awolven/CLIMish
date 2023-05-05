@@ -50,13 +50,13 @@
   :documentation
   "Xref lists Lisp definitions.")
 
-(defcommand "Xref Quit" (p)
+(defcommand "Xref Quit" (window p)
   "Kill the xref buffer."
   ""
   (declare (ignore p))
   (when *xref-buffer* (delete-buffer-if-possible *xref-buffer*)))
 
-(defcommand "Xref Goto" (p)
+(defcommand "Xref Goto" (window p)
   "Change to the entry's buffer."
   "Change to the entry's buffer."
   (declare (ignore p))
@@ -102,7 +102,7 @@
               "..."
               (subseq str (- (length str) (ceiling (- len 3) 2))))))
 
-(defcommand "Xref Help" (p)
+(defcommand "Xref Help" (window p)
   "Show this help."
   "Show this help."
   (declare (ignore p))
@@ -145,7 +145,7 @@
   (hemlock::eval-in-slave
    `(%find-definitions "definition" 'conium:find-definitions ',name)))
 
-(defcommand "Find Definitions" (p)
+(defcommand "Find Definitions" (window p)
   "" ""
   (let ((default (hemlock::symbol-string-at-point)))
     ;; Fixme: MARK-SYMBOL isn't very good, meaning that often we
@@ -158,6 +158,7 @@
      (hemlock::parse-slave-symbol
       (if (or p (not default))
           (hemlock-interface::prompt-for-string
+           window
            :prompt "Name: "
            :default default)
           default)))))
@@ -165,7 +166,7 @@
 (macrolet
     ((% (name fun conium-fun)
        `(progn
-          (defcommand ,name (p)
+          (defcommand ,name (window p)
             "" ""
             (let ((default (hemlock::symbol-string-at-point)))
               ;; Fixme: MARK-SYMBOL isn't very good, meaning that often we
@@ -178,6 +179,7 @@
                (hemlock::parse-slave-symbol
                 (if (or p (not default))
                     (hemlock-interface::prompt-for-string
+                     window
                      :prompt "Name: "
                      :default default)
                     default)))))

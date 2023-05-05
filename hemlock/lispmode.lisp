@@ -28,13 +28,7 @@
 ;;; END-OF-PARSE-BLOCK.
 ;;;
 
-(defhvar "Parse Start Function"
-  "Take a mark and move it to the top of a block for paren parsing."
-  :value 'start-of-parse-block)
 
-(defhvar "Parse End Function"
-  "Take a mark and move it to the bottom of a block for paren parsing."
-  :value 'end-of-parse-block)
 
 (defmacro .delete-horizontal-space. (mark)
   "Deletes all :space characters on either side of mark."
@@ -253,49 +247,7 @@
 
 
 
-;;;; Parse block finders.
 
-(defhvar "Minimum Lines Parsed"
-  "The minimum number of lines before and after the point parsed by Lisp mode."
-  :value 50)
-(defhvar "Maximum Lines Parsed"
-  "The maximum number of lines before and after the point parsed by Lisp mode."
-  :value 500)
-(defhvar "Defun Parse Goal"
-  "Lisp mode parses the region obtained by skipping this many defuns forward
-   and backward from the point unless this falls outside of the range specified
-   by \"Minimum Lines Parsed\" and \"Maximum Lines Parsed\"."
-  :value 2)
-
-
-(macrolet ((frob (step end)
-             `(let ((min (value minimum-lines-parsed))
-                    (max (value maximum-lines-parsed))
-                    (goal (value defun-parse-goal))
-                    (last-defun nil))
-                (declare (fixnum min max goal))
-                (do ((line (mark-line mark) (,step line))
-                     (count 0 (1+ count)))
-                    ((null line)
-                     (,end mark .buffer.))
-                  (declare (fixnum count))
-                  (when (char= (line-character line 0) #\()
-                    (setq last-defun line)
-                    (decf goal)
-                    (when (and (<= goal 0) (>= count min))
-                      (line-start mark line)
-                      (return)))
-                  (when (> count max)
-                    (line-start mark (or last-defun line))
-                    (return))))))
-
-  (defun start-of-parse-block (buffer mark)
-    (with-buffer-globals (buffer)
-      (frob line-previous buffer-start)))
-
-  (defun end-of-parse-block (buffer mark)
-    (with-buffer-globals (buffer)
-      (frob line-next buffer-end))))
 
 ;;;
 ;;; START-OF-SEARCH-LINE
@@ -824,13 +776,38 @@
 
 
 
+(macrolet ((frob (step end)
+             `(let ((min (value minimum-lines-parsed))
+                    (max (value maximum-lines-parsed))
+                    (goal (value defun-parse-goal))
+                    (last-defun nil))
+                (declare (fixnum min max goal))
+                (do ((line (mark-line mark) (,step line))
+                     (count 0 (1+ count)))
+                    ((null line)
+                     (,end mark .buffer.))
+                  (declare (fixnum count))
+                  (when (char= (line-character line 0) #\()
+                    (setq last-defun line)
+                    (decf goal)
+                    (when (and (<= goal 0) (>= count min))
+                      (line-start mark line)
+                      (return)))
+                  (when (> count max)
+                    (line-start mark (or last-defun line))
+                    (return))))))
+
 ;;;; Table of special forms with special indenting requirements.
 
-(defhvar "Indent Defanything"
-  "This is the number of special arguments implicitly assumed to be supplied
-   in calls to functions whose names begin with \"DEF\".  If set to NIL, this
-   feature is disabled."
-  :value 2)
+	       
+
+  (defun start-of-parse-block (buffer mark)
+    (with-buffer-globals (buffer)
+      (frob line-previous buffer-start)))
+
+  (defun end-of-parse-block (buffer mark)
+    (with-buffer-globals (buffer)
+      (frob line-next buffer-end))))
 
 (defvar *special-forms* (make-hash-table :test #'equal))
 
@@ -1098,9 +1075,7 @@
                         mark temp fstart start nil)
                        (.mark-column. start))))))))))
 
-(defhvar "Lisp Indentation Local Definers"
-  "Forms with syntax like LABELS, MACROLET, etc."
-  :value '("LABELS" "MACROLET" "FLET"))
+
 
 ;;; LISP-INDENTATION-CHECK-FOR-LOCAL-DEF -- Internal.
 ;;;
@@ -1185,13 +1160,13 @@
 
 ;;;; Indentation commands and hook functions.
 
-(defcommand "Defindent" (p)
+(defcommand "Defindent" (window p)
   "Define the Lisp indentation for the current function.
   The indentation is a non-negative integer which is the number
   of special arguments for the form.  Examples: 2 for Do, 1 for Dolist.
   If a prefix argument is supplied, then delete the indentation information."
     "Do a defindent, man!"
-  (with-buffer-globals ((current-buffer))
+  (with-buffer-globals ((window-buffer window))
     (with-mark ((m .point.))
       (.pre-command-parse-check. m)
       (unless (backward-up-list m) (editor-error))
@@ -1204,14 +1179,15 @@
           (if p
               (defindent s nil)
               (let ((i (prompt-for-integer
+                        window
                         :prompt (format nil "Indentation for ~A: " s)
                         :help "Number of special arguments.")))
                 (when (minusp i)
                   (editor-error "Indentation must be non-negative."))
                 (defindent s i))))))
-    (indent-command nil)))
+    (indent-command window nil)))
 
-(defcommand "Indent Form" (p)
+(defcommand "Indent Form" (window p)
   "Indent Lisp code in the next form."
   "Indent Lisp code in the next form."
   (declare (ignore p))
@@ -1220,7 +1196,7 @@
       (.pre-command-parse-check. point)
       (with-mark ((m point))
         (unless (form-offset m 1) (editor-error))
-        (lisp-indent-region .buffer. (region point m) "Indent Form")))))
+        (lisp-indent-region window .buffer. (region point m) "Indent Form")))))
 
 ;;; LISP-INDENT-REGION -- Internal.
 ;;;
@@ -1231,8 +1207,8 @@
 ;;; will work.  This is done undoably with save1, save2, buf-region, and
 ;;; undo-region.
 ;;;
-(defun lisp-indent-region (buffer region &optional (undo-text "Lisp region indenting"))
-  (check-region-query-size region)
+(defun lisp-indent-region (current-window buffer region &optional (undo-text "Lisp region indenting"))
+  (check-region-query-size current-window region)
   (let ((start (region-start region))
         (end (region-end region)))
     (with-buffer-globals (buffer)
@@ -1277,7 +1253,7 @@
 
 ;;;; Most "Lisp" mode commands.
 
-(defcommand "Beginning of Defun" (p)
+(defcommand "Beginning of Defun" (window p)
   "Move the point to the beginning of a top-level form.
   with an argument, skips the previous p top-level forms."
     "Move the point to the beginning of a top-level form."
@@ -1298,7 +1274,7 @@
 ;;; defun, point would be left at the beginning of the p+1'st form instead of
 ;;; at the end of the p'th form.
 ;;;
-(defcommand "End of Defun" (p)
+(defcommand "End of Defun" (window p)
   "Move the point to the end of a top-level form.
    With an argument, skips the next p top-level forms."
   "Move the point to the end of a top-level form."
@@ -1306,7 +1282,7 @@
         (count (or p 1)))
     (.pre-command-parse-check. point)
     (if (minusp count)
-        (beginning-of-defun-command (- count))
+        (beginning-of-defun-command window (- count))
         (with-mark ((m point)
                     (dummy point))
           (cond ((not (mark-top-level-form m dummy))
@@ -1321,7 +1297,7 @@
                  (when (blank-after-p m) (line-offset m 1 0))
                  (move-mark point m)))))))
 
-(defcommand "Forward List" (p)
+(defcommand "Forward List" (window p)
   "Skip over the next Lisp list.
   With argument, skips the next p lists."
   "Skip over the next Lisp list."
@@ -1330,7 +1306,7 @@
     (.pre-command-parse-check. point)
     (unless (list-offset point count) (editor-error))))
 
-(defcommand "Backward List" (p)
+(defcommand "Backward List" (window p)
   "Skip over the previous Lisp list.
   With argument, skips the previous p lists."
   "Skip over the previous Lisp list."
@@ -1339,7 +1315,7 @@
     (.pre-command-parse-check. point)
     (unless (list-offset point count) (editor-error))))
 
-(defcommand "Forward Form" (p)
+(defcommand "Forward Form" (window p)
   "Skip over the next Form.
   With argument, skips the next p Forms."
   "Skip over the next Form."
@@ -1348,7 +1324,7 @@
     (.pre-command-parse-check. point)
     (unless (form-offset point count) (editor-error))))
 
-(defcommand "Backward Form" (p)
+(defcommand "Backward Form" (window p)
   "Skip over the previous Form.
   With argument, skips the previous p Forms."
   "Skip over the previous Form."
@@ -1357,7 +1333,7 @@
     (.pre-command-parse-check. point)
     (unless (form-offset point count) (editor-error))))
 
-(defcommand "Mark Form" (p)
+(defcommand "Mark Form" (window p)
   "Set the mark at the end of the next Form.
    With a positive argument, set the mark after the following p
    Forms. With a negative argument, set the mark before
@@ -1371,7 +1347,7 @@
           (move-mark mark m)
           (editor-error)))))
 
-(defcommand "Mark Defun" (p)
+(defcommand "Mark Defun" (window p)
   "Puts the region around the next or containing top-level form.
    The point is left before the form and the mark is placed immediately
    after it."
@@ -1387,7 +1363,7 @@
              (move-mark point start)
              (move-mark (push-buffer-mark (copy-mark point) t) end))))))
 
-(defcommand "Forward Kill Form" (p)
+(defcommand "Forward Kill Form" (window p)
   "Kill the next Form.
    With a positive argument, kills the next p Forms.
    Kills backward with a negative argument."
@@ -1406,14 +1382,14 @@
                     (.kill-region. (region m1 m2) :kill-backward)
                     (.kill-region. (region m2 m1) :kill-forward))))))))))
 
-(defcommand "Backward Kill Form" (p)
+(defcommand "Backward Kill Form" (window p)
   "Kill the previous Form.
   With a positive argument, kills the previous p Forms.
   Kills forward with a negative argument."
   "Kill the previous Form."
-  (forward-kill-form-command (- (or p 1))))
+  (forward-kill-form-command window (- (or p 1))))
 
-(defcommand "Extract Form" (p)
+(defcommand "Extract Form" (window p)
   "Replace the current containing list with the next form.  The entire affected
    area is pushed onto the kill ring.  If an argument is supplied, that many
    upward levels of list nesting is replaced by the next form."
@@ -1439,7 +1415,7 @@
           (ninsert-region point r)
           (move-mark point form-start))))))
 
-(defcommand "Extract List" (p)
+(defcommand "Extract List" (window p)
   "Extract the current list.
   The current list replaces the surrounding list.  The entire affected
   area is pushed on the kill-ring.  With prefix argument, remove that
@@ -1465,7 +1441,7 @@
           (ninsert-region point r)
           (move-mark point lstart))))))
 
-(defcommand "Transpose Forms" (p)
+(defcommand "Transpose Forms" (window p)
   "Transpose Forms immediately preceding and following the point.
   With a zero argument, tranposes the Forms at the point and the mark.
   With a positive argument, transposes the Form preceding the point
@@ -1504,7 +1480,7 @@
               (move-mark point s2)))))))
 
 
-(defcommand "Insert ()" (count)
+(defcommand "Insert ()" (window count)
   "Insert a pair of parentheses ().  With positive argument, puts
    parentheses around the next COUNT Forms, or previous COUNT forms, if
    COUNT is negative.  The point is positioned after the open parenthesis."
@@ -1531,7 +1507,7 @@
            (mark-before point)))))
 
 
-(defcommand "Move Over )" (p)
+(defcommand "Move Over )" (window p)
     "Move past the next close parenthesis, and start a new line.  Any
    indentation preceding the preceding the parenthesis is deleted, and the
    new line is indented.  If there is only whitespace preceding the close
@@ -1573,33 +1549,33 @@
                      (editor-error "Could not find closing paren."))))))))))
 
 
-(defcommand "Forward Up List" (p)
+(defcommand "Forward Up List" (window p)
   "Move forward past a one containing )."
   "Move forward past a one containing )."
   (let ((point (current-point))
         (count (or p 1)))
     (.pre-command-parse-check. point)
     (if (minusp count)
-        (backward-up-list-command (- count))
+        (backward-up-list-command window (- count))
         (with-mark ((m point))
           (dotimes (i count (move-mark point m))
             (unless (forward-up-list m) (editor-error)))))))
 
 
-(defcommand "Backward Up List" (p)
+(defcommand "Backward Up List" (window p)
   "Move backward past a one containing (."
   "Move backward past a one containing (."
   (let ((point (current-point))
         (count (or p 1)))
     (.pre-command-parse-check. point)
     (if (minusp count)
-        (forward-up-list-command (- count))
+        (forward-up-list-command window (- count))
         (with-mark ((m point))
           (dotimes (i count (move-mark point m))
             (unless (backward-up-list m) (editor-error)))))))
 
 
-(defcommand "Down List" (p)
+(defcommand "Down List" (window p)
   "Move down a level in list structure.  With positive argument, moves down
    p levels.  With negative argument, moves down backward, but only one
    level."
@@ -1623,13 +1599,9 @@
 
 ;;;; Filling Lisp comments, strings, and indented text.
 
-(defhvar "Fill Lisp Comment Paragraph Confirm"
-  "This determines whether \"Fill Lisp Comment Paragraph\" will prompt for
-   confirmation to fill contiguous lines with the same initial whitespace when
-   it is invoked outside of a comment or string."
-  :value t)
 
-(defcommand "Fill Lisp Comment Paragraph" (p)
+
+(defcommand "Fill Lisp Comment Paragraph" (window p)
   "This fills a flushleft or indented Lisp comment.
    This also fills Lisp string literals using the proper indentation as a
    filling prefix.  When invoked outside of a comment or string, this tries
@@ -1654,6 +1626,7 @@
                (fill-lisp-string m))
               ((or (not (value fill-lisp-comment-paragraph-confirm))
                    (prompt-for-y-or-n
+                    window
                     :prompt '("Not in a comment or string.  Fill contiguous ~
                                lines with the same initial whitespace? ")))
                (fill-lisp-comment-or-indented-text start end)))))))
@@ -1769,14 +1742,14 @@
 
 ;;;; "Lisp" mode.
 
-(defcommand "LISP Mode" (p)
+(defcommand "LISP Mode" (window p)
   "Put current buffer in LISP mode."
   "Put current buffer in LISP mode."
   (declare (ignore p))
   (setf (buffer-major-mode (current-buffer)) "LISP"))
 
 
-(defmode "Lisp" :major-p t :setup-function 'setup-lisp-mode)
+
 
 (defun setup-lisp-mode (buffer)
   (declare (ignorable buffer))
@@ -1787,12 +1760,9 @@
 
 ;;;; Matching parenthesis display.
 
-(defhvar "Paren Pause Period"
-  "This is how long commands that deal with \"brackets\" shows the cursor at
-   the matching \"bracket\" for this number of seconds."
-  :value 0.5)
 
-(defcommand "Lisp Insert )" (p)
+
+(defcommand "Lisp Insert )" (window p)
   "Inserts a \")\" and briefly positions the cursor at the matching \"(\"."
   "Inserts a \")\" and briefly positions the cursor at the matching \"(\"."
   (declare (ignore p))
@@ -1817,25 +1787,9 @@
 ;;; Since we use paren highlighting in Lisp mode, we do not want paren
 ;;; flashing too.
 ;;;
-(defhvar "Paren Pause Period"
-  "This is how long commands that deal with \"brackets\" shows the cursor at
-   the matching \"bracket\" for this number of seconds."
-  :value nil
-  :mode "Lisp")
+
 ;;;
-(defhvar "Highlight Open Parens"
-  "When non-nil, causes open parens to be displayed in a different font when
-   the cursor is directly to the right of the corresponding close paren."
-  :value t
-  :mode "Lisp")
 
-
-(defhvar "Open Paren Finder Function"
-  "Should be a function that takes a mark for input and returns either NIL
-   if the mark is not after a close paren, or two (temporary) marks
-   surrounding the corresponding open paren."
-  :mode "Lisp"
-  :value 'lisp-open-paren-finder-function)
 
 (defun lisp-open-paren-finder-function (mark)
   (when (eq (character-attribute :lisp-syntax (previous-character mark))
@@ -1848,23 +1802,4 @@
 
 
 
-;;;; Some mode variables to coordinate with other stuff.
 
-(defhvar "Auto Fill Space Indent"
-  "When non-nil, uses \"Indent New Comment Line\" to break lines instead of
-   \"New Line\"."
-  :mode "Lisp" :value t)
-
-(defhvar "Comment Start"
-  "String that indicates the start of a comment."
-  :mode "Lisp" :value ";")
-
-(defhvar "Comment Begin"
-  "String that is inserted to begin a comment."
-  :mode "Lisp" :value "; ")
-
-(defhvar "Indent Function"
-  "Indentation function which is invoked by \"Indent\" command.
-   It must take one argument that is the prefix argument."
-  :value 'indent-for-lisp
-  :mode "Lisp")

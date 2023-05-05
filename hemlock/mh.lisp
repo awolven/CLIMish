@@ -122,21 +122,21 @@
       (values (line-message-id line)
               (copy-mark point)))))
 
-(defcommand "Message Headers" (p)
+(defcommand "Message Headers" (window p)
   "Prompts for a folder and messages, displaying headers in a buffer in the
    current window.  With an argument, prompt for a pick expression."
   "Show some headers."
-  (let ((folder (prompt-for-folder)))
+  (let ((folder (prompt-for-folder window)))
     (new-message-headers
      folder
-     (prompt-for-message :prompt (if p
+     (prompt-for-message window :prompt (if p
                                      "MH messages to pick from: "
                                      "MH messages: ")
                          :folder folder
                          :messages "all")
                          p)))
 
-(defcommand "Pick Headers" (p)
+(defcommand "Pick Headers" (window p)
   "Further narrow the selection of this folders headers.
    Prompts for a pick expression to pick over the headers in the current
    buffer.  Entering an empty expression displays all the headers for that
@@ -158,7 +158,7 @@
   (let ((folder (headers-info-folder hinfo))
         (msgs (headers-info-msg-strings hinfo)))
     (multiple-value-bind (pick user-pick)
-                         (prompt-for-pick-expression)
+                         (prompt-for-pick-expression window)
       (let* ((hbuffer (headers-info-buffer hinfo))
              (new-mail-buf-p (eq hbuffer *new-mail-buffer*))
              (region (cond (pick
@@ -186,7 +186,7 @@
 ;;;
 (defun new-message-headers (folder msgs &optional pickp)
   (multiple-value-bind (pick-exp user-pick)
-                       (if pickp (prompt-for-pick-expression))
+                       (if pickp (prompt-for-pick-expression window))
     (let* ((pick (if pick-exp (pick-messages folder msgs pick-exp)))
            (region (message-headers-to-region folder (or pick msgs)))
            (hbuffer (maybe-make-mh-buffer (format nil "Headers ~A ~A~:[~; ~S~]"
@@ -291,7 +291,7 @@
                  (return (nreverse result)))))))))
 
 
-(defcommand "Delete Headers Buffer and Message Buffers" (p &optional buffer)
+(defcommand "Delete Headers Buffer and Message Buffers" (window p &optional buffer)
   "Prompts for a headers buffer to delete along with its associated message
    buffers.  Any associated draft buffers are left alone, but their associated
    message buffers will be deleted."
@@ -300,7 +300,7 @@
   (let* ((default (cond ((value headers-information) (current-buffer))
                         ((value message-information) (value headers-buffer))))
          (buffer (or buffer
-                     (prompt-for-buffer :default default
+                     (prompt-for-buffer window :default default
                                         :default-string
                                         (if default (buffer-name default))))))
     (unless (hemlock-bound-p 'headers-information :buffer buffer)
@@ -336,7 +336,7 @@
 ;;; making the new one due to aliasing the buffer structure and
 ;;; MAYBE-MAKE-MH-BUFFER.
 ;;;
-(defcommand "Quit Headers" (p)
+(defcommand "Quit Headers" (window p)
   "Quit headers buffer possibly expunging deleted messages.
    This affects the current headers buffer.  When there are deleted messages
    the user is asked for confirmation on expunging the messages and packing the
@@ -361,6 +361,7 @@
       (when (and deleted-seq
                  (or (not (value expunge-messages-confirm))
                      (prompt-for-y-or-n
+                      window
                       :prompt (list "Expunge messages and pack folder ~A? "
                                     folder)
                       :default t
@@ -434,7 +435,7 @@
           (message-info-folder obj) (message-info-msgs obj)))
 
 
-(defcommand "Next Message" (p)
+(defcommand "Next Message" (window p)
   "Show the next message.
    When in a message buffer, shows the next message in the associated headers
    buffer.  When in a headers buffer, moves point down a line and shows that
@@ -445,7 +446,7 @@
   (declare (ignore p))
   (show-message-offset 1))
 
-(defcommand "Previous Message" (p)
+(defcommand "Previous Message" (window p)
   "Show the previous message.
    When in a message buffer, shows the previous message in the associated
    headers buffer.  When in a headers buffer, moves point up a line and shows
@@ -456,7 +457,7 @@
   (declare (ignore p))
   (show-message-offset -1))
 
-(defcommand "Next Undeleted Message" (p)
+(defcommand "Next Undeleted Message" (window p)
   "Show the next undeleted message.
    When in a message buffer, shows the next undeleted message in the associated
    headers buffer.  When in a headers buffer, moves point down to a line
@@ -467,7 +468,7 @@
   (declare (ignore p))
   (show-message-offset 1 :undeleted))
 
-(defcommand "Previous Undeleted Message" (p)
+(defcommand "Previous Undeleted Message" (window p)
   "Show the previous undeleted message.
    When in a message buffer, shows the previous undeleted message in the
    associated headers buffer.  When in a headers buffer, moves point up a line
@@ -562,7 +563,7 @@
       (if winp (move-mark msg-mark temp)))))
 
 
-(defcommand "Show Message" (p)
+(defcommand "Show Message" (window p)
   "Shows the current message.
    Prompts for a folder and message(s), displaying this in the current window.
    When invoked in a headers buffer, shows the message on the current line."
@@ -571,8 +572,8 @@
   (let ((hinfo (value headers-information)))
     (if hinfo
         (show-headers-message hinfo)
-        (let ((folder (prompt-for-folder)))
-          (show-prompted-message folder (prompt-for-message :folder folder))))))
+        (let ((folder (prompt-for-folder window)))
+          (show-prompted-message folder (prompt-for-message window :folder folder))))))
 
 ;;; SHOW-HEADERS-MESSAGE shows the current message for hinfo.  If there is a
 ;;; main message buffer, clobber it, and we don't have to deal with kept
@@ -660,7 +661,7 @@
    of the current message is visible."
   :value t)
 
-(defcommand "Scroll Message" (p)
+(defcommand "Scroll Message" (window p)
   "Scroll the current window down through the current message.
    If the end of the message is visible, then show the next undeleted message
    if \"Scroll Message Showing Next\" is non-nil."
@@ -672,7 +673,7 @@
       (scroll-window-down-command p)))
 
 
-(defcommand "Keep Message" (p)
+(defcommand "Keep Message" (window p)
   "Keeps the current message buffer from being re-used.  Also, if the buffer
    would be deleted due to a draft completion, it will not be."
   "Keeps the current message buffer from being re-used.  Also, if the buffer
@@ -689,7 +690,7 @@
             (push mbuf (headers-info-other-msg-bufs hinfo))))))
     (setf (message-info-keep minfo) t)))
 
-(defcommand "Edit Message Buffer" (p)
+(defcommand "Edit Message Buffer" (window p)
   "Recursively edit message buffer.
    Puts the current message buffer into \"Text\" mode allowing modifications in
    a recursive edit.  While in this state, the buffer is associated with the
@@ -723,6 +724,7 @@
         (when (and (not abortp)
                    (buffer-modified mbuf)
                    (prompt-for-y-or-n
+                    window
                     :prompt "Message buffer modified, save it? "
                     :default t))
           (save-file-command nil mbuf))
@@ -764,7 +766,7 @@
    MH utility."
   :value nil)
 
-(defcommand "Reply to Message" (p)
+(defcommand "Reply to Message" (window p)
   "Sets up a draft in reply to the current message.
    Prompts for a folder and message to reply to.  When in a headers buffer,
    replies to the message on the current line.  When in a message buffer,
@@ -784,9 +786,9 @@
           (minfo
            (setup-message-buffer-draft (current-buffer) minfo :reply p))
           (t
-           (let ((folder (prompt-for-folder)))
+           (let ((folder (prompt-for-folder window)))
              (setup-reply-draft folder
-                                (car (prompt-for-message :folder folder))
+                                (car (prompt-for-message window :folder folder))
                                 nil nil p))))))
 
 ;;; SETUP-REPLY-DRAFT takes a folder and msg to draft a reply to.  Optionally,
@@ -842,7 +844,7 @@
     (get-draft-buffer-window dbuffer)))
 
 
-(defcommand "Forward Message" (p)
+(defcommand "Forward Message" (window p)
   "Forward current message.
    Prompts for a folder and message to forward.  When in a headers buffer,
    forwards the message on the current line.  When in a message buffer,
@@ -862,9 +864,9 @@
           (minfo
            (setup-message-buffer-draft (current-buffer) minfo :forward))
           (t
-           (let ((folder (prompt-for-folder)))
+           (let ((folder (prompt-for-folder window)))
              (setup-forward-draft folder
-                                  (car (prompt-for-message :folder folder))))))))
+                                  (car (prompt-for-message window :folder folder))))))))
 
 ;;; SETUP-FORWARD-DRAFT sets up a draft forwarding folder's msg.  When there
 ;;; is a headers buffer involved (hinfo and hmark), the draft is associated
@@ -890,7 +892,7 @@
     (get-draft-buffer-window dbuffer)))
 
 
-(defcommand "Send Message" (p)
+(defcommand "Send Message" (window p)
   "Setup a draft buffer.
    Setup a draft buffer, reserving a draft folder message.  When invoked in a
    headers buffer, the current message is available in an associated message
@@ -1051,7 +1053,7 @@
   (funcall *draft-buffer-window-fun* dbuffer))
 
 
-(defcommand "Reply to Message in Other Window" (p)
+(defcommand "Reply to Message in Other Window" (window p)
   "Reply to message, creating another window for draft buffer.
    Prompts for a folder and message to reply to.  When in a headers buffer,
    replies to the message on the current line.  When in a message buffer,
@@ -1080,7 +1082,7 @@
    any key by default."
   :value t)
 
-(defcommand "Deliver Message" (p)
+(defcommand "Deliver Message" (window p)
   "Save and deliver the current draft buffer.
    When in a draft buffer, this saves the file and uses SEND to deliver the
    draft.  Otherwise, this prompts for a draft message id, invoking SEND."
@@ -1092,14 +1094,14 @@
            (deliver-draft-buffer-message dinfo))
           (t
            (let* ((folder (coerce-folder-name (mh-draft-folder)))
-                  (msg (prompt-for-message :folder folder)))
+                  (msg (prompt-for-message window :folder folder)))
              (mh "send" `("-draftfolder" ,folder "-draftmessage" ,@msg)))))))
 
 (defun deliver-draft-buffer-message (dinfo)
   (when (draft-info-delivered dinfo)
     (editor-error "This draft has already been delivered."))
   (when (or (not (value deliver-message-confirm))
-            (prompt-for-y-or-n :prompt "Deliver message? " :default t))
+            (prompt-for-y-or-n window :prompt "Deliver message? " :default t))
     (let ((dbuffer (current-buffer)))
       (when (buffer-modified dbuffer)
         (write-buffer-file dbuffer (buffer-pathname dbuffer)))
@@ -1131,7 +1133,7 @@
               (delete-buffer-if-possible mbuf)))))
       (delete-buffer-if-possible dbuffer))))
 
-(defcommand "Delete Draft and Buffer" (p)
+(defcommand "Delete Draft and Buffer" (window p)
   "Delete the current draft and associated message and buffer."
   "Delete the current draft and associated message and buffer."
   (declare (ignore p))
@@ -1167,7 +1169,7 @@
     (delete-window (next-window dbuffer-window))
     (delete-variable 'split-window-draft :buffer dbuffer)))
 
-(defcommand "Remail Message" (p)
+(defcommand "Remail Message" (window p)
   "Prompts for a folder and message to remail.  Prompts for a resend-to
    address string and resend-cc address string.  When in a headers buffer,
    remails the message on the current line.  When in a message buffer,
@@ -1185,19 +1187,19 @@
              (unless cur-msg (editor-error "Not on a header line."))
              (delete-mark cur-mark)
              (remail-message (headers-info-folder hinfo) cur-msg
-                             (prompt-for-string :prompt "Resend To: ")
-                             (prompt-for-string :prompt "Resend Cc: "))))
+                             (prompt-for-string window :prompt "Resend To: ")
+                             (prompt-for-string window :prompt "Resend Cc: "))))
           (minfo
            (remail-message (message-info-folder minfo)
                            (message-info-msgs minfo)
-                           (prompt-for-string :prompt "Resend To: ")
-                           (prompt-for-string :prompt "Resend Cc: ")))
+                           (prompt-for-string window :prompt "Resend To: ")
+                           (prompt-for-string window :prompt "Resend Cc: ")))
           (t
-           (let ((folder (prompt-for-folder)))
+           (let ((folder (prompt-for-folder window)))
              (remail-message folder
-                             (car (prompt-for-message :folder folder))
-                             (prompt-for-string :prompt "Resend To: ")
-                             (prompt-for-string :prompt "Resend Cc: "))))))
+                             (car (prompt-for-message window :folder folder))
+                             (prompt-for-string window :prompt "Resend To: ")
+                             (prompt-for-string window :prompt "Resend Cc: "))))))
   (message "Message remailed."))
 
 
@@ -1265,7 +1267,7 @@
    buffer."
   :value nil)
 
-(defcommand "Goto Headers Buffer" (p)
+(defcommand "Goto Headers Buffer" (window p)
   "Selects associated headers buffer if it exists.
    The headers buffer's point is moved to the appropriate line, pushing a
    buffer mark where point was."
@@ -1282,7 +1284,7 @@
   "This is bound in draft buffers to their associated message buffer."
   :value nil)
 
-(defcommand "Goto Message Buffer" (p)
+(defcommand "Goto Message Buffer" (window p)
   "Selects associated message buffer if it exists."
   "Selects associated message buffer if it exists."
   (declare (ignore p))
@@ -1302,7 +1304,7 @@
    into a draft buffer by \"Insert Message Region\"."
   :value 75)
 
-(defcommand "Insert Message Region" (p)
+(defcommand "Insert Message Region" (window p)
   "Copy the current region into the associated draft or post buffer.  When
    in a message buffer that has an associated draft or post buffer, the
    current active region is copied into the draft or post buffer.  It is
@@ -1364,7 +1366,7 @@
    \"Insert Message Buffer\".  It defaults to four spaces."
   :value "    ")
 
-(defcommand "Insert Message Buffer" (p)
+(defcommand "Insert Message Buffer" (window p)
   "Insert entire (associated) message buffer into (associated) draft or
    post buffer.  When in a draft or post buffer with an associated message
    buffer, or when in a message buffer that has an associated draft or post
@@ -1556,7 +1558,7 @@
   "This is the folder new mail is incorporated into."
   :value "+inbox")
 
-(defcommand "Incorporate New Mail" (p)
+(defcommand "Incorporate New Mail" (window p)
   "Incorporates new mail into \"New Mail Folder\", displaying INC output in
    a pop-up window."
   "Incorporates new mail into \"New Mail Folder\", displaying INC output in
@@ -1572,7 +1574,7 @@
    incorporating new mail and after expunging.  This value is a string."
   :value nil)
 
-(defcommand "Incorporate and Read New Mail" (p)
+(defcommand "Incorporate and Read New Mail" (window p)
   "Incorporates new mail and generates a headers buffer.
    Incorporates new mail into \"New Mail Folder\", and creates a headers buffer
    with the new messages.  To use this, you must define an unseen- sequence in
@@ -1692,7 +1694,7 @@
    \"hemlockdeleted\" sequence; otherwise, RMM is invoked."
   :value t)
 
-(defcommand "Delete Message and Show Next" (p)
+(defcommand "Delete Message and Show Next" (window p)
   "Delete message and show next undeleted message.
    This command is only valid in a headers buffer or a message buffer
    associated with some headers buffer.  The current message is deleted, and
@@ -1714,7 +1716,7 @@
            (editor-error "Not in a headers or message buffer."))))
   (show-message-offset 1 :undeleted))
 
-(defcommand "Delete Message and Down Line" (p)
+(defcommand "Delete Message and Down Line" (window p)
   "Deletes the current message, moving point to the next line.
    When in a headers buffer, deletes the message on the current line.  Then it
    moves point to the next non-blank line."
@@ -1739,7 +1741,7 @@
 ;;; if the user ever packs the folder with "Expunge Messages", the headers
 ;;; buffer will be updated.
 ;;;
-(defcommand "Delete Message" (p)
+(defcommand "Delete Message" (window p)
   "Prompts for a folder, messages to delete, and pick expression.  When in
    a headers buffer into the same folder specified, the messages prompt
    defaults to those messages in the buffer; \"all\" may be entered if this is
@@ -1751,9 +1753,9 @@
    Deletion\" is set, messages are only MARK'ed for deletion.  See \"Expunge
    Messages\"."
   (declare (ignore p))
-  (let* ((folder (prompt-for-folder))
+  (let* ((folder (prompt-for-folder window))
          (hinfo (value headers-information))
-         (temp-msgs (prompt-for-message
+         (temp-msgs (prompt-for-message window
                      :folder folder
                      :messages
                      (if (and hinfo
@@ -1762,7 +1764,7 @@
                                             (headers-info-folder hinfo))))
                          (headers-info-msg-strings hinfo))
                      :prompt "MH messages to pick from: "))
-         (pick-exp (prompt-for-pick-expression))
+         (pick-exp (prompt-for-pick-expression window))
          (msgs (pick-messages folder temp-msgs pick-exp))
          (virtually (value virtual-message-deletion)))
     (declare (simple-string folder))
@@ -1780,7 +1782,7 @@
             (when (member (line-message-id line) msgs :test #'string=)
               (delete-headers-buffer-line hinfo hmark)))))))
 
-(defcommand "Headers Delete Message" (p)
+(defcommand "Headers Delete Message" (window p)
   "Delete current message.
    When in a headers buffer, deletes the message on the current line.  When
    in a message buffer, deletes that message.  When \"Virtual Message
@@ -1907,7 +1909,7 @@
         (return)))))
 
 
-(defcommand "Undelete Message" (p)
+(defcommand "Undelete Message" (window p)
   "Prompts for a folder, messages to undelete, and pick expression.  When in
    a headers buffer into the same folder specified, the messages prompt
    defaults to those messages in the buffer; \"all\" may be entered if this is
@@ -1921,9 +1923,10 @@
   (declare (ignore p))
   (unless (value virtual-message-deletion)
     (editor-error "You don't use virtual message deletion."))
-  (let* ((folder (prompt-for-folder))
+  (let* ((folder (prompt-for-folder window))
          (hinfo (value headers-information))
          (temp-msgs (prompt-for-message
+                     window
                      :folder folder
                      :messages
                      (if (and hinfo
@@ -1932,7 +1935,7 @@
                                             (headers-info-folder hinfo))))
                          (headers-info-msg-strings hinfo))
                      :prompt "MH messages to pick from: "))
-         (pick-exp (prompt-for-pick-expression))
+         (pick-exp (prompt-for-pick-expression window))
          (msgs (if pick-exp
                    (or (pick-messages folder temp-msgs pick-exp) temp-msgs)
                    temp-msgs)))
@@ -1947,7 +1950,7 @@
                                                   deleted-seq)))
               (note-undeleted-message-at-mark hmark))))))))
 
-(defcommand "Headers Undelete Message" (p)
+(defcommand "Headers Undelete Message" (window p)
   "Undelete the current message.
    When in a headers buffer, undeletes the message on the current line.  When
    in a message buffer, undeletes that message.  This command is only
@@ -1999,7 +2002,7 @@
   (setf (line-message-deleted (mark-line hmark)) nil))
 
 
-(defcommand "Expunge Messages" (p)
+(defcommand "Expunge Messages" (window p)
   "Expunges messages marked for deletion.
    This command prompts for a folder, invoking RMM on the \"hemlockdeleted\"
    sequence after asking the user for confirmation.  Setting \"Quit Headers
@@ -2016,7 +2019,7 @@
          (minfo (value message-information))
          (folder (cond (hinfo (headers-info-folder hinfo))
                        (minfo (message-info-folder minfo))
-                       (t (prompt-for-folder))))
+                       (t (prompt-for-folder window))))
          (deleted-seq (mh-sequence-list folder "hemlockdeleted")))
     ;;
     ;; Delete the messages if there are any.
@@ -2024,6 +2027,7 @@
     (when (and deleted-seq
                (or (not (value expunge-messages-confirm))
                    (prompt-for-y-or-n
+                    window
                     :prompt (list "Expunge messages and pack folder ~A? "
                                   folder)
                     :default t
@@ -2145,7 +2149,7 @@
             (setf (getstring (subseq output start nl) *folder-name-table*) t))
           (setf start (1+ nl)))))))
 
-(defcommand "List Folders" (p)
+(defcommand "List Folders" (window p)
   "Pop up a list of folders at top-level."
   "Pop up a list of folders at top-level."
   (declare (ignore p))
@@ -2155,20 +2159,20 @@
       (declare (ignore ignore))
       (write-line f s))))
 
-(defcommand "Create Folder" (p)
+(defcommand "Create Folder" (window p)
   "Creates a folder.  If the folder already exists, an error is signaled."
   "Creates a folder.  If the folder already exists, an error is signaled."
   (declare (ignore p))
-  (let ((folder (prompt-for-folder :must-exist nil)))
+  (let ((folder (prompt-for-folder window :must-exist nil)))
     (when (folder-existsp folder)
       (editor-error "Folder already exists -- ~S!" folder))
     (create-folder folder)))
 
-(defcommand "Delete Folder" (p)
+(defcommand "Delete Folder" (window p)
   "Prompts for a folder and uses RMF to delete it."
   "Prompts for a folder and uses RMF to delete it."
   (declare (ignore p))
-  (let* ((folder (prompt-for-folder))
+  (let* ((folder (prompt-for-folder window))
          (*standard-output* *mh-utility-bit-bucket*))
     (mh "rmf" (list folder))
                     ;; RMF doesn't recognize this documented switch.
@@ -2179,15 +2183,16 @@
 
 (defvar *refile-default-destination* nil)
 
-(defcommand "Refile Message" (p)
+(defcommand "Refile Message" (window p)
   "Prompts for a source folder, messages, pick expression, and a destination
    folder to refile the messages."
   "Prompts for a source folder, messages, pick expression, and a destination
    folder to refile the messages."
   (declare (ignore p))
-  (let* ((src-folder (prompt-for-folder :prompt "Source folder: "))
+  (let* ((src-folder (prompt-for-folder window :prompt "Source folder: "))
          (hinfo (value headers-information))
          (temp-msgs (prompt-for-message
+                     window
                      :folder src-folder
                      :messages
                      (if (and hinfo
@@ -2196,16 +2201,16 @@
                                             (headers-info-folder hinfo))))
                          (headers-info-msg-strings hinfo))
                      :prompt "MH messages to pick from: "))
-         (pick-exp (prompt-for-pick-expression))
+         (pick-exp (prompt-for-pick-expression window))
          ;; Return pick result or temp-msgs individually specified in a list.
          (msgs (pick-messages src-folder temp-msgs pick-exp)))
     (declare (simple-string src-folder))
     (refile-message src-folder msgs
-                    (prompt-for-folder :must-exist nil
+                    (prompt-for-folder window :must-exist nil
                                        :prompt "Destination folder: "
                                        :default *refile-default-destination*))))
 
-(defcommand "Headers Refile Message" (p)
+(defcommand "Headers Refile Message" (window p)
   "Refile the current message.
    When in a headers buffer, refiles the message on the current line, and when
    in a message buffer, refiles that message, prompting for a destination
@@ -2223,13 +2228,14 @@
              (delete-mark cur-mark)
              (refile-message (headers-info-folder hinfo) cur-msg
                              (prompt-for-folder
+                              window
                               :must-exist nil
                               :prompt "Destination folder: "
                               :default *refile-default-destination*))))
           (minfo
            (refile-message
             (message-info-folder minfo) (message-info-msgs minfo)
-            (prompt-for-folder :must-exist nil
+            (prompt-for-folder window :must-exist nil
                                :prompt "Destination folder: "
                                :default *refile-default-destination*))
            (message "Message refiled."))
@@ -2241,9 +2247,10 @@
 ;;; concerning src-folder are updated.  When msg is a list, we did a general
 ;;; message prompt, and we cannot know which headers lines to delete.
 ;;;
-(defun refile-message (src-folder msg dst-folder)
+(defun refile-message (current-window src-folder msg dst-folder)
   (unless (folder-existsp dst-folder)
     (cond ((prompt-for-y-or-n
+            current-window
             :prompt "Destination folder doesn't exist.  Create it? "
             :default t :default-string "Y")
            (create-folder dst-folder))
@@ -2264,7 +2271,7 @@
 
 ;;;; Miscellaneous commands.
 
-(defcommand "Mark Message" (p)
+(defcommand "Mark Message" (window p)
   "Prompts for a folder, message, and sequence.  By default the message is
    added, but if an argument is supplied, the message is deleted.  When in
    a headers buffer or message buffer, only a sequence is prompted for."
@@ -2278,7 +2285,7 @@
                                 (headers-current-message hinfo)
              (unless cur-msg (editor-error "Not on a header line."))
              (delete-mark cur-mark)
-             (let ((seq-name (prompt-for-string :prompt "Sequence name: "
+             (let ((seq-name (prompt-for-string window :prompt "Sequence name: "
                                                 :trim t)))
                (declare (simple-string seq-name))
                (when (string= "" seq-name)
@@ -2287,7 +2294,7 @@
                                  cur-msg seq-name (if p :delete :add)))))
           (minfo
            (let ((msgs (message-info-msgs minfo))
-                 (seq-name (prompt-for-string :prompt "Sequence name: "
+                 (seq-name (prompt-for-string window :prompt "Sequence name: "
                                               :trim t)))
              (declare (simple-string seq-name))
              (when (string= "" seq-name)
@@ -2296,18 +2303,18 @@
                                (if (consp msgs) (car msgs) msgs)
                                seq-name (if p :delete :add))))
           (t
-           (let ((folder (prompt-for-folder))
-                 (seq-name (prompt-for-string :prompt "Sequence name: "
+           (let ((folder (prompt-for-folder window))
+                 (seq-name (prompt-for-string window :prompt "Sequence name: "
                                               :trim t)))
              (declare (simple-string seq-name))
              (when (string= "" seq-name)
                (editor-error "Sequence name cannot be empty."))
-             (mh "mark" `(,folder ,@(prompt-for-message :folder folder)
+             (mh "mark" `(,folder ,@(prompt-for-message window :folder folder)
                           "-sequence" ,seq-name
                           ,(if p "-delete" "-add"))))))))
 
 
-(defcommand "List Mail Buffers" (p)
+(defcommand "List Mail Buffers" (window p)
   "Show a list of all mail associated buffers.
    If the buffer has an associated message buffer, it is displayed to the right
    of the buffer name.  If there is no message buffer, but the buffer is
@@ -2349,19 +2356,19 @@
                       (if association (buffer-name association)))))))))
 
 
-(defcommand "Message Help" (p)
+(defcommand "Message Help" (window p)
   "Show this help."
   "Show this help."
   (declare (ignore p))
   (describe-mode-command nil "Message"))
 
-(defcommand "Headers Help" (p)
+(defcommand "Headers Help" (window p)
   "Show this help."
   "Show this help."
   (declare (ignore p))
   (describe-mode-command nil "Headers"))
 
-(defcommand "Draft Help" (p)
+(defcommand "Draft Help" (window p)
   "Show this help."
   "Show this help."
   (declare (ignore p))
@@ -2374,12 +2381,12 @@
 ;;; Folder prompting.
 ;;;
 
-(defun prompt-for-folder (&key (must-exist t) (prompt "MH Folder: ")
+(defun prompt-for-folder (current-window &key (must-exist t) (prompt "MH Folder: ")
                                (default (mh-current-folder)))
   "Prompts for a folder, using MH's idea of the current folder as a default.
    The result will have a leading + in the name."
   (check-folder-name-table)
-  (let ((folder (prompt-for-keyword (list *folder-name-table*)
+  (let ((folder (prompt-for-keyword current-window (list *folder-name-table*)
                                     :must-exist must-exist :prompt prompt
                                     :default default :default-string default
                                     :help "Enter folder name.")))
@@ -2404,7 +2411,7 @@
 ;;; Message prompting.
 ;;;
 
-(defun prompt-for-message (&key (folder (mh-current-folder))
+(defun prompt-for-message (current-window &key (folder (mh-current-folder))
                                 (prompt "MH messages: ")
                                 messages)
    "Prompts for a message spec, using messages as a default.  If messages is
@@ -2417,7 +2424,7 @@
                          (if (= (length (the list messages)) 1)
                              (car messages)
                              (format nil "~{~A~^ ~}" messages))))))
-    (breakup-message-spec (prompt-for-string :prompt prompt
+    (breakup-message-spec (prompt-for-string current-window :prompt prompt
                                              :default cur-msg
                                              :default-string cur-msg
                                              :trim t
@@ -2450,11 +2457,11 @@
 ;;;
 (defvar *pick-expression-strings* nil)
 
-(defun prompt-for-pick-expression ()
+(defun prompt-for-pick-expression (current-window)
   "Prompts for an MH PICK-like expression that is converted to a list of
    strings suitable for EXT:RUN-PROGRAM.  As a second value, the user's
    expression is as typed in is returned."
-  (let ((exp (prompt-for-string :prompt "MH expression: "
+  (let ((exp (prompt-for-string current-window :prompt "MH expression: "
                                 :help "Expression to PICK over mail messages."
                                 :trim t))
         (*pick-expression-strings* nil))
@@ -2545,12 +2552,12 @@
 ;;; Password prompting.
 ;;;
 
-(defun prompt-for-password (&optional (prompt "Password: "))
+(defun prompt-for-password (current-window &optional (prompt "Password: "))
   "Prompts for password with prompt."
   (let ((hi::*parse-verification-function* #'(lambda (string) (list string))))
     (let ((hi::*parse-prompt* prompt))
       (hi::display-prompt-nicely))
-    (let ((start-window (current-window)))
+    (let ((start-window current-window))
       (move-mark *parse-starting-mark* (buffer-point *echo-area-buffer*))
       (setf (current-window) *echo-area-window*)
       (unwind-protect

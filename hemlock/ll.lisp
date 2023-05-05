@@ -70,7 +70,7 @@
                   (values nil t)))))))))
 
 
-(defmode "Lisp Listener" :major-p nil)
+
 
 (defcommand "Lisp Listener" (p)
     "Start an REPL in a thread"

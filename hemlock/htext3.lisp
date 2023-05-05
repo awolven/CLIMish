@@ -23,7 +23,7 @@
         (character-sym (gensym "INSERT-CHARACTER_CHARACTER")))
     `(let ((,mark-sym ,mark)
            (,character-sym ,character))
-       (declare (type base-char ,character-sym))
+       (declare (type character ,character-sym))
        (let* ((line (mark-line ,mark-sym))
               (buffer (line-%buffer line)))
          (modifying-buffer buffer

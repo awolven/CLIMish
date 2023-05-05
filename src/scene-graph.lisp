@@ -131,11 +131,11 @@
 
 (defmethod initialize-instance :around ((self node-mixin) &rest initargs)
   (declare (ignore initargs))
+
   (call-next-method)
   (the node-children)
   (rm-draw-node self)
-  (values))
-  
+  self)
 
 (defobject group-owner-mixin (group-mixin)
   :slots
@@ -184,7 +184,27 @@
 (defmethod adhoc::unbind-this-variable :before ((variable adhoc::component-variable))
   (when (slot-boundp variable 'adhoc::value) 
     (let ((object (adhoc::variable-value variable)))
+      (forget-object-recursively object)
       (rm-erase-node-recursively object)
+      (values))))
+
+(defmethod adhoc::unbind-this-variable :before ((variable adhoc::array-aggregate-mixin))
+  (when (slot-boundp variable 'adhoc::value) 
+    (let ((value (adhoc::variable-value variable)))
+      (loop for element across value
+	 when element
+	 do (forget-object-recursively element)
+	   (rm-erase-node-recursively element))
+      (values))))
+
+(defmethod adhoc::unbind-this-variable :before ((variable adhoc::table-aggregate-mixin))
+  (when (slot-boundp variable 'adhoc::value) 
+    (let ((value (adhoc::variable-value variable)))
+      (maphash #'(lambda (k v)
+		   (declare (ignore k))
+		   (forget-object-recursively v)
+		   (rm-erase-node-recursively v))
+	       value)
       (values))))
 
 (defmethod translate-node ((self node-mixin) (vec vec3))

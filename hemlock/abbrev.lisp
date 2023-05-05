@@ -67,7 +67,7 @@
 ;;; C-X C-H    Inverse Add Mode Word Abbrev
 ;;;               Define a mode expansion for the word before point.
 
-(defcommand "Inverse Add Mode Word Abbrev" (p)
+(defcommand "Inverse Add Mode Word Abbrev" (window p)
   "Defines a mode word abbrev expansion for the word before the point."
   "Defines a mode word abbrev expansion for the word before the point."
   (declare (ignore p))
@@ -79,7 +79,7 @@
 ;;; C-X C-A    Add Mode Word Abbrev
 ;;;               Define mode abbrev for word before point.
 
-(defcommand "Add Mode Word Abbrev" (p)
+(defcommand "Add Mode Word Abbrev" (window p)
   "Defines a mode word abbrev for the word before the point.
   With a positive argument, uses that many preceding words as the expansion.
   With a zero argument, uses the region as the expansion.  With a negative
@@ -98,7 +98,7 @@
 ;;; C-X -    Inverse Add Global Word Abbrev
 ;;;               Define global expansion for word before point.
 
-(defcommand "Inverse Add Global Word Abbrev" (p)
+(defcommand "Inverse Add Global Word Abbrev" (window p)
   "Defines a Global expansion for the word before point."
   "Defines a Global expansion for the word before point."
   (declare (ignore p))
@@ -110,7 +110,7 @@
 ;;; C-X +      Add Global Word Abbrev
 ;;;               Define global Abbrev for word before point.
 
-(defcommand "Add Global Word Abbrev" (p)
+(defcommand "Add Global Word Abbrev" (window p)
   "Defines a global word abbrev for the word before the point.
   With a positive argument, uses that many preceding words as the expansion.
   With a zero argument, uses the region as the expansion.  With a negative
@@ -131,7 +131,7 @@
 (defvar *global-abbrev-string-table*
   (make-string-table :initial-contents '(("Global" . nil))))
 
-(defcommand "Make Word Abbrev" (p &optional abbrev expansion mode)
+(defcommand "Make Word Abbrev" (window p &optional abbrev expansion mode)
   "Defines an arbitrary word abbreviation.
   Prompts for abbrev, expansion, and mode."
   "Makes Abbrev be a word abbreviation for Expansion when in Mode.  If
@@ -140,6 +140,7 @@
   (unless mode
     (setq mode
           (prompt-for-keyword
+           window
            (list *mode-names* *global-abbrev-string-table*)
            :prompt "Mode of abbrev to add: "
            :default "Global"
@@ -151,6 +152,7 @@
     (unless abbrev
       (setq abbrev
             (prompt-for-string
+             window
              :trim t
              :prompt
              (list "~A abbreviation~@[ of ~S~]: " mode expansion)
@@ -165,6 +167,7 @@
     (unless expansion
       (setq expansion
             (prompt-for-string
+             window
              :prompt (list "~A expansion for ~S: " mode abbrev)
              :help (list "Define the ~A expansion of ~S." mode abbrev))))
     (setq abbrev (string-downcase abbrev))
@@ -180,6 +183,7 @@
            (old (gethash abbrev table)))
       (when (or (not old)
                 (prompt-for-y-or-n
+                 window
                  :prompt
                  (list "Current ~A definition of ~S is ~S.~%Redefine?"
                        mode abbrev old)
@@ -193,7 +197,7 @@
 ;;; Alt Space  Abbrev Expand Only
 ;;;               Expand abbrev without inserting anything.
 
-(defcommand "Abbrev Expand Only" (p)
+(defcommand "Abbrev Expand Only" (window p)
   "This command expands the word before point into its abbrev definition
   (if indeed it has one)."
   "This command expands the word before point into its abbrev definition
@@ -249,7 +253,7 @@
 ;;; it will see that prefix-mark is non-nil, and will delete the #\- immediately
 ;;; after prefix-mark.
 
-(defcommand "Word Abbrev Prefix Mark" (p)
+(defcommand "Word Abbrev Prefix Mark" (window p)
   "Marks a prefix to be glued to an abbrev following."
   "Marks a prefix to be glued to an abbrev following."
   (declare (ignore p))
@@ -266,7 +270,7 @@
 ;;; C-X U     Unexpand Last Word
 ;;;              Unexpands last abbrev or undoes last C-X U.
 
-(defcommand "Unexpand Last Word" (p)
+(defcommand "Unexpand Last Word" (window p)
   "Undoes the last abbrev expansion, or undoes \"Unexpand Last Word\".
   Only one abbrev may be undone."
   "Undoes the last abbrev expansion, or undoes \"Unexpand Last Word\"."
@@ -293,7 +297,7 @@
 ;;; Delete Mode Word Abbrev                       Kills some Mode abbrevs.
 
 (defcommand "Delete Mode Word Abbrev"
-            (p &optional abbrev
+            (window p &optional abbrev
                (mode (buffer-major-mode (current-buffer))))
   "Prompts for a word abbrev and deletes the mode expansion in the current mode.
   If called with a prefix argument, deletes all word abbrevs define in the
@@ -307,6 +311,7 @@
                (string-downcase
                 (or abbrev
                     (prompt-for-string
+                     window
                      :prompt (list "~A abbrev to delete: " mode)
                      :help
  (list "Give the name of a ~A mode word abbrev to delete." mode)
@@ -320,7 +325,7 @@
 
 ;;; Delete Global Word Abbrevs                    Kills some Global abbrevs.
 
-(defcommand "Delete Global Word Abbrev" (p &optional abbrev)
+(defcommand "Delete Global Word Abbrev" (window p &optional abbrev)
   "Prompts for a word abbrev and delete the global expansion.
   If called with a prefix argument, deletes all global abbrevs."
   "Deletes the global word abbreviation named Abbrev.  If P is true,
@@ -331,6 +336,7 @@
              (string-downcase
               (or abbrev
                   (prompt-for-string
+                   window
                    :prompt "Global abbrev to delete: "
                    :help "Give the name of a global word abbrev to delete."
                    :trim t)))))
@@ -340,7 +346,7 @@
 
 ;;; Delete All Word Abbrevs                       Wipes them all.
 
-(defcommand "Delete All Word Abbrevs" (p)
+(defcommand "Delete All Word Abbrevs" (window p)
   "Deletes all currently defined Word Abbrevs"
   "Deletes all currently defined Word Abbrevs"
   (declare (ignore p))
@@ -352,7 +358,7 @@
 
 ;;; List Word Abbrevs                 Shows definitions of all word abbrevs.
 
-(defcommand "List Word Abbrevs" (p)
+(defcommand "List Word Abbrevs" (window p)
   "Lists all of the currently defined Word Abbrevs."
   "Lists all of the currently defined Word Abbrevs."
   (word-abbrev-apropos-command p ""))
@@ -361,7 +367,7 @@
 ;;; Word Abbrev Apropos <string> Shows definitions containing <string> in abbrev,
 ;;;                                definition, or mode.
 
-(defcommand "Word Abbrev Apropos" (p &optional search-string)
+(defcommand "Word Abbrev Apropos" (window p &optional search-string)
   "Lists all of the currently defined Word Abbrevs which contain a given string
   in their abbrev. definition, or mode."
   "Lists all of the currently defined Word Abbrevs which contain a given string
@@ -371,6 +377,7 @@
     (setq search-string
           (string-downcase
            (prompt-for-string
+            window
             :prompt "Apropos string: "
             :help "The string to search word abbrevs and definitions for."))))
   (multiple-value-bind (count mode-tables) (count-abbrevs)
@@ -412,7 +419,7 @@
 
 ;;; Edit Word Abbrevs                 Lets you edit the definition list directly.
 
-(defcommand "Edit Word Abbrevs" (p)
+(defcommand "Edit Word Abbrevs" (window p)
   "Allows direct editing of currently defined Word Abbrevs."
   "Allows direct editing of currently defined Word Abbrevs."
   (declare (ignore p))
@@ -438,7 +445,7 @@
 ;;; Insert Word Abbrevs          Inserts a list of current definitions in the
 ;;;                                format that Define Word Abbrevs uses.
 
-(defcommand "Insert Word Abbrevs" (p)
+(defcommand "Insert Word Abbrevs" (window p)
   "Inserts into the current buffer a list of all currently defined abbrevs in the
   format used by \"Define Word Abbrevs\"."
   "Inserts into the current buffer a list of all currently defined abbrevs in the
@@ -464,7 +471,7 @@
 ;;; Define Word Abbrevs          Defines set of abbrevs from a definition list in
 ;;;                                the buffer.
 
-(defcommand "Define Word Abbrevs" (p)
+(defcommand "Define Word Abbrevs" (window p)
   "Defines Word Abbrevs from the definition list in the current buffer.  The
   definition list must be in the format produced by \"Insert Word Abbrevs\"."
   "Defines Word Abbrevs from the definition list in the current buffer.  The
@@ -496,7 +503,7 @@
 ;;; line of an abbrev definition is not closed by a single double-quote, then
 ;;; the subsequent lines are read in until a single double-quote is found.
 
-(defcommand "Read Word Abbrev File" (p &optional filename)
+(defcommand "Read Word Abbrev File" (window p &optional filename)
   "Reads in a file of previously defined abbrev definitions."
   "Reads in a file of previously defined abbrev definitions."
   (declare (ignore p))
@@ -504,12 +511,13 @@
         (if filename
             filename
             (prompt-for-file
+             window
              :prompt "Name of abbrev file: "
              :help "The name of the abbrev file to load."
              :default (value abbrev-pathname-defaults)
              :must-exist nil)))
   (with-open-file (file (value abbrev-pathname-defaults) :direction :input
-                        :element-type 'base-char :if-does-not-exist :error)
+                        :element-type 'character :if-does-not-exist :error)
     (read-abbrevs file)))
 
 
@@ -571,19 +579,20 @@
 
 ;;; Write Word Abbrev File            Make a definition file from current abbrevs.
 
-(defcommand "Write Word Abbrev File" (p &optional filename)
+(defcommand "Write Word Abbrev File" (window p &optional filename)
   "Saves the currently defined Abbrevs to a file."
   "Saves the currently defined Abbrevs to a file."
   (declare (ignore p))
   (unless filename
     (setq filename
           (prompt-for-file
+           window
            :prompt "Write abbrevs to file: "
            :default (value abbrev-pathname-defaults)
            :help "Name of the file to write current abbrevs to."
            :must-exist nil)))
   (with-open-file (file filename :direction :output
-                        :element-type 'base-char :if-exists :supersede
+                        :element-type 'character :if-exists :supersede
                         :if-does-not-exist :create)
     (multiple-value-bind (x mode-tables) (count-abbrevs)
       (declare (ignore x))
@@ -605,7 +614,7 @@
 ;;; Append to Word Abbrev File          Appends to a file changed abbrev
 ;;;                                     definitions since last dumping.
 
-(defcommand "Append to Word Abbrev File" (p &optional filename)
+(defcommand "Append to Word Abbrev File" (window p &optional filename)
   "Appends Abbrevs defined or redefined since the last save to a file."
   "Appends Abbrevs defined or redefined since the last save to a file."
   (declare (ignore p))
@@ -614,6 +623,7 @@
     (unless filename
       (setq filename
             (prompt-for-file
+             window
              :prompt
              "Append incremental abbrevs to file: "
              :default (value abbrev-pathname-defaults)
@@ -626,7 +636,7 @@
 
 (defun write-incremental (mode filename)
   (with-open-file (file filename :direction :output
-                        :element-type 'base-char
+                        :element-type 'character
                         :if-exists mode :if-does-not-exist :create)
     (dolist (def *new-abbrevs*)
       (let ((abb (car def))
@@ -673,7 +683,7 @@
     (write-char #\" file)))
 
 
-(defcommand "Abbrev Mode" (p)
+(defcommand "Abbrev Mode" (window p)
   "Put current buffer in Abbrev mode."
   "Put current buffer in Abbrev mode."
   (declare (ignore p))

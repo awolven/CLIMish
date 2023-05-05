@@ -40,8 +40,8 @@
          (delete-mark ,old-value))
        (setf (gethash ,name *registers*) ,value))))
 
-(defun prompt-for-register (&optional (prompt "Register: ") must-exist)
-  (let ((reg-name (prompt-for-key-event :prompt prompt)))
+(defun prompt-for-register (current-window &optional (prompt "Register: ") must-exist)
+  (let ((reg-name (prompt-for-key-event current-window :prompt prompt)))
     (unless (or (not must-exist) (gethash reg-name *registers*))
       (editor-error "Register ~A is empty." reg-name))
     reg-name))
@@ -100,32 +100,32 @@
 ;;; buffer, and they assume that the register values have the same property.
 ;;;
 
-(defcommand "Save Position" (p)
+(defcommand "Save Position" (window p)
   "Saves the current location in a register.  Prompts for register name."
   "Saves the current location in a register.  Prompts for register name."
   (declare (ignore p))
-  (let ((reg-name (prompt-for-register)))
+  (let ((reg-name (prompt-for-register window)))
     (setf (register-value reg-name)
           (copy-mark (current-point) :left-inserting))))
 
-(defcommand "Jump to Saved Position" (p)
+(defcommand "Jump to Saved Position" (window p)
   "Moves the point to a location previously saved in a register."
   "Moves the point to a location previously saved in a register."
   (declare (ignore p))
-  (let* ((reg-name (prompt-for-register "Jump to Register: " t))
+  (let* ((reg-name (prompt-for-register window "Jump to Register: " t))
          (val (register-value reg-name)))
     (unless (markp val)
       (editor-error "Register ~A does not hold a location." reg-name))
     (change-to-buffer (line-buffer (mark-line val)))
     (move-mark (current-point) val)))
 
-(defcommand "Kill Register" (p)
+(defcommand "Kill Register" (window p)
   "Kill a regist er.  Prompts for the name."
   "Kill a register.  Prompts for the name."
   (declare (ignore p))
-  (free-register (prompt-for-register "Register to kill: ")))
+  (free-register (prompt-for-register window "Register to kill: ")))
 
-(defcommand "List Registers" (p)
+(defcommand "List Registers" (window p)
   "Lists all registers in a pop-up window."
   "Lists all registers in a pop-up window."
   (declare (ignore p))
@@ -158,20 +158,20 @@
                                (subseq str 0 (if nl (min 61 len nl) (min 61 len)))
                                (> len 60))))))))
 
-(defcommand "Put Register" (p)
+(defcommand "Put Register" (window p)
   "Copies a region into a register.  Prompts for register name."
   "Copies a region into a register.  Prompts for register name."
   (declare (ignore p))
   (let ((region (current-region)))
     ;; Bind the region before prompting in case the region isn't active.
-    (setf (register-value (prompt-for-register))
-          (cons (copy-region region) (current-buffer)))))
+    (setf (register-value (prompt-for-register window))
+          (cons (copy-region region) (window-buffer window)))))
 
-(defcommand "Get Register" (p)
+(defcommand "Get Register" (window p)
   "Copies a region from a register to the current point."
   "Copies a region from a register to the current point."
   (declare (ignore p))
-  (let* ((reg-name (prompt-for-register "Register from which to get text: " t))
+  (let* ((reg-name (prompt-for-register window "Register from which to get text: " t))
          (val (register-value reg-name)))
     (unless (and (consp val) (regionp (car val)))
       (editor-error "Register ~A does not hold a region." reg-name))

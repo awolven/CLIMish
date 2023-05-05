@@ -16,18 +16,7 @@
 
 
 
-;;;; Open parens.
 
-(defhvar "Highlight Open Parens"
-  "When non-nil, causes open parens to be displayed in a different font when
-   the cursor is directly to the right of the corresponding close paren."
-  :value nil)
-
-(defhvar "Open Paren Finder Function"
-  "Should be a function that takes a mark for input and returns either NIL
-   if the mark is not after a close paren, or two (temporary) marks
-   surrounding the corresponding open paren."
-  :value 'lisp-open-paren-finder-function)
 
 
 (defvar *open-paren-font-marks* nil
@@ -56,7 +45,7 @@
               (set-open-paren-font-marks start end)
               (kill-open-paren-font-marks))))))
 ;;;
-(add-hook redisplay-hook 'maybe-highlight-open-parens)
+
 
 (defun set-open-paren-font-marks (start end)
   (if *open-paren-font-marks*
@@ -108,7 +97,7 @@
             (*active-region-font-marks*
              (kill-active-region-font-marks))))))
 ;;;
-(add-hook redisplay-hook 'highlight-active-region)
+
 
 (defun set-active-region-font-marks ()
   (flet ((stash-a-mark (m &optional (font *active-region-highlight-font*))
