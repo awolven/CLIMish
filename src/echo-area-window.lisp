@@ -11,6 +11,7 @@
    (scrollbar-x? nil)
    (scrollbar-y? nil)
    (title-bar? nil)
+   (modeline? nil)
    (collapse-button? nil)
    (close-button? nil)
    (iconified? nil)
@@ -24,6 +25,7 @@
    (width (first (the parent-window-size)))
    (height (* 4 (font-size (the font))))))
 
+
 (defobject echo-area-window (echo-area-window-mixin))
 
 (defun make-echo-area-window (&key app)
@@ -33,6 +35,10 @@
   (setq hi::*echo-area-window*
 	(make-instance 'echo-area-window :buffer hi::*echo-area-buffer*
 		       'scene (application-scene app)
-		       'parent (main-window app))))
+		       'parent (main-window app)))
+  (when (send hi::*echo-area-window* visible?)
+    (rm-draw-node-recursively hi::*echo-area-window*))
+  hi::*echo-area-window*)
+  
 
    

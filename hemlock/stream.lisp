@@ -208,13 +208,13 @@
   (values))
 
 
-(defcommand "Confirm Line of Input" (p)
+(defcommand "Confirm Line of Input" (window p)
     "Absorb input from the buffer, a line at a time. For use with Interactive-Character-Stream buffers."
     "Absorb input from the buffer, a line at a time. For use with Interactive-Character-Stream buffers."
   (declare (ignore p))
   ;;(print "HELO" sb-sys::*stdout*)
   ;;(finish-output sb-sys::*stdout*)
-  (let* ((cw (current-window))
+  (let* ((cw window)
          (buffer (window-buffer cw))
          (stream (variable-value 'hemlock::buffer-stream :buffer buffer)))
     (with-buffer-globals (buffer)

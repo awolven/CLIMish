@@ -96,7 +96,7 @@
    (:file "hemlock/text")
 
    (:file "hemlock/lispmode")
-
+   (:file "hemlock/eval-server")
    (:file "hemlock/lispbuf")
 
    (:file "hemlock/defsyn")

@@ -668,8 +668,8 @@
 (defun canonicalize-slave-package-name (str)
   (cl-ppcre:regex-replace "^SB!" (canonical-case str) "SB-"))
 
-(defun package-at-point ()
-  (let ((tag (hi::line-tag (mark-line (current-point)))))
+(defun package-at-point (point)
+  (let ((tag (hi::line-tag (mark-line point))))
     (if tag (hi::tag-package tag) "C_LUSER")))
 
 (defcommand "Set Buffer Package" (window p)

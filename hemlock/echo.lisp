@@ -298,8 +298,8 @@
 
 ;;;; Keyword and variable prompting.
 
-(defun prompt-for-keyword (*parse-string-tables*
-                           current-window
+(defun prompt-for-keyword (current-window
+                           *parse-string-tables*
                            &key
                            ((:must-exist *parse-value-must-exist*) t)
                            ((:default *parse-default*))

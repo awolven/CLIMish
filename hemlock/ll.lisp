@@ -37,13 +37,13 @@
          (*debug-io* stream)
          (*query-io* stream)
          (.form. nil))
-    (in-lisp
+    (in-lisp (hemlock::hemlock-character-io-stream-buffer stream)
       (let ((hi::*debug-on-error* t)
             #+sbcl (sb-ext:*invoke-debugger-hook* nil)
             (*debugger-hook* nil))
         (with-nonbroken-debugger
             (loop
-              (show-prompt)
+	       (show-prompt)
               (finish-output)
               (restart-case
                   (let ()
@@ -72,22 +72,27 @@
 
 
 
-(defcommand "Lisp Listener" (p)
+(defcommand "Lisp Listener" (window p)
     "Start an REPL in a thread"
     "Start an REPL in a thread"
   (declare (ignore p))
-  (let ((buffer (make-buffer "Lisp Listener")))
+  (let ((buffer (make-instance 'buffer :name "Lisp Listener"))
+	(current-buffer (hi::window-buffer window)))
     (setf (buffer-undo-p buffer) nil)
-    (setf (buffer-minor-mode buffer "Save") nil)
-    (setf (buffer-minor-mode buffer "Interactive-Character-Stream") t)
-    (setf (buffer-minor-mode buffer "Lisp Listener") t)
+    (setf (buffer-minor-mode buffer current-buffer "Save") nil)
+    (setf (buffer-minor-mode buffer current-buffer "Interactive-Character-Stream") t)
+    (setf (buffer-minor-mode buffer current-buffer "Lisp Listener") t)
     #+NOTYET(setf (buffer-major-mode buffer) "LISP")
     (let ((stream (variable-value 'hemlock::buffer-stream :buffer buffer)))
       (defhvar "Lisp Listener Thread" "Lisp Listener Thread" :buffer buffer
         :value (bt:make-thread #'(lambda ()
                                    (repl stream))
                                :name "Lisp Listener"))
-      (change-to-buffer buffer))))
+      (if (eq window *echo-area-window*)
+	  (setq window (hi::find-or-create-text-editor-window-for-buffer buffer))
+	  (change-to-buffer buffer window))
+      (krma.gui::focus-window window)
+      (values))))
 
 (defcommand "Interrupt Lisp" (p)
     "Interrupt a running Lisp Listener Thread"

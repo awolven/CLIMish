@@ -17,6 +17,13 @@
 	     
 	     (setq hi::*parse-starting-mark* (hi::copy-mark (hi::buffer-point hi::*echo-area-buffer*) :right-inserting))
 	     (setq hi::*parse-input-region* (hi::region hi::*parse-starting-mark* (hi::region-end hi::*echo-area-region*)))
+
+	     (defhvar "Current Package"
+		 "This variable holds the name of the package currently used for Lisp
+   evaluation and compilation.  If it is Nil, the value of *Package* is used
+   instead."
+	       :value nil
+	       :current-buffer initial-buffer)
 	     
 	     (defmode "Character-Stream"
 		 :major-p nil :setup-function 'hemlock::setup-character-stream-mode

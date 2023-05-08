@@ -11,7 +11,8 @@
 (defmethod clui:handle-event :after ((window krma-gui-window-mixin)
 				     (event clui::character-event-mixin))
   (let ((character (clui::input-event-character event)))
-    (lparallel.queue:push-queue character (input-event-queue window))))
+    (declare (ignorable character))
+    (lparallel.queue:push-queue event (input-event-queue window))))
 
 (defun modifier-key-p (event-id)
   (or (eq (clui::input-event-id-scancode event-id) clui::+key-left-alt+)
@@ -27,23 +28,23 @@
 				     (event clui::key-press-event-mixin))
   (let ((event-id (clui::input-event-id event)))
     (unless (modifier-key-p event-id)
-      (lparallel.queue:push-queue event-id (input-event-queue window)))))
+      (lparallel.queue:push-queue event (input-event-queue window)))))
 
 (defmethod clui:handle-event :after ((window krma-gui-window-mixin)
 				     (event clui::pointer-button-press-event-mixin))
-  (lparallel.queue:push-queue (clui::input-event-id event) (input-event-queue window)))
+  (lparallel.queue:push-queue event (input-event-queue window)))
 
 (defmethod clui:handle-event :after ((window krma-gui-window-mixin)
 				     (event clui::pointer-wheel-event-mixin))
-  (lparallel.queue:push-queue (clui::input-event-id event) (input-event-queue window)))
+  (lparallel.queue:push-queue event (input-event-queue window)))
 
 (defmethod clui:handle-event :after ((window krma-gui-window-mixin)
 				     (event clui::spaceball-event-mixin))
-  (lparallel.queue:push-queue (clui::input-event-id event) (input-event-queue window)))
+  (lparallel.queue:push-queue event (input-event-queue window)))
 
 (defmethod clui:handle-event :after ((window krma-gui-window-mixin)
 				     (event clui::joystick-event-mixin))
-  (lparallel.queue:push-queue (clui::input-event-id event) (input-event-queue window)))
+  (lparallel.queue:push-queue event (input-event-queue window)))
 
 (defun message (format-string &rest args)
   (apply #'format *debug-io* format-string args)
@@ -54,11 +55,12 @@
 
 (defun command-loop (window)
   (let ((w)
+	(event)
 	(event-id)
 	(table-chain)
 	(event-chain)
 	(result)
-	(p 1))
+	(p nil))
 
 
     (restart-bind ((ignore #'(lambda (&optional c)
@@ -87,12 +89,18 @@
        
 	   ;; code will continue to wait until it either gets a gesture that matches or C-g is sent
        
-	 GET (setq event-id (get-next-event window))
+	 GET (setq event (get-next-event window))
+	   (setf (window-last-event window) event)
+	   (setq event-id (clui::input-event-id event))
        
 	 CHECK (print event-id)
 	   (finish-output)
        
-	   (cond ((eq event-id #k"C-g")
+	   (cond ((characterp event-id)
+		  ;; we don't accept character events here without being first preceded by a key event
+		  (go RESET))
+
+		 ((eq event-id #k"C-g")
 			   
 		  (message "Abort")
 			   
@@ -111,16 +119,18 @@
 
 		    (cond ((null result)
 			   ;; potential race condition:
-			   ;; character-event has 1/20th of a second to show up in queue
+			   ;; character-event has 1/100th of a second to show up in queue
 			   ;; otherwse event is ignored
 			   ;; so if computer is running very slowly character events will be dropped
-			   (setq event-id (get-next-event window 0.01))
-				
-			   (when event-id
-			     (when (characterp event-id)
-			       (print event-id)
-			       (finish-output)
-				    
+			   (setq event (get-next-event window 0.01))
+			   
+			   (when event
+
+			     (setf (window-last-event window) event)
+			       (setq event-id (clui::input-event-id event))
+			     
+			     (when (characterp event-id)			       
+			       
 			       ;; replace preceding key event with character event
 			       (setf (car event-chain) event-id)
 			       ;; we're still on the same table

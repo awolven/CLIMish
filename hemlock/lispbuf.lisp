@@ -14,7 +14,7 @@
 
 (defvar lispbuf-eof '(nil))
 
-(defmacro in-lisp (&body body)
+(defmacro in-lisp (buffer &body body)
   "Evaluates body inside HANDLE-LISP-ERRORS.  *package* is bound to the package
    named by \"Current Package\" if it is non-nil."
   (let ((current-package-name (gensym))
@@ -22,7 +22,7 @@
         (package (gensym)))
     `(handle-lisp-errors
       (let* ((,current-package-name (value current-package))
-             (,package-at-point-name (package-at-point))
+             (,package-at-point-name (package-at-point (buffer-point ,buffer)))
              (,package (or (and ,current-package-name
                                 (find-package ,current-package-name))
                            (and ,package-at-point-name
@@ -54,8 +54,8 @@
 
 ;;;; Eval Mode Interaction.
 
-(defun get-prompt ()
-  (let* ((p (in-lisp *package*))
+(defun get-prompt (buffer)
+  (let* ((p (in-lisp buffer *package*))
          (short-nick
           (iterate:iter
            (iterate:for nick in (cons (package-name p) (package-nicknames p)))
@@ -63,7 +63,7 @@
     (format nil "~A> " short-nick)))
 
 (defun show-prompt (&optional (stream *standard-output*))
-  (princ (get-prompt) stream))
+  (princ (get-prompt (hemlock::hemlock-character-io-stream-buffer stream)) stream))
 
 
 #+NIL

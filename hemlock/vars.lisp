@@ -286,7 +286,7 @@
 ;;; Make a Hemlock variable no longer bound, fixing up the saved
 ;;;binding values as necessary.
 ;;;
-(defun delete-variable (name &optional (kind :global) where)
+(defun delete-variable (name current-buffer &optional (kind :global) where)
   "Delete a Hemlock variable somewhere."
   (let* ((obj (get-variable-object name kind where))
          (sname (variable-object-name obj)))
@@ -297,7 +297,7 @@
          (invoke-hook hemlock::delete-variable-hook name :buffer where)
          (delete-string sname (buffer-variables where))
          (setf (buffer-var-values where) (delete-binding binding values))
-         (when (eq where (current-buffer))
+         (when (eq where current-buffer)
            (setf (car (binding-cons binding)) (variable-object-down obj)))))
       (:mode
        (let* ((mode (get-mode-object where))
@@ -305,18 +305,18 @@
               (binding (find-binding name values)))
          (invoke-hook hemlock::delete-variable-hook name :mode where)
          (delete-string sname (mode-object-variables mode))
-         (if (member mode (buffer-mode-objects (current-buffer)))
-             (let ((l (unwind-bindings mode)))
+         (if (member mode (buffer-mode-objects current-buffer))
+             (let ((l (unwind-bindings mode current-buffer)))
                (setf (mode-object-var-values mode)
                      (delete-binding binding values))
-               (wind-bindings l))
+               (wind-bindings l current-buffer))
              (setf (mode-object-var-values mode)
                    (delete-binding binding values)))))
       (:global
        (invoke-hook hemlock::delete-variable-hook name :global nil)
        (delete-string sname *global-variable-names*)
-       (let ((l (unwind-bindings nil)))
+       (let ((l (unwind-bindings nil current-buffer)))
          (setf (get name 'hemlock-variable-value) nil)
-         (wind-bindings l)))
+         (wind-bindings l current-buffer)))
       (t (error "Invalid variable kind: ~S" kind)))
     nil))

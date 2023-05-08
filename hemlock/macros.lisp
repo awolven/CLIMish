@@ -643,9 +643,6 @@
 (defun lisp-error-error-handler (condition &optional internalp)
   (declare (ignore internalp))
   (beep)
-  (when (current-buffer)
-    #+SBCL
-    (sb-thread:release-mutex (buffer-lock (current-buffer)) :if-not-owner :force))
   (format #+sbcl sb-sys::*stdout* #-sbcl *debug-io* "~%~W" condition)
   (hemlock::simple-backtrace #+sbcl sb-sys::*stdout* #-sbcl *debug-io*)
   (finish-output #+sbcl sb-sys::*stdout* #-sbcl *debug-io*)

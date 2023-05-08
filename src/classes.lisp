@@ -31,6 +31,10 @@
     :initarg :old-start
     :documentation "The charpos of the first char displayed.")
 
+   (old-width-in-chars
+    :accessor window-old-width-in-chars
+    :initform 0)    
+
    (first-line
     :accessor window-first-line
     :initform nil

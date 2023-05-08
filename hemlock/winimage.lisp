@@ -422,6 +422,7 @@
                          `(let* ((cc (car ,current))
                                  (old-line (dis-line-line cc)))
                             (cond
+                                                             
                               ;; We have run into a continuation line, skip over any.
                               ((and (null (dis-line-old-chars cc))
                                     (eq old-line (dis-line-line (car ,trail))))
@@ -472,6 +473,12 @@
                      (width (window-width window))
                      changed
                      (emergency-exit 0))
+
+
+                (do ((i (- (hi::window-height window)) (1+ i))
+                     (res ()
+                          (cons (hi::make-window-dis-line (make-string (hi::window-width window))) res)))
+                    ((= i (hi::window-height window)) (setf (hi::window-spare-lines window) res)))
 
                 (cond
                   ;; If the first line or its charpos has changed then bug out.

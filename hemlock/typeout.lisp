@@ -6,7 +6,7 @@
   (loop
      for i from 0
      for name = base-name then (format nil "~A<~D>" base-name i)
-     for buf = (apply #'make-buffer name keys)
+     for buf = (apply #'make-instance 'buffer :name name keys)
      when buf do (return buf)))
 
 

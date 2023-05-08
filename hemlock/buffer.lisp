@@ -286,7 +286,7 @@
        (t
         ;; Removing an active mode.
         (invoke-hook (%value (mode-object-hook-name mode)) buffer nil)
-        (funcall (mode-object-cleanup-function mode) buffer)
+        (funcall (mode-object-cleanup-function mode) buffer current-buffer)
         ;; In the current buffer, unwind buffer and any mode bindings on top
         ;; pop off the mode and wind the rest back on.
         (cond ((eq buffer current-buffer)

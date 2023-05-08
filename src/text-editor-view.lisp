@@ -22,13 +22,25 @@
   (let ((font-family (hi::window-font-family view)))
     (setf (hi::window-width view) (floor (send view client-rect width) (slot-value (slot-value font-family 'krma::data) '3b-bmfont-common::space-size))
 	  (hi::window-height view) (floor (send view client-rect height) (font-size font-family)))
-    (do ((i (- (hi::window-height view)) (1+ i))
-	 (res ()
-	      (cons (hi::make-window-dis-line (make-string (hi::window-width view))) res)))
-	((= i (hi::window-height view)) (setf (hi::window-spare-lines view) res)))
+
+    (invalidate-hemlock-window-size view)
+    
     (hi::update-window-image view)
     (redraw-buffer view)
     (values)))
+
+(defun invalidate-hemlock-window-size (view)
+  (with-slots (hi::the-sentinel) view
+    (unless (eq (cdr (hi::window-first-line view)) hi::the-sentinel)
+      (shiftf (cdr (hi::window-last-line view))
+	      (hi::window-spare-lines view)
+	      (cdr (hi::window-first-line view))
+	      hi::the-sentinel))
+                
+    (do ((i (- (hi::window-height view)) (1+ i))
+	 (res ()
+	      (cons (hi::make-window-dis-line (make-string (hi::window-width view))) res)))
+	((= i (hi::window-height view)) (setf (hi::window-spare-lines view) res)))))
 
 (defmethod destroy-window :after ((view text-editor-view-mixin))
   (setf (hi::buffer-windows (hi::window-buffer view)) (remove view (hi::buffer-windows (hi::window-buffer view))))
@@ -132,7 +144,6 @@
 	 (position (hi::dis-line-position dl))
 	 (last 0)
 	 (text-color-key 0))
-    (print position)
     (do ((change (hi::dis-line-font-changes dl) (hi::font-change-next change)))
 	((null change)
 	 (buffer-view-add-string self last position font text-color-key chars last length))

@@ -340,8 +340,8 @@
       :buffer buffer
       :value state)))
 
-(defun cleanup-auto-save-mode (buffer)
-  (delete-variable 'auto-save-state
+(defun cleanup-auto-save-mode (buffer current-buffer)
+  (delete-variable 'auto-save-state current-buffer
                    :buffer buffer))
 
 

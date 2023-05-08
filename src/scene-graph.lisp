@@ -65,6 +65,10 @@
   (remhash (the object-id) *object-id->object-table*)
   (values))
 
+(defmethod forget-object-recursively (thing)
+  (declare (ignore thing))
+  (values))	   
+
 (defmethod forget-object-recursively ((self node-mixin))
   (forget-object self)
   (mapcar #'forget-object-recursively (the node-children))
@@ -82,7 +86,8 @@
   ((primitive-handles :initform ()))
   
   :inputs
-  ((translation
+  ((visible? t)
+   (translation
     (:noticer (node-set-model-matrix self))
     (vec3 0 0 0))
    (rotation
@@ -129,12 +134,14 @@
 				     (typep child 'node-mixin))
 				 (the children)))))
 
+
+#+NIL
 (defmethod initialize-instance :around ((self node-mixin) &rest initargs)
   (declare (ignore initargs))
 
   (call-next-method)
   (the node-children)
-  (rm-draw-node self)
+  ;;(rm-draw-node self)
   self)
 
 (defobject group-owner-mixin (group-mixin)

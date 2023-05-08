@@ -459,12 +459,12 @@
   "Prompts for and executes an extended command."
   "Prompts for and executes an extended command.  The prefix argument is
   passed to the command."
-  (let* ((name (prompt-for-keyword window (list *command-names*)
+  (let* ((name (prompt-for-keyword *echo-area-window* (list *command-names*)
                                    :prompt "Extended Command: "
                                    :help "Name of a Hemlock command")))
-    (hi::update-window *echo-area-window*)
+   ;; (hi::update-window *echo-area-window*)
     (let ((function (command-function (getstring name *command-names*))))
-      (funcall function p))))
+      (funcall function window p))))
 
 (defcommand "Eval Expresion" (window p)
   "" ""

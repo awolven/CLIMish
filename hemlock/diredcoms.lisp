@@ -792,8 +792,8 @@
     :buffer buffer)
   (setf (buffer-writable buffer) nil))
 ;;;
-(defun cleanup-view-mode (buffer)
-  (delete-variable 'view-return-function :buffer buffer)
+(defun cleanup-view-mode (buffer current-buffer)
+  (delete-variable 'view-return-function current-buffer :buffer buffer)
   (setf (buffer-writable buffer) t))
 
 (defcommand "View File" (window p &optional pathname)

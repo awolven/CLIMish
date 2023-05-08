@@ -8,6 +8,7 @@
 (defclass krma-gui-window-mixin (event-queue-mixin krma-window-mixin)
   ((focused-window :initform nil :accessor focused-window)
    (resize-window :initform nil :accessor window-to-resize)
+   (last-event :initform nil :accessor window-last-event)
    (command-loop-go-semaphore :initform (bt:make-semaphore :name "command-loop-go-semaphore") :accessor command-loop-go-semaphore)))
 
 #+win32
@@ -63,9 +64,9 @@
    (title-bar-height (* (the title-bar-height-mm) (the px-per-mm-height)))
    (default-window-border-size-mm 1/4)
    (default-window-border-size (* (the default-window-border-size-mm) (the px-per-mm-width)))
-   (default-initial-window-height-mm 45)
+   (default-initial-window-height-mm 70)
    (default-initial-window-height (* (the default-initial-window-height-mm) (the px-per-mm-height)))
-   (default-initial-window-width-mm 65)
+   (default-initial-window-width-mm 90)
    (default-initial-window-width (* (the default-initial-window-width-mm) (the px-per-mm-width)))
    
    (current-font (the roboto-font (bmfonts 2.75) bmfont)))
@@ -354,15 +355,14 @@
 	(multiple-value-bind (width height) (clui:window-size resize-window)
 	  (ecase (resize-mode resize-window)
 	    (:north (resize-window resize-window x (clui::pointer-event-y event) width (max (+ (- y (clui::pointer-event-y event)) height) 20)))
-	    (:northwest)
-	    (:northeast)
-	    (:south)
-	    (:southwest)
-	    (:southeast)
+	    (:northwest (resize-window resize-window (clui::pointer-event-x event) (clui::pointer-event-y event) (max (+ width (- x (clui::pointer-event-x event))) 20) (max (+ (- y (clui::pointer-event-y event)) height) 20)))
+	    (:northeast (resize-window resize-window x (clui::pointer-event-y event) (max (- (clui::pointer-event-x event) x) 20) (max (+ (- y (clui::pointer-event-y event)) height) 20)))
+	    (:south (resize-window resize-window x y width (max (+ (- (clui::pointer-event-y event) y)) 20)))
+	    (:southwest (resize-window resize-window (clui::pointer-event-x event) y (max (+ width (- x (clui::pointer-event-x event))) 20) (max (+ (- (clui::pointer-event-y event) y)) 20)))
+	    (:southeast (resize-window resize-window x y (max (- (clui::pointer-event-x event) x) 20) (max (+ (- (clui::pointer-event-y event) y)) 20)))
 	    (:east (resize-window resize-window x y (max (- (clui::pointer-event-x event) x) 20) height))
-	    (:west 
-		   ))))))
-  (lparallel.queue:push-queue (clui::input-event-id event) (input-event-queue self))
+	    (:west (resize-window resize-window (clui::pointer-event-x event) y (max (+ width (- x (clui::pointer-event-x event))) 20) height)))))))
+  (lparallel.queue:push-queue event (input-event-queue self))
   (values))
 
 (defgeneric resize-window (window new-x new-y new-width new-height))
@@ -664,7 +664,7 @@
 	    for sibling in siblings
 	    do (setf (send sibling z-index) i)
 	    finally (setf (the z-index) (length siblings))
-		    (mapcar #'rm-redraw-node-recursively (nconc siblings (list self)))
+	   (mapcar #'rm-redraw-node-recursively (nconc siblings (list self)))
 		    (setf (focused-window (window-parent (the root))) self))
       (values))))
 
@@ -713,7 +713,7 @@
 	
     (setf (the z-index) (1+ highest-z-index))
     (setf (krma::node-children (the scene)) (append (krma::node-children (the scene)) (list self)))
-    
+
     (setf (focused-window (window-parent (the root))) self))
 
   (values))

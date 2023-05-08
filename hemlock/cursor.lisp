@@ -437,10 +437,10 @@
               (buffer-end start .buffer.)
               (let ((fraction (- (truncate height 3) height)))
                 (.dis-line-offset-guess. start fraction width))))
-       (let ((iscurrent (eq ,window-sym *current-window*))
+       (let ((iscurrent (eq ,window-sym (krma.gui::focused-window (krma::main-window krma::*app*))))
              (bpoint .point.))
          (when iscurrent (move-mark point bpoint))
-         (unless (%rt-displayed-p point ,window-sym)
+         (unless (%displayed-p point ,window-sym)
            (move-mark point start)
            (.dis-line-offset-guess. point (truncate (window-height ,window-sym) 2)
                                     width)
@@ -467,7 +467,7 @@
 ;;;    If Mark is within the displayed bounds in Window, then return true,
 ;;; otherwise false.  We assume the window image is up to date.
 ;;;
-(defun %rt-displayed-p (mark window)
+(defun %displayed-p (mark window)
   (let ((start (window-display-start window))
         (end (window-display-end window)))
     (not (or (mark< mark start) (mark> mark end)

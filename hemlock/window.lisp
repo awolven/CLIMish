@@ -16,9 +16,15 @@
 
 (in-package :hemlock-internals)
 
+#+NIL
 (defun current-point ()
   (buffer-point (current-buffer))) ;; temp kludge
 
+(defun hemlock::package-at-point (point)
+  (let ((tag (hi::line-tag (mark-line point))))
+    (if tag (hi::tag-package tag) "C_LUSER")))
+
+#+NIL
 (defun hemlock::package-at-point ()
   (let ((window (current-window)))
     (if window
@@ -262,10 +268,6 @@
 ;;;
 
 (defun update-modeline-fields (buffer window)
-  (hi::with-render-thread (*app*)
-    (%rt-update-modeline-fields buffer window)))
-
-(defun %rt-update-modeline-fields (buffer window)
   "Recompute all the fields of buffer's modeline for window, so the next
    redisplay will reflect changes."
   (bt:with-recursive-lock-held ((buffer-lock buffer))
@@ -297,11 +299,8 @@
 ;;; BLT-MODELINE-FIELD-BUFFER, we get the last field's end to know how long
 ;;; the buffer is now.
 ;;;
-(defun update-modeline-field (buffer window field)
-  (with-render-thread (*app*)
-    (%rt-update-modeline-field buffer window field)))
 
-(defun %rt-update-modeline-field (buffer window field)
+(defun update-modeline-field (buffer window field)
   "Recompute the field of the buffer's modeline for window, so the next
    redisplay will reflect the change.  Field is either a modeline-field object
    or the name of one for buffer."
@@ -420,7 +419,7 @@
                "Returns the value of buffer's \"Current Package\" followed
                 by a colon and two spaces, or a string with one space."
                (declare (ignore window))
-               (let ((package (hemlock::package-at-point)))
+               (let ((package (hemlock::package-at-point (buffer-point buffer))))
                  (if package
                      (format nil "~A:  " package)
                      " "))))
@@ -547,11 +546,6 @@
   (declare (ignore something-else))
   (push (list #'update-modeline-for-window window) *things-to-do-once*))
 
-(defun update-modeline-for-window (window)
-  (with-render-thread (*app*)
-    (%rt-update-modeline-fields (window-buffer window) window)))
-
-
 
 ;;;; Bitmap setting up new windows and modifying old.
 
@@ -565,16 +559,15 @@
 ;;; modeline-fields list.  This is used by tty redisplay too.
 ;;;
 (defun setup-modeline-image (buffer window)
-  (hi::with-render-thread (*app*)
-    (bt:with-recursive-lock-held ((buffer-lock buffer))
-      (setf (window-modeline-buffer window) (make-string window-width-limit))
-      (let ((dis-line (make-window-dis-line (make-string (window-width window)))))
-        (setf (window-modeline-dis-line window) dis-line)
-        (let ((font-change (make-font-change nil)))
-          (setf (dis-line-font-changes dis-line) font-change)
-          (setf (font-change-x font-change) 0)
-          (setf (font-change-font font-change) *modeline-font*)
-          ))))
+  (bt:with-recursive-lock-held ((buffer-lock buffer))
+    (setf (window-modeline-buffer window) (make-string window-width-limit))
+    (let ((dis-line (make-window-dis-line (make-string (window-width window)))))
+      (setf (window-modeline-dis-line window) dis-line)
+      (let ((font-change (make-font-change nil)))
+        (setf (dis-line-font-changes dis-line) font-change)
+        (setf (font-change-x font-change) 0)
+        (setf (font-change-font font-change) *modeline-font*)
+        )))
   (update-modeline-fields buffer window))
 
 

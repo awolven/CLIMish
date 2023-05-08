@@ -297,30 +297,31 @@
 ;;; Delete Mode Word Abbrev                       Kills some Mode abbrevs.
 
 (defcommand "Delete Mode Word Abbrev"
-            (window p &optional abbrev
-               (mode (buffer-major-mode (current-buffer))))
-  "Prompts for a word abbrev and deletes the mode expansion in the current mode.
+    (window p &optional abbrev
+            (mode (buffer-major-mode (window-buffer window))))
+    "Prompts for a word abbrev and deletes the mode expansion in the current mode.
   If called with a prefix argument, deletes all word abbrevs define in the
   current mode."
-  "Deletes Abbrev in Mode, or all abbrevs in Mode if P is true."
-  (let ((boundp (hemlock-bound-p 'mode-abbrev-table :mode mode)))
-    (if p
-        (when boundp
-          (delete-variable 'mode-abbrev-table :mode mode))
-        (let ((down
-               (string-downcase
-                (or abbrev
-                    (prompt-for-string
-                     window
-                     :prompt (list "~A abbrev to delete: " mode)
-                     :help
- (list "Give the name of a ~A mode word abbrev to delete." mode)
-                     :trim t))))
-              (table (and boundp (variable-value 'mode-abbrev-table :mode mode))))
-          (unless (and table (gethash down table))
-            (editor-error "~S is not the name of an abbrev in ~A mode."
-                          down mode))
-          (remhash down table)))))
+    "Deletes Abbrev in Mode, or all abbrevs in Mode if P is true."
+  (let ((current-buffer (window-buffer window)))
+    (let ((boundp (hemlock-bound-p 'mode-abbrev-table :mode mode)))
+      (if p
+          (when boundp
+            (delete-variable 'mode-abbrev-table current-buffer :mode mode))
+          (let ((down
+                 (string-downcase
+                  (or abbrev
+                      (prompt-for-string
+                       window
+                       :prompt (list "~A abbrev to delete: " mode)
+                       :help
+                       (list "Give the name of a ~A mode word abbrev to delete." mode)
+                       :trim t))))
+                (table (and boundp (variable-value 'mode-abbrev-table :mode mode))))
+            (unless (and table (gethash down table))
+              (editor-error "~S is not the name of an abbrev in ~A mode."
+                            down mode))
+            (remhash down table))))))
 
 
 ;;; Delete Global Word Abbrevs                    Kills some Global abbrevs.

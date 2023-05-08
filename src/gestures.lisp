@@ -22,6 +22,9 @@
 (define-gesture "Delete Previous Character" 'text-editor-window-mixin #k"Backspace")
 (define-gesture "Forward Word" 'text-editor-window-mixin #k"Meta-f")
 (define-gesture "Backward Word" 'text-editor-window-mixin #k"Meta-b")
-(define-gesture "Find File" 'echo-area-window-mixin #k"Ctrl-x" #k"Ctrl-f")
+(define-gesture "Find File" :global #k"Ctrl-x" #k"Ctrl-f")
 
-(define-gesture "Confirm Parse" "Echo Area" #k"Enter")
+(define-gesture "Confirm Parse" 'echo-area-window-mixin #k"Enter")
+(define-gesture "Extended Command" :global #k"Meta-x")
+(define-gesture "Confirm Line of Input" "Interactive-Character-Stream" #k"Enter")
+(define-gesture "Mousewheel Scroll" 'text-editor-window-mixin #k"MouseWheel")
