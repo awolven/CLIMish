@@ -509,19 +509,18 @@
 
 
 
-(defcommand "Editor Compile Defun" (p)
+(defcommand "Editor Compile Defun" (window p)
   "Compiles the current or next top-level form in the editor Lisp.
    First the form is evaluated, then the result of this evaluation
    is passed to compile.  If the current region is active, this
    compiles the region."
   "Evaluates the current or next top-level form in the editor Lisp."
   (declare (ignore p))
-  (let* ((window (current-window))
-         (buffer (when window (window-buffer window))))
+  (let* ((buffer (window-buffer window)))
     (if buffer
         (if (region-active-p buffer)
-            (editor-compile-region buffer (current-region buffer))
-            (editor-compile-region buffer (defun-region buffer (buffer-point buffer)) t))
+            (editor-compile-region window buffer (current-region buffer))
+            (editor-compile-region window buffer (defun-region buffer (buffer-point buffer)) t))
         (editor-error "No current buffer"))))
 
 #+NIL
@@ -544,12 +543,12 @@
            (editor-error "No current or next top level form."))
           (t (region start end)))))
 
-(defun editor-compile-region (buffer region &optional quiet)
+(defun editor-compile-region (current-window buffer region &optional quiet)
   (unless quiet (message "Compiling region ..."))
   (let ((pathname (buffer-pathname buffer)))
     (in-lisp
      (with-input-from-region (stream region)
-       (with-pop-up-display (*error-output* :height 19)
+       (with-pop-up-display (*error-output* :height 19 :current-window current-window)
          ;; JDz: We don't record source locations and what not, but this
          ;; is portable.  CMUCL specific implementation removed because
          ;; it does not work on HEMLOCK-REGION-STREAM (but it can be

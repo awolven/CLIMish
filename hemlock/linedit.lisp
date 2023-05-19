@@ -382,18 +382,19 @@
   (when string (setf (get-string instance) string))
   (when point (setf (get-point instance) point)))
 
-(defun change-to-linedit-buffer (buf)
+(defun change-to-linedit-buffer (current-window buf)
   (setf (hbuf (current-device)) buf)
-  (change-to-buffer buf))
+  (change-to-buffer buf current-window))
 
 (defun inner-linedit
-    (&key (prompt (editor-prompt (current-device)))
+    (current-window
+     &key (prompt (editor-prompt (current-device)))
           (modes (buffer-modes (current-buffer))))
   (let* ((dev (current-device))
          (original-buffer (hbuf dev))
          (original-prompt (editor-prompt dev))
          (*inner-linedit-p* t))
-    (change-to-linedit-buffer (make-linedit-buffer modes))
+    (change-to-linedit-buffer current-window (make-linedit-buffer modes))
     (install-linedit-mode (hbuf dev))
     (setf (editor-prompt dev) prompt)
     (multiple-value-prog1

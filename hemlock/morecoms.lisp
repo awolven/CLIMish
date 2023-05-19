@@ -280,7 +280,7 @@
    is an associated file then it's name is displayed last.  With prefix
    argument, only list modified buffers."
   "Display the names of all buffers in a with-random-typeout window."
-  (with-pop-up-display (s)
+  (with-pop-up-display (s :current-window window)
     (do-strings (n b *buffer-names*)
       (declare (simple-string n))
       (unless (or (eq b *echo-area-buffer*)
@@ -311,7 +311,7 @@
   "Display stats on allocated storage."
   "Run Room into a With-Random-Typeout window."
   (declare (ignore p))
-  (with-pop-up-display (*standard-output*)
+  (with-pop-up-display (*standard-output* :current-window window)
     (room)))
 
 
@@ -668,7 +668,7 @@
   (let ((buffer (window-buffer (current-window))))
     (let ((dir (page-directory buffer)))
       (declare (list dir))
-      (with-pop-up-display (s :height (1+ (the fixnum (length dir))))
+      (with-pop-up-display (s :height (1+ (the fixnum (length dir))) :current-window window)
         (display-page-directory s dir)))))
 
 (defcommand "Insert Page Directory" (window p)
@@ -678,7 +678,7 @@
    directory at point."
   "Insert a listing of the first non-blank line after each page mark at
    the beginning of the buffer."
-  (let ((buffer (window-buffer (current-window))))
+  (let ((buffer (window-buffer window)))
     (with-buffer-globals (buffer)
       (let ((point .point.))
         (unless p

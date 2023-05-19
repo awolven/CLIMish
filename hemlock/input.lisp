@@ -26,8 +26,11 @@
 ;;;    LISTEN-EDITOR-INPUT
 ;;;    CLEAR-EDITOR-INPUT
 ;;;
+#+NIL
 (defvar *editor-input* nil
   "A structure used to do various operations on terminal input.")
+
+
 
 (defvar *real-editor-input* ()
   "Useful when we want to read from the terminal when *editor-input* is

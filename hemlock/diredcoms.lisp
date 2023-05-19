@@ -130,7 +130,8 @@
                 (delete-buffer-if-possible buffer)
                 (editor-error "No entries for ~A." full-name))
               (push (cons full-name buffer) *pathnames-to-dired-buffers*)
-              buffer))))))
+              buffer)))
+     current-window)))
 
 ;;; INITIALIZE-DIRED-BUFFER gets a dired in the buffer and defines some
 ;;; variables to make it usable as a dired buffer.  If there are no file
@@ -278,14 +279,14 @@
   "Read in file or recursively \"Dired\" a directory."
   "Read in file or recursively \"Dired\" a directory."
   (declare (ignore p))
-  (let ((point (current-point)))
+  (let ((point (buffer-point (window-buffer window))))
     (when (blank-line-p (mark-line point)) (editor-error "Not on a file line."))
     (let ((pathname (dired-file-pathname
                      (array-element-from-mark
                       point (dired-info-files (value dired-information))))))
       (if (directoryp pathname)
           (dired-command window nil (directory-namestring pathname))
-          (change-to-buffer (find-file-buffer window pathname))))))
+          (change-to-buffer (find-file-buffer window pathname) window)))))
 
 (defcommand "Dired View File" (window p)
   "Read in file as if by \"View File\" or recursively \"Dired\" a directory.
@@ -293,7 +294,7 @@
   "Read in file as if by \"View File\".
    This associates the file's buffer with the dired buffer."
   (declare (ignore p))
-  (let ((point (current-point)))
+  (let ((point (buffer-point (window-buffer window))))
     (when (blank-line-p (mark-line point)) (editor-error "Not on a file line."))
     (let ((pathname (dired-file-pathname
                      (array-element-from-mark
@@ -309,7 +310,7 @@
             (setf (variable-value 'view-return-function :buffer buffer)
                   #'(lambda ()
                       (if dired-buf
-                          (change-to-buffer dired-buf)
+                          (change-to-buffer dired-buf window)
                           (dired-from-buffer-pathname-command window nil)))))))))
 
 (defcommand "Dired from Buffer Pathname" (window p)
@@ -808,10 +809,10 @@
                   :prompt "View File: " :must-exist t
                   :help "Name of existing file to read into its own buffer."
                   :default (buffer-default-pathname (current-buffer)))))
-         (buffer (make-buffer (format nil "View File ~A" (gensym)))))
+         (buffer (make-instance 'buffer :name (format nil "View File ~A" (gensym)))))
     (visit-file-command nil pn buffer)
     (setf (buffer-minor-mode buffer "View") t)
-    (change-to-buffer buffer)
+    (change-to-buffer buffer window)
     buffer))
 
 (defcommand "View Return" (window p)

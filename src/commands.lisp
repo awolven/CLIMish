@@ -134,7 +134,7 @@
 (defcommand "Backward Word" (view p)
     ""
     ""
-  (krma.gui::command-forward-word view (- (or p 1))))
+  (hi::forward-word-command view (- (or p 1))))
 
 (defun find-or-create-text-editor-window-for-buffer (buffer)
   (or (first (buffer-windows buffer))
@@ -170,3 +170,58 @@
     (with-buffer-globals ((window-buffer window))
       (hi::.scroll-window. window (- (* 2 (round offset)))))
     (krma.gui::redraw-buffer window)))
+
+(defcommand "Beginning of Buffer" (window p)
+  "Moves the point to the beginning of the current buffer."
+    "Moves the point to the beginning of the current buffer."
+  (declare (ignore p))
+  (let* ((buffer (window-buffer window)))
+    (with-buffer-globals (buffer)
+      (buffer-start .point. .buffer.))
+    (maybe-recenter-window-on-mark window (buffer-point buffer))
+    (krma.gui::redraw-buffer window)))
+
+(defcommand "End of Buffer" (window p)
+  "Moves the point to the end of the current buffer."
+    "Moves the point to the end of the current buffer."
+  (declare (ignore p))
+  (let* ((buffer (window-buffer window)))
+    (with-buffer-globals (buffer)
+      (buffer-end .point. .buffer.))
+    (maybe-rebottom-window-on-mark window (buffer-point buffer))
+    (krma.gui::redraw-buffer window)))
+
+(defcommand "Scroll Window Down" (window p)
+  "Move down one screenfull.
+  With prefix argument scroll down that many lines."
+  "If P is NIL then scroll Window, which defaults to the current
+  window, down one screenfull.  If P is supplied then scroll that
+  many lines."
+  (let ((buffer (window-buffer window)))
+    (with-buffer-globals (buffer)
+      (if p
+	  (hi::.scroll-window. window p)
+	  (let ((height (window-height window))
+		(overlap (value hemlock::scroll-overlap)))
+	    (hi::.scroll-window. window (if (<= height overlap)
+					    height (- height overlap))))))
+    (krma.gui::redraw-buffer window)))
+
+(defcommand "Scroll Window Up" (window p)
+    "Move up one screenfull.
+  With prefix argument scroll up that many lines."
+    "If P is NIL then scroll Window, which defaults to the current
+  window, up one screenfull.  If P is supplied then scroll that
+  many lines."
+  (let ((buffer (window-buffer window)))
+    (with-buffer-globals (buffer)
+      (if p
+	  (hi::.scroll-window. window (- p))
+	  (let ((height (- (window-height window)))
+		(overlap (- (value hemlock::scroll-overlap))))
+	    (hi::.scroll-window. window (if (>= height overlap)
+					    height (- height overlap))))))
+    (krma.gui::redraw-buffer window)))
+
+
+    

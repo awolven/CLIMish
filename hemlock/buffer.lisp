@@ -296,6 +296,7 @@
                      (delq mode (buffer-mode-objects buffer)))))
         ;; We always use the same string, so we can delq it (How Tense!)
         (setf (buffer-modes buffer) (delq name (buffer-modes buffer))))))
+    (mapcar #'krma.gui::rebuild-command-table (buffer-windows buffer))
     new-value))
 
 ;;;; CURRENT-BUFFER, CURRENT-POINT, and buffer using setup and cleanup.

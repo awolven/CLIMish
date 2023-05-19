@@ -545,19 +545,24 @@ BOOL CreateProcessW(
 
 (progn
 
-(hemlock::defcommand "CMD" (p)
+(hemlock::defcommand "CMD" (window p)
     "Start a CMD.EXE shell"
     "Start a CMD.EXE shell"
   (declare (ignore p))
-  (let ((buffer (make-buffer "CMD")))
-    (change-to-buffer buffer)
+  (let ((buffer (make-buffer "CMD"))
+	(current-buffer (window-buffer window)))
+    (if (eq window *echo-area-window*)
+	(change-to-buffer buffer (setq window (find-or-create-text-editor-window-for-buffer buffer)))
+	(change-to-buffer buffer window))
     (setf (buffer-undo-p buffer) nil)
-    (setf (buffer-minor-mode buffer "Interactive-Character-Stream") t)
-    (setf (buffer-minor-mode buffer "Save") nil)
+    (setf (buffer-minor-mode buffer current-buffer "Interactive-Character-Stream") t)
+    (setf (buffer-minor-mode buffer current-buffer "Save") nil)
     (let ((stream (variable-value 'hemlock::buffer-stream :buffer buffer)))
       (bt:make-thread #'(lambda ()
                           (hi::cmdline stream))
-                      :name "CMD"))))
+                      :name "CMD"))
+    (krma.gui::focus-window window)))
+  
 )
 
 #+WIN32

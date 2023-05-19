@@ -382,7 +382,7 @@
             :prompt "Apropos string: "
             :help "The string to search word abbrevs and definitions for."))))
   (multiple-value-bind (count mode-tables) (count-abbrevs)
-    (with-pop-up-display (s :height (min (1+ count) 30))
+    (with-pop-up-display (s :height (min (1+ count) 30) :current-window window)
       (unless (zerop (hash-table-count *global-abbrev-table*))
         (maphash #'(lambda (key val)
                      (when (or (search search-string (string-downcase key))
@@ -428,7 +428,7 @@
     (delete-buffer (getstring "Edit Word Abbrevs" *buffer-names*)))
   (let ((old-buf (current-buffer))
         (new-buf (make-buffer "Edit Word Abbrevs")))
-    (change-to-buffer new-buf)
+    (change-to-buffer new-buf window)
     (unwind-protect
       (progn
        (insert-word-abbrevs-command nil)
@@ -438,7 +438,7 @@
        (delete-all-word-abbrevs-command nil)
        (define-word-abbrevs-command nil))
       (progn
-       (change-to-buffer old-buf)
+       (change-to-buffer old-buf window)
        (delete-buffer new-buf)))))
 
 

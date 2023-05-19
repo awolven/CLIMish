@@ -26,7 +26,7 @@
 
 ;;;; Commands.
 
-(defcommand "Lisp Library" (p)
+(defcommand "Lisp Library" (window p)
   "Goto buffer in 'Lisp-Lib' mode, creating one if necessary."
   "Goto buffer in 'Lisp-Lib' mode, creating one if necessary."
   (declare (ignore p))
@@ -56,10 +56,10 @@
         :value (coerce (nreverse lib-entries) 'simple-vector))))
   (setf (buffer-writable *selected-library-buffer*) nil)
   (setf (buffer-modified *selected-library-buffer*) nil)
-  (change-to-buffer *selected-library-buffer*)
+  (change-to-buffer *selected-library-buffer* window)
   (buffer-start (current-point)))
 
-(defcommand "Describe Pointer Library Entry" (p)
+(defcommand "Describe Pointer Library Entry" (window p)
   "Finds the file that describes the lisp library entry indicated by the
    pointer."
   "Finds the file that describes the lisp library entry indicated by the
@@ -79,8 +79,8 @@
   (describe-library-entry (array-element-from-mark (current-point)
                            (value library-entries) "No entry on current line")))
 
-(defun describe-library-entry (pathname)
-  (let ((lisp-buf (current-buffer))
+(defun describe-library-entry (current-window pathname)
+  (let ((lisp-buf (window-buffer current-window))
         (buffer (view-file-command
                  nil
                  (merge-pathnames (make-pathname :type "catalog") pathname))))
@@ -90,10 +90,10 @@
           (buffer-delete-hook lisp-buf))
     (setf (variable-value 'view-return-function :buffer buffer)
           #'(lambda () (if lisp-buf
-                           (change-to-buffer lisp-buf)
+                           (change-to-buffer lisp-buf current-window)
                            (lisp-library-command nil))))))
 
-(defcommand "Load Library Entry" (p)
+(defcommand "Load Library Entry" (window p)
   "Loads the current library entry into the current slave."
   "Loads the current library entry into the current slave."
   (declare (ignore p))
@@ -102,11 +102,11 @@
   (string-eval (format nil "(load ~S)"
                        (namestring (library-entry-load-file nil)))))
 
-(defcommand "Load Pointer Library Entry" (p)
+(defcommand "Load Pointer Library Entry" (window p)
   "Loads the library entry indicated by the mouse into the current slave."
   "Loads the library entry indicated by the mouse into the current slave."
   (declare (ignore p))
-  (unless (hemlock-bound-p 'library-entries :buffer (current-buffer))
+  (unless (hemlock-bound-p 'library-entries :buffer (window-buffer window))
     (editor-error "Not in a Lisp Library buffer."))
   (string-eval (format nil "(load ~S)"
                        (namestring (library-entry-load-file t)))))

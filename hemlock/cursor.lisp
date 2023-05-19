@@ -19,7 +19,7 @@
 (defvar *losing-character-mask*
   (make-character-set
    :page0 (make-array 256 :element-type '(mod 256)
-                      :initial-element winning-char)
+                      :initial-element winning-char)  
    :table (make-hash-table)
    :default winning-char)
   "This is a character set used by redisplay to find funny chars.")
@@ -95,6 +95,11 @@
               (multiple-value-setq (dy xpos)
                 (truncate (+ xpos (- bound ,start-sym)) ,width-sym))
               (setq ypos (+ ypos dy)  ,start-sym bound))))))))
+
+(defun cached-real-line-length (buffer line width start end)
+  (with-buffer-globals (buffer)
+    (.cached-real-line-length. line width start end)))
+
 
 ;;; real-line-length
 ;;;
@@ -136,6 +141,11 @@
            (unless (simple-string-p str) (setq str (funcall str xpos)))
            (multiple-value-setq (dy xpos) (truncate (+ xpos (strlen str)) ,width-sym))
            (setq ypos (+ ypos dy)))))))
+
+(defun real-line-length (buffer line width start end)
+  (with-buffer-globals (buffer)
+    (.real-line-length. line width start end)))
+
 ;; these .such-and-such. macros capture symbols
 ;; and only should be called in the proper lexical environment
 
@@ -155,6 +165,10 @@
        (if (eq line open-line)
            (values (.cached-real-line-length. line 10000 0 charpos))
            (values (.real-line-length. line 10000 0 charpos))))))
+
+(defun mark-column (buffer mark)
+  (with-buffer-globals (buffer)
+    (.mark-column. mark)))
 
 ;;; find-line
 ;;;
@@ -166,25 +180,26 @@
 ;;; to find.  Check if same as *redisplay-favorite-line* and then scan
 ;;; if not.
 ;;;
-(defmacro .find-line. (line offset charpos ypos dis-lines dis-line)
+(defmacro .find-line. (window line offset charpos ypos dis-lines dis-line)
   (declare (ignore charpos))
   (let ((line-sym (gensym)))
     `(let ((,line-sym ,line))
        (cond
          ;; No lines at all, fail.
-         ((eq ,dis-lines the-sentinel) nil)
+         ((eq ,dis-lines (slot-value ,window 'the-sentinel)) nil)
          ;; On the first line, offset is already set, so just set dis-line and
          ;; ypos and fall through.
          ((and (car ,dis-lines) (eq (dis-line-line (car ,dis-lines)) ,line-sym))
           (setq ,dis-line ,dis-lines ,ypos 0))
          ;; Look farther down.
          ((do ((l (cdr ,dis-lines) (cdr l)))
-              ((eq l the-sentinel))
+              ((eq l (slot-value ,window 'the-sentinel)))
             (when (car l)
               (when (eq (dis-line-line (car l)) ,line-sym)
                 (setq ,dis-line l ,ypos (dis-line-position (car l)) ,offset 0)
                 (return t)))))
          (t (error "Horrible flaming lossage, Sorry Man."))))))
+
 
 ;;; Find-Position  --  Internal
 ;;;
@@ -215,6 +230,11 @@
            (cond ((= val ,position-sym) (return probe))
                  ((< val ,position-sym) (setq lo (1+ probe)))
                  (t (setq hi (1- probe)))))))))
+
+(defun find-position (buffer line position start end width)
+  (with-buffer-globals (buffer)
+    (.find-position. line position start end width)))
+
 
 
 ;;; Move-To-Column  --  Public
@@ -237,6 +257,10 @@
             (res (.find-position. line ,column-sym 0 (line-length line) 10000)))
        (when res
          (move-to-position ,mark-sym res line)))))
+
+(defun move-to-column (buffer mark column)
+  (with-buffer-globals (buffer)
+    (.move-to-column. mark column)))
 
 ;;; find-charpos
 ;;;
@@ -278,6 +302,8 @@
           (multiple-value-bind (x dy)
               (,mac ,line-sym (1- ,width-sym) ,offset-sym ,charpos-sym)
             (values x (+ ,ypos-sym dy))))))))
+
+
 
 
 ;;;; Mark-To-Cursorpos
@@ -308,7 +334,6 @@
 ;;;
 (defun mark-to-cursorpos (mark window) ;; this needs to be changed to %rt-mark-to-cursorpos
   "Return the (x, y) position of mark within window, or NIL if not displayed."
-  #+NIL(maybe-update-window-image window)
   (handler-case
       (with-slots (the-sentinel) window
         (with-buffer-globals ((window-buffer window))
@@ -330,19 +355,19 @@
                    (and (= number start-number) (< charpos offset))
                    (> number end-number)
                    (and (= number end-number) (> charpos (mark-charpos end)))) nil)
-              (t (.find-line. line offset charpos ypos dis-lines dis-line)
-                 (cond
-                   ((eq line open-line)
-                    (let ((len (- line-cache-length (- right-open-pos left-open-pos))))
-                      (declare (fixnum len))
-                      (.find-charpos. line offset charpos len ypos dis-line width
-                                      .cached-real-line-length. open-chars)))
-                   (t
-                    (let* ((chars (line-chars line))
-                           (len (strlen chars)))
-                      (declare (fixnum len) (simple-string chars))
-                      (.find-charpos. line offset charpos len ypos dis-line width
-                                      .real-line-length. chars)))))))))
+              ((.find-line. window line offset charpos ypos dis-lines dis-line)
+               (cond
+                 ((eq line open-line)
+                  (let ((len (- line-cache-length (- right-open-pos left-open-pos))))
+                    (declare (fixnum len))
+                    (.find-charpos. line offset charpos len ypos dis-line width
+                                    .cached-real-line-length. open-chars)))
+                 (t
+                  (let* ((chars (line-chars line))
+                         (len (strlen chars)))
+                    (declare (fixnum len) (simple-string chars))
+                    (.find-charpos. line offset charpos len ypos dis-line width
+                                    .real-line-length. chars)))))))))
     (error () (values 0 0))))
 
 ;;; Cursorpos-To-Mark  --  Public
@@ -410,6 +435,10 @@
                    (character-offset ,mark-sym w)
                    (unless (line-offset ,mark-sym 1 0)
                      (return nil)))))))))
+
+(defun dis-line-offset-guess (buffer mark offset width)
+  (with-buffer-globals (buffer)
+    (.dis-line-offset-guess. mark offset width)))
 
 ;;; scroll-window  --  Public
 ;;;
@@ -440,13 +469,18 @@
        (let ((iscurrent (eq ,window-sym (krma.gui::focused-window (krma::main-window krma::*app*))))
              (bpoint .point.))
          (when iscurrent (move-mark point bpoint))
-         (unless (%displayed-p point ,window-sym)
+         (unless (displayed-p point ,window-sym)
            (move-mark point start)
            (.dis-line-offset-guess. point (truncate (window-height ,window-sym) 2)
                                     width)
            (when iscurrent (move-mark bpoint point))))
        (update-window-image ,window-sym)
        t)))
+
+(defun scroll-window (window n)
+  (with-buffer-globals ((window-buffer window))
+    (.scroll-window. window n)))
+
 
 ;; to be called inside with-buffer-globals
 (defmacro .goto-buffer-start. ()
@@ -454,6 +488,10 @@
   `(let ((point .point.))
      ;;(push-buffer-mark (copy-mark point))
      (buffer-start point)))
+
+(defun goto-buffer-start (buffer)
+  (with-buffer-globals (buffer)
+    (.goto-buffer-start.)))
 
 ;; to be called inside with-buffer-globals
 (defmacro .goto-buffer-end. ()
@@ -461,13 +499,18 @@
   `(let ((point .point.))
      ;;(push-buffer-mark (copy-mark point))
      (buffer-end point)))
+
+(defun goto-buffer-end (buffer)
+  (with-buffer-globals (buffer)
+    (.goto-buffer-end.)))
 
 ;;; %Displayed-P  --  Internal
 ;;;
 ;;;    If Mark is within the displayed bounds in Window, then return true,
 ;;; otherwise false.  We assume the window image is up to date.
 ;;;
-(defun %displayed-p (mark window)
+
+(defun displayed-p (mark window)
   (let ((start (window-display-start window))
         (end (window-display-end window)))
     (not (or (mark< mark start) (mark> mark end)
@@ -482,6 +525,7 @@
 ;;;    Update the window image and then check if the mark is displayed.
 ;;;
 
+#+NIL
 (defun displayed-p (mark window)
   "Return true if Mark is displayed on Window, false otherwise."
   (%rt-displayed-p mark window))
@@ -492,7 +536,7 @@
 ;;; center.
 ;;;
 ;; center-window: a window operation to be called in render thread
-(defun %rt-center-window-on-mark (window mark)
+(defun center-window-on-mark (window mark)
   "Adjust the start of Window so that Mark is displayed on the center line."
   ;; note: this doesn't move the mark
   (with-buffer-globals ((window-buffer window))
@@ -503,11 +547,10 @@
                                        (window-width window))
         (move-mark start (buffer-start-mark .buffer.)))
       ;; If that doesn't work, panic and make the start the point.
-      (unless (%rt-displayed-p mark window)
-        (move-mark start mark))
-      (update-window-image window))))
+      (unless (displayed-p mark window)
+        (move-mark start mark)))))
 
-(defun %rt-bottom-window-on-mark (window mark)
+(defun bottom-window-on-mark (window mark)
   "Adjust the start of Window so that Mark is displayed on the center line."
   ;; note: this doesn't move the mark
   (with-buffer-globals ((window-buffer window))
@@ -522,9 +565,8 @@
                                        (window-width window))
         (move-mark start (buffer-start-mark .buffer.)))
       ;; If that doesn't work, panic and make the start the point.
-      (unless (%rt-displayed-p mark window)
-        (move-mark start mark))
-      (update-window-image window))))
+      (unless (displayed-p mark window)
+        (move-mark start mark)))))
 
 
 ;;; maybe-recenter-window  --  Internal
@@ -532,114 +574,21 @@
 ;;;     Update the dis-lines for Window and recenter if the point is off
 ;;; the screen.
 ;;;
-(defun %rt-maybe-recenter-window-on-mark (window mark)
+(defun maybe-recenter-window-on-mark (window mark)
   (let ((retval nil))
-    (unless (%rt-displayed-p mark window)
-      (%rt-center-window-on-mark window mark)
+    (unless (displayed-p mark window)
+      (center-window-on-mark window mark)
       (setq retval t))
     retval))
 
-(defun %rt-maybe-rebottom-window-on-mark (window mark)
+(defun maybe-rebottom-window-on-mark (window mark)
   (let ((retval nil))
-    (unless (%rt-displayed-p mark window)
-      (%rt-bottom-window-on-mark window mark)
+    (unless (displayed-p mark window)
+      (bottom-window-on-mark window mark)
       (setq retval t))
     retval))
 
 
-(defun %rt-update-all-buffer-windows (buffer)
-  (loop for window in (buffer-windows buffer)
-        do (update-window-image window)))
+(defun redraw-all-buffer-windows (buffer)
+  (mapcar #'krma.gui::redraw-buffer (buffer-windows buffer)))
 
-(defun %rt-maybe-recenter-current-on-mark-then-update-all-buffer-windows (buffer mark current)
-  (loop for window in (buffer-windows buffer)
-        do (with-buffer-globals ((window-buffer window))
-             (if (eq window current)
-                 (unless (%rt-maybe-recenter-window-on-mark window mark)
-                   (update-window-image window))
-                 (update-window-image window)))))
-
-
-(defun %rt-maybe-rebottom-current-on-mark-then-update-all-buffer-windows (buffer mark current)
-  (loop for window in (buffer-windows buffer)
-        do (with-buffer-globals ((window-buffer window))
-             (if (eq window current)
-                 (unless (%rt-maybe-rebottom-window-on-mark window mark)
-                   (update-window-image window))
-                 (update-window-image window)))))
-
-(defun %rt-maybe-scroll-current-to-center-then-update-all-buffer-windows (buffer current)
-  (loop for window in (buffer-windows buffer)
-        do (with-buffer-globals ((window-buffer window))
-             (if (eq window current)
-                 (progn
-                   (buffer-end .point. .buffer.)
-                   (unless (%rt-maybe-recenter-window-on-mark window .point.)
-                     (update-window-image window)))
-                 (update-window-image window)))))
-
-
-(defun %rt-maybe-scroll-current-to-bottom-then-update-all-buffer-windows (buffer current)
-  (loop for window in (buffer-windows buffer)
-        do (with-buffer-globals ((window-buffer window))
-             (if (eq window current)
-                 (progn
-                   (buffer-end .point. .buffer.)
-                   (unless (%rt-maybe-rebottom-window-on-mark window .point.)
-                     (update-window-image window)))
-                 (update-window-image window)))))
-
-(defun %rt-maybe-scroll-current-to-top-then-update-all-buffer-windows (buffer current)
-  (loop for window in (buffer-windows buffer)
-        do (with-buffer-globals ((window-buffer window))
-             (when (eq window current)
-               (buffer-start .point. .buffer.)
-               (move-mark (window-display-start window) .point.))
-             (update-window-image window))))
-
-
-
-;; when you want to update windows but not move the cursor
-(defun update-all-buffer-windows (buffer)
-  (with-render-thread (*app*)
-    (%rt-update-all-buffer-windows buffer)))
-
-;; this one is a common case, usually want to update all buffer windows
-(defun maybe-recenter-current-on-mark-then-update-all-buffer-windows (buffer mark current)
-  (with-render-thread (*app*)
-    (%rt-maybe-recenter-current-on-mark-then-update-all-buffer-windows buffer mark current)))
-
-;; this one is a common case also
-(defun maybe-rebottom-current-on-mark-then-update-all-buffer-windows (buffer mark current)
-  (with-render-thread (*app*)
-    (%rt-maybe-rebottom-current-on-mark-then-update-all-buffer-windows buffer mark current)))
-
-(defun maybe-scroll-current-to-center-then-update-all-buffer-windows (buffer current)
-  (with-render-thread (*app*)
-    (%rt-maybe-scroll-current-to-center-then-update-all-buffer-windows buffer current)))
-
-(defun maybe-scroll-current-to-bottom-then-update-all-buffer-windows (buffer current)
-  (with-render-thread (*app*)
-    (%rt-maybe-scroll-current-to-bottom-then-update-all-buffer-windows buffer current)))
-
-
-;; this one is for when you know you only have one window to update, such as echo-area-window
-(defun update-window (window)
-  (with-render-thread (*app*)
-    (update-window-image window)))
-
-
-(defun update-all-windows ()
-  (with-render-thread (*app*)
-    (mapcar #'update-window-image *window-list*)))
-
-(defun %rt-recenter-current-on-mark-then-update-all-buffer-windows (buffer mark current)
-  (loop for window in (buffer-windows buffer)
-        do (with-buffer-globals ((window-buffer window))
-             (if (eq window current)
-                 (%rt-center-window-on-mark window mark)
-                 (update-window-image window)))))
-
-(defun recenter-current-on-mark-then-update-all-buffer-windows (buffer mark current)
-  (with-render-thread (*app*)
-    (%rt-recenter-current-on-mark-then-update-all-buffer-windows buffer mark current)))

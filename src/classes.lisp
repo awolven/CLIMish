@@ -340,6 +340,9 @@
     :accessor buffer-plist
     :initform nil)))
 
+(defun make-buffer (name &rest args)
+  (apply #'make-instance 'buffer :name name args))
+
 (defmethod bufferp (thing)
   (declare (ignore thing))
   nil)

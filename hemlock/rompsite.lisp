@@ -181,9 +181,9 @@
 (defvar *editor-windowed-input* nil)
 
 ;;; These are used for selecting X events.
-(declaim (special *editor-input* *real-editor-input*))
+;;(declaim (special *editor-input* *real-editor-input*))
 
-(declaim (special *editor-input* *real-editor-input*))
+;;(declaim (special *editor-input* *real-editor-input*))
 
 ;;; INIT-RAW-IO  --  Internal
 ;;;

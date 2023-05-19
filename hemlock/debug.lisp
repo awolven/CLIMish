@@ -53,7 +53,7 @@
 
 (defvar *debug-context* nil)
 
-(defun make-debug-buffer (context entries impl thread)
+(defun make-debug-buffer (current-window context entries impl thread)
   (let ((buf (or *debug-buffer*
                  (make-buffer (format nil "Slave Debugger ~A" impl thread)
                               :modes '("Debug")))))
@@ -75,7 +75,7 @@
                            "  Type ? for help.")))))
       (setf (buffer-modeline-fields *debug-buffer*) fields))
     (buffer-start (buffer-point buf))
-    (change-to-buffer buf)))
+    (change-to-buffer buf current-window)))
 
 (defun debug-write-line (i entry s)
   (format s "~D: ~A~%" i (slave-stack-frame-label entry)))
@@ -96,5 +96,5 @@
             (thread (bordeaux-threads:thread-name
                      (bordeaux-threads:current-thread))))
         (hemlock::eval-in-master
-         `(make-debug-buffer ',context ',frames ',impl ',thread)))
+         `(make-debug-buffer (krma.gui::focused-window (clui::window-parent *echo-area-window*)) ',context ',frames ',impl ',thread)))
       (prepl:debugger nil nil (lambda () (debug-using-master start end)))))

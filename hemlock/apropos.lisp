@@ -73,7 +73,7 @@
       (dolist (entry entries)
         (apropos-write-line entry s)))))
 
-(defun make-apropos-buffer (entries)
+(defun make-apropos-buffer (current-window entries)
   (let ((buf (or *apropos-buffer*
                  (make-buffer "*Slave Apropos*" :modes '("Apropos")))))
     (setf *apropos-buffer* buf)
@@ -89,7 +89,7 @@
                            "  Type ? for help.")))))
       (setf (buffer-modeline-fields *apropos-buffer*) fields))
     (buffer-start (buffer-point buf))
-    (change-to-buffer buf)))
+    (change-to-buffer buf current-window)))
 
 (defun apropos-write-line (entry s)
   (format s "~A~%  ~:(~A~)~:[~;: ~:*~A~]~%~%"
@@ -143,10 +143,10 @@
                  (apropos-list str))))
     (hemlock::eval-in-master `(%apropos-results ',data ',str))))
 
-(defun %apropos-results (data str)
+(defun %apropos-results (current-window data str)
   (let ((entries (mapcar #'parse-apropos-entry data)))
     (cond
      ((null data)
       (message "No apropos results for: ~A" str))
      (t
-      (make-apropos-buffer entries)))))
+      (make-apropos-buffer (krma.gui::focused-window (clui::window-parent *echo-area-window*)) entries)))))

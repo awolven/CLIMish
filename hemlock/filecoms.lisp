@@ -15,15 +15,12 @@
 (defvar *buffer-history* ()
   "A list of buffers, in order from most recently to least recently selected.")
 
-(defun change-to-buffer (buffer &optional window)
+(defun change-to-buffer (buffer current-window)
   "Switches to buffer in the current window maintaining *buffer-history*."
-  (let* ((cb (window-buffer window)))
+  (let* ((cb (window-buffer current-window)))
     (setq *buffer-history* (cons cb (delq cb *buffer-history*)))
-    (setf (current-buffer (window-buffer (krma.gui::focused-window (krma::main-window krma::*app*)))) buffer)
-    (setf (window-buffer window) buffer)
-    (if (bufferp (window-buffer window))
-        (window-buffer window)
-        (break))))
+    (setf (current-buffer cb) buffer)
+    (setf (window-buffer current-window) buffer)))
 
 ;;;; PROCESS-FILE-OPTIONS.
 
@@ -364,7 +361,7 @@
            (let ((kind (osicat::file-kind trial-pathname :follow-symlinks t)))
              (case kind
                (:directory
-                (dired-guts nil nil trial-pathname))
+                (dired-guts current-window nil nil trial-pathname))
                (:regular-file
                 (let* ((name (pathname-to-buffer-name trial-pathname))
                        (found (getstring name *buffer-names*))
@@ -377,19 +374,24 @@
                                  :default found
                                  :must-exist nil)
                                 (make-instance 'buffer :name name)))
-                       (buffer (if (stringp use) (make-buffer use) use)))
+                       (buffer (if (stringp use) (make-instance 'buffer :name use) use)))
                   (when (and (buffer-modified buffer)
                              (prompt-for-y-or-n current-window :prompt
                                                 "Buffer is modified, save it? "))
                     (save-file-command () buffer))
                   (read-buffer-file pathname buffer)
                   (values buffer (stringp use))))
-               (t
-                (editor-error "cannot open a file of type ~A" kind)))))
+               (t (if (probe-file pathname)
+                      (editor-error "cannot open a file of type ~A" kind)
+                      (editor-error "~A does not exist." pathname))))))
           ((check-disk-version-consistent current-window pathname found)
+           (when (buffer-windows found)
+             (krma::focus-window (first (buffer-windows found))))
            (values found nil))
           (t
            (read-buffer-file pathname found)
+           (when (buffer-windows found)
+             (krma::focus-window (first (buffer-windows found))))
            (values found nil)))))
 
 
@@ -689,10 +691,10 @@
                                              (incf *create-buffer-count*))
                                      :must-exist nil))))
     (if (bufferp name)
-        (change-to-buffer name (current-window))
+        (change-to-buffer name window)
         (change-to-buffer (or (getstring name *buffer-names*)
-                              (make-buffer name))
-                          (current-window)))))
+                              (make-instance 'buffer :name name))
+                          window))))
 
 (defcommand "Select Buffer" (window p)
   "Select a different buffer.
@@ -707,7 +709,7 @@
                                 :default (previous-buffer))))
     (when (eq buf *echo-area-buffer*)
       (editor-error "Cannot select Echo Area buffer."))
-    (change-to-buffer buf)))
+    (change-to-buffer buf window)))
 
 
 (defvar *buffer-history-ptr* ()
@@ -722,7 +724,7 @@
       (circulate-buffers-command nil)
       (let ((b (previous-buffer)))
         (unless b (editor-error "No previous buffer."))
-        (change-to-buffer b (current-window))
+        (change-to-buffer b window)
         ;;
         ;; If the pointer goes to nil, then "Circulate Buffers" will keep doing
         ;; "Select Previous Buffer".
@@ -1254,7 +1256,7 @@
                                       :directory (pathname-directory dpn))
               :must-exist nil)))
     (setf (value pathname-defaults) (merge-pathnames pn dpn))
-    (with-pop-up-display (s)
+    (with-pop-up-display (s :current-window window)
       (print-directory pn s :all p))))
 
 (defcommand "Verbose Directory" (window p)
@@ -1271,7 +1273,7 @@
                                       :directory (pathname-directory dpn))
               :must-exist nil)))
     (setf (value pathname-defaults) (merge-pathnames pn dpn))
-    (with-pop-up-display (s)
+    (with-pop-up-display (s :current-window window)
       (print-directory pn s :verbose t :all p))))
 
 
@@ -1324,43 +1326,43 @@
           (do-recursive-edit)
           (when (buffer-modified (window-buffer window)) (save-file-command window ())))
       (if (member buffer *buffer-list* :test #'eq)
-          (change-to-buffer buffer)
+          (change-to-buffer buffer window)
           (editor-error "Old buffer has been deleted.")))))
 
 
 
 ;;;; Window hacking commands:
 
-(defcommand "Next Window" (p)
+(defcommand "Next Window" (window p)
   "Change the current window to be the next window and the current buffer
   to be it's buffer."
   "Go to the next window.
   If the next window is the bottom window then wrap around to the top window."
   (declare (ignore p))
-  (let* ((next (next-window (current-window))))
+  (let* ((next (next-window window)))
     (setf (current-buffer (window-buffer (krma.gui::focused-window (krma::main-window krma::*app*)))) (window-buffer next))
-    (setf (current-window) next)))
+    (krma.gui::focus-window next)))
 
-(defcommand "Previous Window" (p)
+(defcommand "Previous Window" (window p)
   "Change the current window to be the previous window and the current buffer
   to be it's buffer."
   "Go to the previous window.
   If the Previous window is the top window then wrap around to the bottom."
   (declare (ignore p))
-  (let* ((previous (previous-window (current-window))))
+  (let* ((previous (previous-window window)))
     (setf (current-buffer (window-buffer (krma.gui::focused-window (krma::main-window krma::*app*)))) (window-buffer previous))
-    (setf (current-window) previous)))
+    (krma.gui::focus-window previous)))
 
-(defcommand "Split Window" (p)
+(defcommand "Split Window" (window p)
   "Make a new window by splitting the current window.
    The new window is made the current window and displays starting at
    the same place as the current window."
   "Create a new window which displays starting at the same place
    as the current window."
   (declare (ignore p))
-  (let ((new (make-window (window-display-start (current-window)))))
+  (let ((new (make-window (window-display-start window))))
     (unless new (editor-error "Could not make a new window."))
-    (setf (current-window) new)))
+    (krma.gui::focus-window new)))
 
 (defun hi::enlarge-window (window offset)
   "offset in lines.  Can be negative."
@@ -1368,41 +1370,40 @@
                              window
                              offset))
 
-(defcommand "Enlarge Window" (p)
+(defcommand "Enlarge Window" (window p)
   "" ""
-  (hi::enlarge-window (current-window) (or p 1)))
+  (hi::enlarge-window window (or p 1)))
 
-(defcommand "New Window" (p)
+(defcommand "New Window" (window p)
   "Make a new window and go to it.
    The window will display the same buffer as the current one."
   "Create a new window which displays starting at the same place
    as the current window."
   (declare (ignore p))
-  (let ((new (make-window (window-display-start (current-window))
+  (let ((new (make-window (window-display-start window)
                           :ask-user t)))
     (unless new (editor-error "Could not make a new window."))
-    (setf (current-window) new)))
+    (krma.gui::focus-window new)))
 
-(defcommand "Delete Window" (p)
+(defcommand "Delete Window" (window p)
   "Delete the current window, going to the previous window."
   "Delete the window we are in, going to the previous window."
   (declare (ignore p))
   (when (= (length *window-list*) 2)
     (editor-error "Cannot delete only window."))
   (let ((window (current-window)))
-    (previous-window-command nil)
+    (previous-window-command window nil)
     (delete-window window)))
 
-(defcommand "Line to Top of Window" (p)
+(defcommand "Line to Top of Window" (window p)
   "Move current line to top of window."
   "Move current line to top of window."
   (declare (ignore p))
-  (let ((window (current-window)))
-    (hi::with-render-thread (*app*)
-      (with-mark ((mark (buffer-point (window-buffer window))))
-        (move-mark (window-display-start window) (line-start mark))))))
+  (let ()
+    (with-mark ((mark (buffer-point (window-buffer window))))
+      (move-mark (window-display-start window) (line-start mark)))))
 
-(defcommand "Delete Next Window" (p)
+(defcommand "Delete Next Window" (window p)
   "Deletes the next window on display."
   "Deletes then next window on display."
   (declare (ignore p))
@@ -1430,15 +1431,14 @@
                   (eq w *echo-area-window*))
         (delete-window w)))))
 
-(defcommand "Line to Center of Window" (p)
+(defcommand "Line to Center of Window" (window p)
   "Moves current line to the center of the window."
   "Moves current line to the center of the window."
   (declare (ignore p))
-  (let* ((window (current-window))
-         (buffer (window-buffer window))
+  (let* ((buffer (window-buffer window))
          (point (buffer-point buffer)))
     (hi::with-render-thread (*app*)
-      (hi::%rt-center-window-on-mark window point))))
+      (hi::center-window-on-mark window point))))
 
 #+NOTNOW
 (defun quickselect-slave-repl (&optional *)
@@ -1447,7 +1447,7 @@
       (change-to-buffer (server-info-slave-buffer info)))))
 
 (defun quickselect-help (current-window &optional *)
-  (with-pop-up-display (s)
+  (with-pop-up-display (s :current-window current-window)
     (format s "Quickselect:~%")
     (terpri s)
     (format s "  h  this help~%")
@@ -1465,14 +1465,17 @@
   (funcall (let ((old-window window))
              (unwind-protect
                   (progn
-                    (setf (current-window) *echo-area-window*)
+                    (setf (krma::focused-window (clui::window-parent *echo-area-window*)) *echo-area-window*)
                     (hi::display-prompt-nicely "Quickselect? [?hrCcSb]")
                     (hi::key-event-case
                      ((#k"r") 'quickselect-slave-repl)
-                     ((#k"?" #k"h") 'quickselect-help)
+                     ((#k"?" #k"h") #'(lambda ()
+                                        (quickselect-help *echo-area-window*)))
                      ((#k"C") 'coned-command)
                      ((#k"c" #k"S") 'list-slaves-command)
                      ((#k"b") 'bufed-command)
                      (t (lambda ()))))
+               (krma.gui::focus-window old-window)
+               #+NIL
                (setf (current-window) old-window)))
            nil))

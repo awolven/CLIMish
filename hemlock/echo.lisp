@@ -1,4 +1,4 @@
-;;;; -*- Mode: Lisp; indent-tabs-mode: nil -*-
+;;; -*- Mode: Lisp; indent-tabs-mode: nil -*-
 ;;;
 ;;; **********************************************************************
 ;;; This code was written as part of the CMU Common Lisp project at
@@ -94,7 +94,7 @@
   (clear-output *echo-area-stream*)
   (delete-region *echo-area-region*)
   (setf (buffer-modified *echo-area-buffer*) nil)
-  (update-window *echo-area-window*)
+  (krma.gui::redraw-buffer *echo-area-window*)
   nil)
 
 ;;; Message  --  Public
@@ -172,16 +172,17 @@
   (display-prompt-nicely)
   (let* ((start-buffer (window-buffer start-window))
          (point (buffer-point *echo-area-buffer*)))
-
     (move-mark *parse-starting-mark* point)
     (insert-string point (or *parse-default-string* *parse-default*))
-    (setf (krma.gui::focused-window (krma::main-window krma::*app*)) *echo-area-window*)
+    (setf (krma.gui::focused-window (clui::window-parent *echo-area-window*))
+          *echo-area-window*)
     (krma.gui::redraw-buffer *echo-area-window*)
     (unwind-protect
          (progn
            (recursive-edit nil))
-      (setf (krma.gui::focused-window (krma::main-window krma::*app*)) start-window)
-      (change-to-buffer start-buffer start-window))))
+      (setf (krma.gui::focused-window (clui::window-parent *echo-area-window*)) start-window)
+      (unless (eq *echo-area-window* start-window)
+        (change-to-buffer start-buffer start-window)))))
 
 
 
@@ -515,9 +516,9 @@
 
 ;;;; Key-event and key prompting.
 
-(defun prompt-for-key-event (&key (prompt "Key-event: ") (change-window t))
+(defun prompt-for-key-event (current-window &key (prompt "Key-event: ") (change-window t))
   "Prompts for a key-event."
-  (prompt-for-key-event* prompt change-window))
+  (prompt-for-key-event* current-window prompt change-window))
 
 (defun prompt-for-key-event* (current-window prompt change-window)
   (let ((old-window current-window))
@@ -528,6 +529,13 @@
           (display-prompt-nicely prompt)
           (get-key-event *editor-input* t))
       (when change-window (setf (krma.gui::focused-window (krma::main-window krma::*app*)) old-window)))))
+
+
+
+(defmethod get-key-event ((input-source clui::os-window-mixin) &optional ignore-abort-attempts-p)
+  (declare (ignore ignore-abort-attempts-p))
+  (clui::input-event-id (krma.gui::get-next-event input-source)))
+  
 
 (defvar *prompt-key* (make-array 10 :adjustable t :fill-pointer 0))
 (defun prompt-for-key (current-window &key ((:must-exist must-exist) t)
@@ -725,18 +733,25 @@
 ;;;    Print out a help message derived from the options in a
 ;;; random-typeout window.
 ;;;
-(defun command-case-help (help options)
+(defun command-case-help (current-window help options)
   (let ((help (if (listp help)
                   (apply #'format nil help) help)))
-    (with-pop-up-display (s)
+    (with-pop-up-display (s :current-window current-window)
       (write-string help s)
       (fresh-line s)
       (do ((o options (cdr o)))
           ((null o))
-        (let ((string (chars-to-string (caar o))))
-          (declare (simple-string string))
-          (if (= (length string) 1)
-              (write-char (char string 0) s)
-              (write-line string s))
+        (let ((option (caar o)))
+          (if (and (consp option)
+                   (eq (car option) 'clui::intern-input-event))
+              (princ (eval option) s)
+              (if (consp option)
+                  (loop for o in option
+                        do (if (and (consp option)
+                                    (eq (car option) 'clui::intern-input-event))
+                               (princ (eval option) s)
+                               (princ option s)))
+                  (princ option s)))
+                     
           (write-string "  - " s)
           (write-line (cdar o) s))))))

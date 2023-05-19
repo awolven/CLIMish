@@ -20,7 +20,7 @@
   (cl-ppcre:register-groups-bind (file line)
       ("^\([^:]+\):\([0-9]+\):" (line-string (mark-line (current-point))))
     (when file
-      (change-to-buffer (find-file-buffer (merge-pathnames file (default-directory))))
+      (change-to-buffer (find-file-buffer (merge-pathnames file (default-directory))) window)
       (let ((point (current-point)))
         (push-buffer-mark (copy-mark point))
         (buffer-start point)

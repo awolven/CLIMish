@@ -23,17 +23,18 @@
 
 (defun %fuzzy-complete-symbol/request (packname symname)
   (hemlock::eval-in-master
-   `(%fuzzy-complete-symbol/results 
+   `(%fuzzy-complete-symbol/results
+     (krma.gui::focused-window (clui::window-parent *echo-area-window*))
      ',(let ((*buffer-package* packname))
          (fuzzy-completions symname packname)))))
 
-(defun %fuzzy-complete-symbol/results (results)
+(defun %fuzzy-complete-symbol/results (current-window results)
   (destructuring-bind (matches exhaustedp) results
     (declare (ignore exhaustedp))
     (cond
      ((cdr matches)
       (split-window-command nil)
-      (make-fuzzylist-buffer (mapcar #'parse-fuzzylist-entry matches)))
+      (make-fuzzylist-buffer current-window (mapcar #'parse-fuzzylist-entry matches)))
      (matches
       (%fuzzy-insert-completion (caar matches)))
      (t
@@ -43,7 +44,7 @@
   "" ""
   (fuzzy-complete-symbol p))
 
-(defcommand "Editor Fuzzy Complete Symbol" (p)
+(defcommand "Editor Fuzzy Complete Symbol" (window p)
   "" ""
   (let ((prefix (symbol-string-at-point)))
     (multiple-value-bind (packname symname)
@@ -55,7 +56,7 @@
       (let* ((packname (or packname (package-at-point) "cl"))
              (matches (let ((*buffer-package* packname))
                         (fuzzy-completions symname packname))))
-        (%fuzzy-complete-symbol/results matches)))))
+        (%fuzzy-complete-symbol/results window matches)))))
 
 (defun %fuzzy-insert-completion (completion)
   (let ((point (current-point)))
@@ -883,7 +884,7 @@ keywords: :BOUNDP, :FBOUNDP, :CONSTANT, :GENERIC-FUNCTION,
       (dolist (entry entries)
         (fuzzylist-write-line entry s)))))
 
-(defun make-fuzzylist-buffer (entries)
+(defun make-fuzzylist-buffer (current-window entries)
   (let ((buf (or *fuzzylist-buffer*
                  (make-buffer "*Fuzzylist*" :modes '("Fuzzylist")))))
     (setf *fuzzylist-buffer* buf)
@@ -899,7 +900,7 @@ keywords: :BOUNDP, :FBOUNDP, :CONSTANT, :GENERIC-FUNCTION,
                            "  Type ? for help.")))))
       (setf (buffer-modeline-fields *fuzzylist-buffer*) fields))
     (buffer-start (buffer-point buf))
-    (change-to-buffer buf)))
+    (change-to-buffer buf current-window)))
 
 (defun fuzzylist-write-line (entry s)
   (format s "~A ~40T~A ~20T~A~%"

@@ -298,7 +298,7 @@
     (let* ((prefix *completion-prefix*)
            (prefix-length *completion-prefix-length*)
            (bucket (completion-bucket-for prefix prefix-length)))
-      (with-pop-up-display (s)
+      (with-pop-up-display (s :current-window window)
         (dolist (completion bucket)
           (when (and (> (length completion) prefix-length)
                      (string= completion prefix
@@ -540,13 +540,14 @@
          (iter:collect str))))))
 
 (defun %find-symbol-completion/request
-       (show-matches-p prefix packname symname)
+       (current-window show-matches-p prefix packname symname)
   (let ((matches (%find-symbol-completion-matches packname symname)))
     (hemlock::eval-in-master
-     `(%find-symbol-completion/results 
+     `(%find-symbol-completion/results
+       ,current-window
        ',show-matches-p ',prefix ',matches))))
 
-(defun %find-symbol-completion/results (show-matches-p prefix matches)
+(defun %find-symbol-completion/results (current-window show-matches-p prefix matches)
   (let ((completion
          (cond
           ((cdr matches)
@@ -573,7 +574,7 @@
       (%insert-completion completion))
     (when (and show-matches-p matches)
       (split-window-command nil)
-      (make-completelist-buffer (mapcar #'make-completelist-entry matches)))))
+      (make-completelist-buffer current-window (mapcar #'make-completelist-entry matches)))))
 
 (defun %insert-completion (completion)
   (let ((point (current-point)))
@@ -605,7 +606,7 @@
                              completion)))))))
 
 
-(defun find-symbol-completion (show-matches-p prefix)
+(defun find-symbol-completion (current-window show-matches-p prefix)
   (multiple-value-bind (package-prefix symname)
                        (let ((p (position #\: prefix)))
                          (if p
@@ -615,6 +616,7 @@
                                      (string-downcase prefix))))
     (hemlock::eval-in-slave
      `(%find-symbol-completion/request
+       ,current-window
        ',(and show-matches-p t)
        ',package-prefix
        ',(or package-prefix (package-at-point))
@@ -623,7 +625,7 @@
 (defun complete-symbol (&optional show-matches-p)
   (find-symbol-completion show-matches-p (symbol-string-at-point)))
 
-(defun editor-find-symbol-completion (show-matches-p prefix)
+(defun editor-find-symbol-completion (current-window show-matches-p prefix)
   (multiple-value-bind (package-prefix symname)
                        (let ((p (position #\: prefix)))
                          (if p
@@ -633,12 +635,13 @@
                                      (string-downcase prefix))))
     (let* ((package (or package-prefix (package-at-point)))
            (matches (%find-symbol-completion-matches package symname)))
-      (%find-symbol-completion/results 
+      (%find-symbol-completion/results
+       current-window
        (and show-matches-p t)
        package-prefix matches))))
 
-(defun editor-complete-symbol (&optional show-matches-p)
-  (editor-find-symbol-completion show-matches-p (symbol-string-at-point)))
+(defun editor-complete-symbol (current-window &optional show-matches-p)
+  (editor-find-symbol-completion current-window show-matches-p (symbol-string-at-point)))
 
 (defhvar "Completion Function" ""
   :value 'completion-complete-word)
@@ -647,11 +650,12 @@
   :mode "Lisp" :value 'complete-symbol)
 
 (defhvar "Completion Function" ""
-  :mode "Editor" :value 'editor-complete-symbol)
+  :mode "Editor" :value #'(lambda ()
+                            (editor-complete-symbol (krma.gui::focused-window (clui::window-parent *echo-area-window*)))))
 
 (defcommand "Complete For Mode" (window p)
   "" ""
-  (funcall (value completion-function) p))
+  (funcall (value completion-function) window p))
 
 (defcommand "Indent Or Complete" (window p)
   """"
@@ -660,8 +664,8 @@
             ;; why doesn't this work?
             ;; (test-char (next-character mark) :lisp-syntax :whitespace)
             (find (previous-character mark) '(#\space #\tab #\newline))))
-      (indent-command p)
-      (complete-for-mode-command p)))
+      (indent-command window p)
+      (complete-for-mode-command window p)))
 
 ;;; Mode
 
@@ -723,7 +727,7 @@
       (dolist (entry entries)
         (completelist-write-line entry s)))))
 
-(defun make-completelist-buffer (entries)
+(defun make-completelist-buffer (current-window entries)
   (let ((buf (or *completelist-buffer*
                  (make-buffer "*Completelist*" :modes '("Completelist")))))
     (setf *completelist-buffer* buf)
@@ -739,7 +743,7 @@
                            "  Type ? for help.")))))
       (setf (buffer-modeline-fields *completelist-buffer*) fields))
     (buffer-start (buffer-point buf))
-    (change-to-buffer buf)))
+    (change-to-buffer buf current-window)))
 
 (defun completelist-write-line (entry s)
   (format s "~A ~40T~A~%"

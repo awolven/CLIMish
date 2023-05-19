@@ -117,12 +117,11 @@
 
 
 (defun f-o (stream)
-  (mapcar #'krma.gui::redraw-buffer (hi::buffer-windows (hemlock-character-io-stream-buffer stream)))
-  #+NIL
-  (maybe-rebottom-current-on-mark-then-update-all-buffer-windows
-   (hemlock-character-io-stream-buffer stream)
-   (buffer-point (hemlock-character-io-stream-buffer stream))
-   (current-window)))
+  (let ((buffer-windows (hi::buffer-windows (hemlock-character-io-stream-buffer stream))))
+    (mapcar #'(lambda (window)
+		(hi::maybe-rebottom-window-on-mark window (buffer-point (window-buffer window)))
+		(krma.gui::redraw-buffer window))
+	    buffer-windows)))
 
 (defmethod stream-finish-output ((stream hemlock-character-io-stream))
   (f-o stream))
@@ -212,8 +211,6 @@
     "Absorb input from the buffer, a line at a time. For use with Interactive-Character-Stream buffers."
     "Absorb input from the buffer, a line at a time. For use with Interactive-Character-Stream buffers."
   (declare (ignore p))
-  ;;(print "HELO" sb-sys::*stdout*)
-  ;;(finish-output sb-sys::*stdout*)
   (let* ((cw window)
          (buffer (window-buffer cw))
          (stream (variable-value 'hemlock::buffer-stream :buffer buffer)))

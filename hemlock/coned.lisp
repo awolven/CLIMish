@@ -136,7 +136,8 @@
    (or (connection-buffer
         (coned-connection
          (array-element-from-mark (current-point) *coned-connections*)))
-       (editor-error "connection has no buffer"))))
+       (editor-error "connection has no buffer"))
+   window))
 
 (defun refresh-coned (buf)
   (with-writable-buffer (buf)
@@ -172,7 +173,7 @@
                              "  Type ? for help.")))))
         (setf (buffer-modeline-fields *coned-buffer*) fields))
       (buffer-start (buffer-point buf)))
-    (change-to-buffer buf)))
+    (change-to-buffer buf window)))
 
 (defcommand "Coned Refresh" (window p)
   "" ""

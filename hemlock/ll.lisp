@@ -43,7 +43,7 @@
             (*debugger-hook* nil))
         (with-nonbroken-debugger
             (loop
-	       (show-prompt)
+	      (show-prompt)
               (finish-output)
               (restart-case
                   (let ()
@@ -51,7 +51,6 @@
                      read
                        (setq .form. (read stream nil lispbuf-eof))
                        (when (eq .form. lispbuf-eof)
-                         ;;(sleep 0.001)
                          (go read)))
 
                     (setq +++ ++ ++ + + - - .form.)
@@ -88,10 +87,7 @@
         :value (bt:make-thread #'(lambda ()
                                    (repl stream))
                                :name "Lisp Listener"))
-      (if (eq window *echo-area-window*)
-	  (setq window (hi::find-or-create-text-editor-window-for-buffer buffer))
-	  (change-to-buffer buffer window))
-      (krma.gui::focus-window window)
+      (krma.gui::focus-window (hi::find-or-create-text-editor-window-for-buffer buffer))
       (values))))
 
 (defcommand "Interrupt Lisp" (p)
@@ -108,67 +104,3 @@
       (bt:interrupt-thread thread #'break))))
 
 
-
-
-
-#+NOTYET
-(defcommand "Confirm Eval Input" (p)
-    "Evaluate Eval Mode input between point and last prompt."
-    "Evaluate Eval Mode input between point and last prompt."
-  (declare (ignore p))
-
-  ;;(buffer-end (current-point))
-  ;;(insert-string (current-point) (string #\newline))
-  (block confirm-eval-input
-    (let* ((input-region (get-interactive-input)))
-      (let ((string (region-to-string input-region)))
-        ;;(let ((standard-input (value eval-output-stream)))
-        (let ((buffer (current-buffer)))
-                      (move-mark
-                       (variable-value 'buffer-input-mark :buffer buffer)
-                       (buffer-point buffer)))
-          (throw 'hi::lispbuf-editor-input
-                string)
-          ;;(if (hi::dont-preprocess-input standard-input)
-
-              #+NOTYET
-              (progn
-                (when (and string
-                           (> (length string) 0)
-                           (char= (char string (1- (length string))) #\Newline))
-                  (let ((breaks ()))
-                    (with-input-from-string (s string)
-                      (handler-case (let ((*read-eval* nil))
-                                      (loop
-                                        (if (peek-char t s nil nil) ;; the rest exists and is not whitespace
-                                            (progn (read s) ;; without error means found a form
-                                                   (push (file-position s) breaks)) ;; record the form breaks
-
-                                            ;; we're done with this string, and possibly the rest is whitespace
-                                            (return))))
-                        (error () (return-from confirm-eval-input)))) ;; a read was bogus, start over
-
-                    ;; break string into forms and submit to input for repl thread
-                    (loop for break in (nreverse breaks) with last-break = 0
-                          do (sb-concurrency:enqueue (subseq string last-break
-                                                             (1- (setq last-break break)))
-                                                     vktk::(read-queue *app*)))
-
-                    ;; we need to move the region start beyond the input
-                    ;; typing, so next read, if any, is clean
-                    (let ((buffer (current-buffer)))
-                      (move-mark
-                       (variable-value 'buffer-input-mark :buffer buffer)
-                       (buffer-point buffer)))
-
-                    ;; the input is ready for the repl
-                    (bt:signal-semaphore vktk::(before-read-semaphore *app*))
-
-                    ;; don't do anything (such as process more input) until repl is done writing to the buffer
-                    (bt:wait-on-semaphore vktk::(after-print-semaphore *app*))
-
-                    ;; we need to move the region start beyond the output, so next read is clean
-                    (let ((buffer (current-buffer)))
-                      (move-mark
-                       (variable-value 'buffer-input-mark :buffer buffer)
-                       (buffer-point buffer))))))))))

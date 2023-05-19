@@ -11,6 +11,14 @@
    (last-event :initform nil :accessor window-last-event)
    (command-loop-go-semaphore :initform (bt:make-semaphore :name "command-loop-go-semaphore") :accessor command-loop-go-semaphore)))
 
+(defmethod handle-event :after ((window krma-gui-window-mixin) (event clui::window-resize-event-mixin))
+  ;; if window-framebuffer-size is already correct for krma-gui-window
+  ;; then bashing this attribute will cause the echo area size and position to recompute
+  (when *echo-area-window*
+    (setf (send *echo-area-window* parent) window)
+    (rm-redraw-node-recursively *echo-area-window*))
+  (values))
+
 #+win32
 (defclass win32::krma-gui-window (krma-gui-window-mixin win32:krma-enabled-window-mixin) ())
 
@@ -77,10 +85,22 @@
 			  :krma "submodules/krma-fonts/Roboto_Mono/static/RobotoMono-Medium.ttf")
 		style self)))
 
+(defobject font ()
+  :inputs
+  ((style)
+   (ttf-file)
+   (font-sizes `((2) (2.5) (2.75) (3) (3.5) (4) (4.5) (5))))
+
+  :components
+  ((bmfonts :type 'bmfont
+	    :aggregate (:indices (the font-sizes))
+	    style (the style)
+	    font self
+	    px-per-mm (the style px-per-mm-height))))
+
 (defobject bmfont ()
   :inputs
   ((style)
-   (font)
    (px-per-mm))
   
   :attributes
@@ -92,6 +112,10 @@
 									    (format nil "~A" (the px-size))
 									    ".json")))
    (bmfont (maybe-update-cache self))))
+
+(defmethod print-object ((object bmfont) stream)
+  (print-unreadable-object (object stream)
+    (princ "BMFONT" stream)))
 
 (defmethod maybe-update-cache ((self bmfont))
   (let ((cache-filename (the cache-filename)))
@@ -122,18 +146,7 @@
 			    
 									    
 
-(defobject font ()
-  :inputs
-  ((style)
-   (ttf-file)
-   (font-sizes `((2) (2.5) (2.75) (3) (3.5) (4) (4.5) (5))))
 
-  :components
-  ((bmfonts :type 'bmfont
-	    :aggregate (:indices (the font-sizes))
-	    style (the style)
-	    font self
-	    px-per-mm (the style px-per-mm-height))))
 
 (defun lerp (a b s)
   (map 'vector #'+ a (map 'vector #'(lambda (x) (* x s)) (map 'vector #'- a b))))
@@ -630,7 +643,7 @@
     (setf (krma::node-children scene)
 	  (remove homemade-window (krma::node-children scene)))
     (when (eq homemade-window (focused-window (clui::window-parent homemade-window)))
-      (setf (focused-window (clui::window-parent homemade-window)) hi::*echo-area-window*))
+      (setf (focused-window (clui::window-parent homemade-window)) nil))
     (forget-object-recursively homemade-window)
     (unless (krma::node-children scene)
       (setf (krma::immediate-mode-work-function-1 (clui::window-display (window-parent homemade-window))) nil))

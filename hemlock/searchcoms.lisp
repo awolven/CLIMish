@@ -535,7 +535,7 @@
               (nconc matching-lines (list-lines mark (or p 0))))
         (unless (line-offset mark 1 0)
           (return))))
-    (with-pop-up-display (s :height (length matching-lines))
+    (with-pop-up-display (s :height (length matching-lines) :current-window window)
       (dolist (line matching-lines)
         (write-line line s)))))
 

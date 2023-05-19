@@ -139,12 +139,12 @@
                        (window-display-start
                         (car (buffer-windows (line-buffer (mark-line temp-a)))))
                        temp-a))
-                     (reprompt))
+                     (reprompt window))
                 (:recursive-edit "Enter a recursive edit."
                                  (with-mark ((save dest-point))
                                    (do-recursive-edit)
                                    (move-mark dest-point save))
-                                 (reprompt)))
+                                 (reprompt window)))
               (redisplay)
               (move-mark mark-a (region-end diff-a))
               (move-mark mark-b (region-end diff-b))
@@ -175,7 +175,7 @@
       (setf dest-buffer (make-buffer dest-buffer))
       (buffer-end (buffer-point dest-buffer)))
   (setf (value source-compare-default-destination) (buffer-name dest-buffer))
-  (change-to-buffer dest-buffer)
+  (change-to-buffer dest-buffer current-window)
   (let* ((alt-buffer-a (if p (make-buffer (prin1-to-string (gensym)))))
          (alt-buffer-b (if alt-buffer-a
                            (make-buffer (prin1-to-string (gensym))))))

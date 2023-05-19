@@ -15,7 +15,8 @@
 
 (in-package :hemlock-internals)
 
-(declaim (special *editor-input*)) ; defined in input --amb
+(define-symbol-macro *editor-input*
+    (clui::window-parent *echo-area-window*))
 
 ;;;; Macros used for manipulating Hemlock variables.
 
@@ -385,15 +386,17 @@
 ;;; for the definition of COMMAND-CASE-HELP and logical char stuff.
 ;;;
 (eval-when (:compile-toplevel :execute :load-toplevel)
-(defun command-case-tag (tag key-event char)
-  (cond ((and (characterp tag) (standard-char-p tag))
-         `(and ,char (char= ,char ,tag)))
-        ((and (symbolp tag) (keywordp tag))
-         `(logical-key-event-p ,key-event ,tag))
-        (t
-         (error "Tag in COMMAND-CASE is not a standard character or keyword: ~S"
-                tag))))
-); eval-when
+  (defun command-case-tag (tag key-event char)
+    (cond ((and (characterp tag) (standard-char-p tag))
+           `(and ,char (char= ,char ,tag)))
+          ((and (consp tag) (eq (car tag) 'clui::intern-input-event))
+           `(and ,char (eq ,char (eval ,tag))))
+          ((and (symbolp tag) (keywordp tag))
+           `(logical-key-event-p ,key-event ,tag))
+          (t
+           (error "Tag in COMMAND-CASE is not a standard character or keyword: ~S"
+                  tag))))
+  )                                     ; eval-when
 ;;;
 (defmacro command-case ((&key (change-window t)
                               (prompt "Command character: ")
@@ -414,62 +417,67 @@
 
    The legal keys of the key/value pairs are :help, :prompt, :change-window,
    and :bind.  See the manual for details."
-  (do* ((forms forms (cdr forms))
-        (form (car forms) (car forms))
-        (cases ())
-        (bname (gensym))
-        (again (gensym))
-        (n-prompt (gensym))
-        (n-change (gensym))
-        (bind-char (gensym))
-        (docs ())
-        (t-case `(t (beep) (reprompt))))
-       ((atom forms)
-        `(macrolet ((reprompt ()
-                      `(progn
-                         (setf ,',bind
-                               (prompt-for-key-event* ,',n-prompt ,',n-change))
-                         (setf ,',bind-char (hemlock-ext:key-event-char ,',bind))
-                         (go ,',again))))
-           (block ,bname
-             (let* ((,n-prompt ,prompt)
-                    (,n-change ,change-window)
-                    (,bind (prompt-for-key-event* ,current-window ,n-prompt ,n-change))
-                    (,bind-char (hemlock-ext:key-event-char ,bind)))
-               (tagbody
-                ,again
-                (return-from
-                 ,bname
-                 (cond ,@(nreverse cases)
-                       ((logical-key-event-p ,bind :abort)
-                        (editor-error))
-                       ((logical-key-event-p ,bind :help)
-                        (command-case-help ,help ',(nreverse docs))
-                        (reprompt))
-                       ,t-case)))))))
+  (let ((window-sym (gensym)))
+    (do* ((forms forms (cdr forms))
+          (form (car forms) (car forms))
+          (cases ())
+          (bname (gensym))
+          (again (gensym))
+          (n-prompt (gensym))
+          (n-change (gensym))
+          (bind-char (gensym))
+          (docs ())
+          (t-case `(t (beep) (reprompt ,window-sym))))
+         ((atom forms)
+          `(macrolet ((reprompt (window)
+                        `(let ()
+                           (setf ,',bind
+                                 (prompt-for-key-event* ,window ,',n-prompt ,',n-change))
+                           (setf ,',bind-char ,',bind)
+                           (go ,',again))))
+             (block ,bname
+               (let* ((,n-prompt ,prompt)
+                      (,n-change ,change-window)
+                      (,window-sym ,current-window)
+                      (,bind (prompt-for-key-event* ,window-sym ,n-prompt ,n-change))
+                      (,bind-char ,bind))
+                 (tagbody
+                    ,again
+                    (return-from
+                     ,bname
+                      (cond ,@(nreverse cases)
+                            ((logical-key-event-p ,bind :abort)
+                             (editor-error))
+                            ((logical-key-event-p ,bind :help)
+                             (command-case-help ,window-sym ,help ',(nreverse docs))
+                             (reprompt ,window-sym))
+                            ,t-case)))))))
 
-    (cond ((atom form)
-           (error "Malformed Command-Case clause: ~S" form))
-          ((eq (car form) t)
-           (setq t-case form))
-          ((or (< (length form) 2)
-               (not (stringp (second form))))
-           (error "Malformed Command-Case clause: ~S" form))
-          (t
-           (let ((tag (car form))
-                 (rest (cddr form)))
-             (cond ((atom tag)
-                    (push (cons (command-case-tag tag bind bind-char) rest)
-                          cases)
-                    (setq tag (list tag)))
-                   (t
-                    (do ((tag tag (cdr tag))
-                         (res ()
-                              (cons (command-case-tag (car tag) bind bind-char)
-                                    res)))
-                        ((null tag)
-                         (push `((or ,@res) . ,rest) cases)))))
-             (push (cons tag (second form)) docs))))))
+      (cond ((atom form)
+             (error "Malformed Command-Case clause: ~S" form))
+            ((eq (car form) t)
+             (setq t-case form))
+            ((or (< (length form) 2)
+                 (not (stringp (second form))))
+             (error "Malformed Command-Case clause: ~S" form))
+            (t
+             (let ((tag (car form))
+                   (rest (cddr form)))
+               (cond ((atom tag)
+                      (push (cons (command-case-tag tag bind bind-char) rest)
+                            cases)
+                      (setq tag (list tag)))
+                     ((eq (car tag) 'clui::intern-input-event)
+                      (push (cons (command-case-tag tag bind bind-char) rest)
+                            cases))
+                     (t
+                      (do ((tag tag (cdr tag))
+                           (res ()
+                                (cons (command-case-tag (car tag) bind bind-char)
+                                      res)))
+                          ((null tag)
+                           (push `((or ,@res) . ,rest) cases)))))
+               (push (cons tag (second form)) docs)))))))
 
 
 
@@ -526,7 +534,8 @@
          (push ,var *free-hemlock-region-streams*)))))
 
 
-(defmacro with-pop-up-display ((var &key height (buffer-name "Random Typeout"))
+(defmacro with-pop-up-display ((var &key height (buffer-name "Random Typeout")
+                                    current-window)
                                &body body)
   "Execute body in a context with var bound to a stream.  Output to the stream
    appears in the buffer named buffer-name.  The pop-up display appears after
@@ -534,7 +543,7 @@
    displaying any current output after each line."
   (when (and (numberp height) (zerop height))
     (editor-error "I doubt that you really want a window with no height"))
-  `(invoke-with-pop-up-display (lambda (,var)
+  `(invoke-with-pop-up-display ,current-window (lambda (,var)
                                  ,@body)
     ,buffer-name ,height))
 
@@ -652,7 +661,7 @@
        (hemlock::simple-backtrace *standard-output*)
        (invoke-debugger condition))
      ((and *stack-trace-on-error* (not message-only-p))
-      (with-pop-up-display (s :height 100)
+      (with-pop-up-display (s :height 100 :current-window (krma.gui::focused-window (clui::window-parent *echo-area-window*)))
         (format s "An error of type ~A has been caught and ignored:~%  ~A~%~%"
                 (type-of condition)
                 condition)

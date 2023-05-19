@@ -59,18 +59,18 @@
     (if (mark< mark point) (region mark point) (region point mark))))
 
 
-(defcommand "Activate Region" (p)
+(defcommand "Activate Region" (window p)
   "Make the current region active.  ^G deactivates the region."
   "Make the current region active."
   (declare (ignore p))
-  (activate-region (window-buffer (current-window))))
+  (activate-region (window-buffer window)))
 
 
 ;;; The following are hook functions for keeping things righteous.
 ;;;
 
-(defun control-g-deactivate-region ()
-  (deactivate-region (window-buffer (current-window))))
+(defun control-g-deactivate-region (current-window)
+  (deactivate-region (window-buffer current-window)))
 ;;;
 
 
@@ -113,25 +113,23 @@
   (when activate-region (activate-region buffer))
   mark)
 
-(defcommand "Set/Pop Mark" (p)
+(defcommand "Set/Pop Mark" (window p)
     "Set or Pop the mark ring.
    With no C-U's, pushes point as the mark, activating the current region.
    With one C-U's, pops the mark into point, de-activating the current region.
    With two C-U's, pops the mark and throws it away, de-activating the current
    region."
     "Set or Pop the mark ring."
-  (let ((window (current-window)))
-    (when window
-      (let ((buffer (window-buffer window)))
-        (cond ((not p)
-               (push-buffer-mark buffer (copy-mark (buffer-point buffer)) t)
-               (when (interactive)
-                 (message "Mark pushed.")))
-              ((= p (value universal-argument-default))
-               (pop-and-goto-mark buffer nil))
-              ((= p (expt (value universal-argument-default) 2))
-               (delete-mark (pop-buffer-mark buffer)))
-              (t (editor-error)))))))
+  (let ((buffer (window-buffer window)))
+    (cond ((not p)
+           (push-buffer-mark buffer (copy-mark (buffer-point buffer)) t)
+           (when (interactive)
+             (message "Mark pushed.")))
+          ((= p (value universal-argument-default))
+           (pop-and-goto-mark buffer nil))
+          ((= p (expt (value universal-argument-default) 2))
+           (delete-mark (pop-buffer-mark buffer)))
+          (t (editor-error)))))
 
 (defun pop-and-goto-mark (buffer p)
   (declare (ignore p))
@@ -140,25 +138,25 @@
       (move-mark (buffer-point buffer) mark)
       (delete-mark mark))))
 
-(defcommand "Pop and Goto Mark" (p)
+(defcommand "Pop and Goto Mark" (window p)
   "Pop mark into point, de-activating the current region."
   "Pop mark into point."
-  (let ((buffer (window-buffer (current-window))))
+  (let ((buffer (window-buffer window)))
     (pop-and-goto-mark buffer p)))
 
-(defcommand "Pop Mark" (p)
+(defcommand "Pop Mark" (window p)
   "Pop mark and throw it away, de-activating the current region."
   "Pop mark and throw it away."
   (declare (ignore p))
-  (let ((buffer (window-buffer (current-window))))
+  (let ((buffer (window-buffer window)))
     (bt:with-recursive-lock-held ((buffer-lock buffer))
       (delete-mark (pop-buffer-mark buffer)))))
 
-(defcommand "Exchange Point and Mark" (p)
+(defcommand "Exchange Point and Mark" (window p)
   "Swap the positions of the point and the mark."
   "Swap the positions of the point and the mark."
   (declare (ignore p))
-  (let ((buffer (window-buffer (current-window))))
+  (let ((buffer (window-buffer window)))
     (bt:with-recursive-lock-held ((buffer-lock buffer))
       (let ((point (buffer-point buffer))
             (mark (current-mark buffer)))
@@ -166,13 +164,13 @@
           (move-mark point mark)
           (move-mark mark temp))))))
 
-(defcommand "Mark Whole Buffer"  (p)
+(defcommand "Mark Whole Buffer"  (window p)
   "Set the region around the whole buffer, activating the region.
    Pushes the point on the mark ring first, so two pops get it back.
    With prefix argument, put mark at beginning and point at end."
   "Put point at beginning and part at end of current buffer.
   If P, do it the other way around."
-  (let ((buffer (window-buffer (current-window))))
+  (let ((buffer (window-buffer window)))
     (bt:with-recursive-lock-held ((buffer-lock buffer))
       (let* ((region (buffer-region buffer))
              (start (region-start region))
@@ -193,23 +191,23 @@
 
 ;;;; Commands.
 
-(defcommand "Kill Region" (p)
+(defcommand "Kill Region" (window p)
   "Kill the region, pushing on the kill ring.
    If the region is not active nor the last command a yank, signal an error."
   "Kill the region, pushing on the kill ring."
   (declare (ignore p))
-  (with-buffer-globals ((window-buffer (current-window)))
+  (with-buffer-globals ((window-buffer window))
     (.kill-region. (current-region .buffer.)
                    (if (mark< (current-mark .buffer.) .point.)
                        :kill-backward
                        :kill-forward))))
 
-(defcommand "Save Region" (p)
+(defcommand "Save Region" (window p)
   "Insert the region into the kill ring.
    If the region is not active nor the last command a yank, signal an error."
   "Insert the region into the kill ring."
   (declare (ignore p))
-  (let ((buffer (window-buffer (current-window))))
+  (let ((buffer (window-buffer window)))
     (with-buffer-globals (buffer)
       (ring-push (hi::.copy-region. (current-region buffer)) *kill-ring*))))
 
@@ -222,23 +220,23 @@
                (.kill-region. (region .point. mark) :kill-forward))
            (editor-error)))))
 
-(defcommand "Kill Next Word" (p)
+(defcommand "Kill Next Word" (window p)
   "Kill a word at the point.
   With prefix argument delete that many words.  The text killed is
   appended to the text currently at the top of the kill ring if it was
   next to the text being killed."
     "Kill p words at the point"
-  (let ((buffer (window-buffer (current-window))))
+  (let ((buffer (window-buffer window)))
     (with-buffer-globals (buffer)
       (.kill-next-word. p))))
 
-(defcommand "Kill Previous Word" (p)
+(defcommand "Kill Previous Word" (window p)
   "Kill a word before the point.
   With prefix argument kill that many words before the point.  The text
   being killed is appended to the text currently at the top of the kill
   ring if it was next to the text being killed."
     "Kill p words before the point"
-  (let ((buffer (window-buffer (current-window))))
+  (let ((buffer (window-buffer window)))
     (with-buffer-globals (buffer)
       (.kill-next-word. (- (or p 1))))))
 
@@ -280,21 +278,21 @@
   (with-buffer-globals (buffer)
     (kill-line-macro buffer p)))
 
-(defcommand "Kill Line" (p)
+(defcommand "Kill Line" (window p)
   "Kills the characters to the end of the current line.
   If the line is empty then the line is deleted.  With prefix argument,
   deletes that many lines past the point (or before if the prefix is negative)."
     "Kills p lines after the point."
-  (let ((buffer (window-buffer (current-window))))
+  (let ((buffer (window-buffer window)))
     (kill-line buffer p)))
 
-(defcommand "Backward Kill Line" (p)
+(defcommand "Backward Kill Line" (window p)
     "Kill from the point to the beginning of the line.
   If at the beginning of the line, kill the newline and any trailing space
   on the previous line.  With prefix argument, call \"Kill Line\" with
   the argument negated."
     "Kills p lines before the point."
-  (let ((buffer (window-buffer (current-window))))
+  (let ((buffer (window-buffer window)))
     (if p
         (kill-line buffer (- p))
         (with-mark ((m (buffer-point buffer)))
@@ -308,13 +306,13 @@
             (.kill-region. (region m .point.) :kill-backward))))))
 
 
-(defcommand "Delete Blank Lines" (p)
+(defcommand "Delete Blank Lines" (window p)
   "On a blank line, deletes all surrounding blank lines, leaving just
   one. On an isolated blank line, deletes that one. On a non-blank line,
   deletes all blank following that one."
   "Kill blank lines around the point"
   (declare (ignore p))
-  (let ((point (current-point)))
+  (let ((point (buffer-point (window-buffer window))))
     (with-mark ((beg-mark point :left-inserting)
                 (end-mark point :right-inserting))
       ;; handle case when the current line is blank
@@ -342,13 +340,13 @@
         (delete-region (region beg-mark end-mark))))))
 
 
-(defcommand "Un-Kill" (p)
+(defcommand "Un-Kill" (window p)
     "Inserts the top item in the kill-ring at the point.
   The mark is left mark before the insertion and the point after.  With prefix
   argument inserts the prefix'th most recent item."
     "Inserts the item with index p in the kill ring at the point, leaving
   the mark before and the point after."
-  (let ((buffer (window-buffer (current-window))))
+  (let ((buffer (window-buffer window)))
     (with-buffer-globals (buffer)
       (let ((idx (1- (or p 1))))
         (cond ((> (ring-length *kill-ring*) idx -1)
@@ -364,13 +362,13 @@
 ;;;
 (push :unkill *ephemerally-active-command-types*)
 
-(defcommand "Rotate Kill Ring" (p)
+(defcommand "Rotate Kill Ring" (window p)
   "Replace un-killed text with previously killed text.
   Kills the current region, rotates the kill ring, and inserts the new top
   item.  With prefix argument rotates the kill ring that many times."
   "This function will not behave in any reasonable fashion when
   called as a lisp function."
-  (let ((buffer (window-buffer (current-window))))
+  (let ((buffer (window-buffer window)))
     (with-buffer-globals (buffer)
       (let ((point (buffer-point buffer))
             (mark (current-mark buffer)))

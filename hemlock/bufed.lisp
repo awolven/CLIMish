@@ -149,7 +149,7 @@
   "Change to the buffer."
   (declare (ignore p))
   (change-to-buffer
-   (bufed-buffer (array-element-from-mark (current-point) *bufed-buffers*))))
+   (bufed-buffer (array-element-from-mark (current-point) *bufed-buffers*)) window))
 
 (defcommand "Bufed Goto and Quit" (window p)
   "Change to the buffer quitting Bufed.
@@ -160,7 +160,8 @@
   (point-to-here-command nil)
   (change-to-buffer
    (bufed-buffer (array-element-from-pointer-pos *bufed-buffers*
-                 "No buffer on that line.")))
+                                                 "No buffer on that line."))
+   window)
   (when *bufed-buffer* (delete-buffer-if-possible *bufed-buffer*))
   (supply-generic-pointer-up-function #'(lambda () nil)))
 
@@ -211,7 +212,7 @@
                              "  Type ? for help.")))))
         (setf (buffer-modeline-fields *bufed-buffer*) fields))
       (buffer-start (buffer-point buf)))
-    (change-to-buffer buf)))
+    (change-to-buffer buf window)))
 
 (defun bufed-write-line (buffer name s
                          &optional (buffer-pathname (buffer-pathname buffer)))

@@ -19,26 +19,26 @@
 
 (bind-key "Dismiss Typeout" #k"q" :mode "Typeout")
 
-(defun invoke-with-pop-up-display (cont buffer-name height)
+(defun invoke-with-pop-up-display (current-window cont buffer-name height)
   (declare (ignore height))
   (let ((buf (make-unique-buffer buffer-name :modes '("Typeout"))))
-    (cond ((eq (current-window) *echo-area-window*)
+    (cond ((eq current-window *echo-area-window*)
            ;; Can't pop-up in the echo area window, so choose another.
            (let ((window (find-if-not #'(lambda (w) (eq w *echo-area-window*))
                                       *window-list*)))
-             (setf (current-window) window)
-             (change-to-buffer buf)
+             (krma.gui::focus-window window)
+             (change-to-buffer buf window)
              (with-output-to-mark (stream (buffer-point buf))
                (funcall cont stream))
              (buffer-start (buffer-point buf) buf)
              (setf (buffer-modified buf) nil
                    (buffer-writable buf) nil)
              ;; Switch back to the echo window and buffer.
-             (setf (current-window) *echo-area-window*)
-             (change-to-buffer *echo-area-buffer*)
+             (setf (krma.gui::focused-window (clui::window-parent *echo-area-window*)) *echo-area-window*)
+             (change-to-buffer *echo-area-buffer* current-window)
              ))
           (t
-           (change-to-buffer buf)
+           (change-to-buffer buf current-window)
            (with-output-to-mark (stream (buffer-point buf))
              (funcall cont stream))
            (buffer-start (buffer-point buf) buf)

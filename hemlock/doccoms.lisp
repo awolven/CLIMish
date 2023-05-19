@@ -25,28 +25,29 @@
   function."
   (declare (ignore p))
   (command-case (:prompt "Doc (Help for Help): "
-                 :help "Type a Help option to say what kind of help you want:")
-    (#\a "List all commands, variables and attributes Apropos a keyword."
-     (apropos-command nil))
-    (#\d "Describe a command, given its name."
-     (describe-command-command nil))
-    (#\g "Generic describe, any Hemlock thing (e.g., variables, keys, attributes)."
-     (generic-describe-command nil))
-    (#\v "Describe variable and show its values."
-     (describe-and-show-variable-command nil))
-    (#\c "Describe the command bound to a Character."
-     (describe-key-command nil))
-    (#\l "List the last 60 characters typed."
-     (what-lossage-command nil))
-    (#\m "Describe a mode."
-     (describe-mode-command nil))
-    (#\p "Describe commands with mouse/pointer bindings."
-     (describe-pointer-command nil))
-    (#\w "Find out Where a command is bound."
-     (where-is-command nil))
-    (#\t "Describe a Lisp object."
-     (editor-describe-command nil))
-    ((#\q :no) "Quits, You don't really want help.")))
+                 :help "Type a Help option to say what kind of help you want:"
+                 :current-window window)
+    (#k"a" "List all commands, variables and attributes Apropos a keyword."
+     (apropos-command window nil))
+    (#k"d" "Describe a command, given its name."
+     (describe-command-command window nil))
+    (#k"g" "Generic describe, any Hemlock thing (e.g., variables, keys, attributes)."
+     (generic-describe-command window nil))
+    (#k"v" "Describe variable and show its values."
+     (describe-and-show-variable-command window nil))
+    (#k"c" "Describe the command bound to a Character."
+     (describe-key-command window nil))
+    (#k"l" "List the last 60 characters typed."
+     (what-lossage-command window nil))
+    (#k"m" "Describe a mode."
+     (describe-mode-command window nil))
+    (#k"p" "Describe commands with mouse/pointer bindings."
+     (describe-pointer-command window nil))
+    (#k"w" "Find out Where a command is bound."
+     (where-is-command window nil))
+    (#k"t" "Describe a Lisp object."
+       (editor-describe-command window nil))
+    ((#k"q" :no) "Quits, You don't really want help.")))
 
 (defcommand "Where Is" (window p)
   "Find what key a command is bound to.
@@ -59,7 +60,7 @@
                                            :prompt "Command: "
                                            :help "Name of command to look for.")
     (let ((bindings (command-bindings cmd)))
-      (with-pop-up-display (s)
+      (with-pop-up-display (s :current-window window)
         (cond
          ((null bindings)
           (format s "~S may only be invoked as an extended command.~%" nam))
@@ -87,12 +88,12 @@
                        (current-variable-tables)))
          (attr (find-containing str *character-attribute-names*)))
     (if (or coms vars attr)
-        (apropos-command-output str coms vars attr)
+        (apropos-command-output window str coms vars attr)
         (message "No command, attribute or variable name contains ~S." str))))
 
-(defun apropos-command-output (str coms vars attr)
+(defun apropos-command-output (current-window str coms vars attr)
   (declare (list coms vars attr))
-  (with-pop-up-display (s)
+  (with-pop-up-display (s :current-window current-window)
     (let* ((w (hi::stream-line-length s))
            (div (make-string w :initial-element #\-))
            (col (truncate (* 2/3 w))))
@@ -166,7 +167,7 @@
                         :prompt "Describe command: "
                         :help "Name of a command to document.")
     (let ((bindings (command-bindings com)))
-      (with-pop-up-display (s)
+      (with-pop-up-display (s :current-window window)
         (format s "Documentation for ~S:~%   ~A~%"
                 nam (command-documentation com))
         (cond ((not bindings)
@@ -204,14 +205,14 @@
                 (write-char #\space *echo-area-stream*)
                 (finish-output *echo-area-stream*)
                 (cond ((commandp res)
-                       (with-pop-up-display (s)
+                       (with-pop-up-display (s :current-window window)
                          (hemlock-ext:print-pretty-key (copy-seq hi::*prompt-key*) s)
                          (format s " is bound to ~S.~%" (command-name res))
                          (format s "Documentation for this command:~%   ~A"
                                  (command-documentation res)))
                        (return))
                       ((not (eq res :prefix))
-                       (with-pop-up-display (s :height 1)
+                       (with-pop-up-display (s :height 1 :current-window window)
                          (hemlock-ext:print-pretty-key (copy-seq hi::*prompt-key*) s)
                          (write-string " is not bound to anything." s))
                        (return)))))))
@@ -225,7 +226,7 @@
    (modified or not).  Does not describe the command \"Illegal\"."
   (declare (ignore p))
   (let ((illegal-command (getstring "Illegal" *command-names*)))
-    (with-pop-up-display (s)
+    (with-pop-up-display (s :current-window window)
       (dolist (cmd (get-mouse-commands))
         (unless (eq cmd illegal-command)
           (format s "Documentation for ~S:~%   ~A~%"
@@ -293,11 +294,11 @@
 ;;; PRINT-FULL-DOC displays whole documentation string in a pop-up window.
 ;;; Doc may be a function that takes at least one arg, :short or :full.
 ;;;
-(defun print-full-doc (nam doc)
+(defun print-full-doc (current-window nam doc)
   (typecase doc
     (function (funcall doc :full))
     (simple-string
-     (with-pop-up-display (s)
+     (with-pop-up-display (s :current-window current-window)
        (format s "Documentation for ~S:~%  ~A" nam doc)))
     (t (error "Bad documentation: ~S" doc))))
 
@@ -314,8 +315,8 @@
        window
                         :help "Name of variable to describe."
                         :prompt "Variable: ")
-    (let ((buffer (current-buffer)))
-      (with-pop-up-display (s)
+    (let ((buffer (window-buffer window)))
+      (with-pop-up-display (s :current-window window)
         (show-variable s name var buffer)))))
 
 (defcommand "Describe and Show Variable" (window p)
@@ -328,8 +329,8 @@
        window
                         :help "Name of variable to describe."
                         :prompt "Variable: ")
-    (let ((buffer (current-buffer)))
-      (with-pop-up-display (s)
+    (let ((buffer (window-buffer window)))
+      (with-pop-up-display (s :current-window window)
         (format s "Documentation for ~S:~%  ~A~&~%"
                 name (variable-documentation var))
         (show-variable s name var buffer)))))
@@ -364,7 +365,7 @@
                                        :prompt "Mode: "
                                        :help "Enter mode to describe."
                                        :default
-                                       (car (buffer-modes (current-buffer))))))
+                                       (car (buffer-modes (window-buffer window))))))
          (doc (mode-documentation name))
          (bindings nil)
          (type (if (mode-major-p name) "major" "minor"))
@@ -378,7 +379,7 @@
                         (push (cons str cmd) bindings))))
                   :mode name)
     (if (or doc bindings)
-        (with-pop-up-display (s)
+        (with-pop-up-display (s :current-window window)
           (format s "~A is a ~A mode.~%" name type)
           (when doc
             (write-line doc s)
@@ -403,7 +404,7 @@
   "Display the last 60 characters typed."
   "Display the last 60 characters typed."
   (declare (ignore p))
-  (with-pop-up-display (s :height 7)
+  (with-pop-up-display (s :height 7 :current-window window)
     (let ((num (ring-length *key-event-history*)))
       (format s "The last ~D characters typed:~%" num)
       (do ((i (1- num) (1- i)))

@@ -83,7 +83,7 @@
 
 	 
        
-	 RESET (setq w (or (focused-window window) window))
+	 RESET (setq w (or (focused-window window) *echo-area-window*))
 	   (setq event-chain ())
 	   (setq table-chain (list (command-table w)))
        
@@ -93,8 +93,7 @@
 	   (setf (window-last-event window) event)
 	   (setq event-id (clui::input-event-id event))
        
-	 CHECK (print event-id)
-	   (finish-output)
+	 CHECK 
        
 	   (cond ((characterp event-id)
 		  ;; we don't accept character events here without being first preceded by a key event

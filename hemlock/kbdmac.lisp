@@ -445,7 +445,7 @@
   "Prompt for action during keyboard macro execution."
   (declare (ignore p))
   (unless (or (interactive) *kbdmac-dont-ask*)
-    (let ((*editor-input* *real-editor-input*))
+    ;;(let ((*editor-input* *real-editor-input*))
       (command-case (:prompt "Keyboard Macro Query: "
                      :help "Type one of these characters to say what to do:"
                      :change-window nil
@@ -468,7 +468,7 @@
         (:recursive-edit
          "Do a recursive edit, then ask again."
          (do-recursive-edit)
-         (reprompt))
+         (reprompt window))
         (t
          (unget-key-event key-event *editor-input*)
-         (throw 'exit-kbdmac nil))))))
+         (throw 'exit-kbdmac nil)))));;)

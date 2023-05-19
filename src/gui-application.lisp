@@ -67,6 +67,7 @@
 				#'(lambda (window new-buff)
 				    (when (and (eq window hi::*echo-area-window*)
 					       (not (eq new-buff hi::*echo-area-buffer*)))
+				      (break)
 				      (hi::editor-error "Can't change echo area window."))))
 	     (defhvar "Active Regions Enabled"
 		 "When set, some commands that affect the current region only work when the

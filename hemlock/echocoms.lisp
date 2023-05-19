@@ -48,7 +48,7 @@
     (cond
      ((eq *parse-type* :keyword)
       (let ((strings (find-all-completions input *parse-string-tables*)))
-        (with-pop-up-display (s :height (+ (length strings) 2))
+        (with-pop-up-display (s :height (+ (length strings) 2) :current-window window)
           (write-line help s)
           (finish-output s)
           (cond (strings
@@ -62,7 +62,7 @@
       (let ((pns (ambiguous-files (region-to-string *parse-input-region*)
                                   *parse-default*)))
         (declare (list pns))
-        (with-pop-up-display(s :height (+ (length pns) 2))
+        (with-pop-up-display(s :height (+ (length pns) 2) :current-window window)
           (write-line help s)
           (cond (pns
                  (write-line "Possible completions of what you have typed:" s)
