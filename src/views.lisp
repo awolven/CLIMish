@@ -536,9 +536,9 @@
    (iconified? (:noticer (if value
 			     (progn
 			       (rm-erase-node-recursively self)
-			       (unfocus-window self)
+			       (setf (the focused?) nil)
 			       (rm-draw-node-recursively (the title-bar)))
-			     (focus-window self)))
+			     (setf (the focused?) t)))
 	       nil)
    (focused? (:noticer (if value
 			   (%focus-window self)
@@ -725,7 +725,10 @@
   (let ((scene (the scene)))
     (let ((siblings (remove self (krma::node-children scene))))
       (setq siblings (sort siblings #'> :key #'(lambda (self) (the z-index))))
-      (clui::focus-window (first siblings)))
+      (loop for window in siblings
+	    unless (send window iconified?)
+	      do (setf (send window focused?) t)
+		 (return)))
     (values)))
 
 (defmethod clui:focus-window ((self homemade-window-mixin))
