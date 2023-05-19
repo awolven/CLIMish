@@ -188,7 +188,6 @@
   (group-set-model-matrix (the scene) (the group) (the global-matrix))
   (mapcar #'group-set-model-matrix-recursively (the node-children)))  
 
-#+NOTYET
 (defmethod adhoc::unbind-this-variable :before ((variable adhoc::component-variable))
   (when (slot-boundp variable 'adhoc::value) 
     (let ((object (adhoc::variable-value variable)))
@@ -196,7 +195,6 @@
       (rm-erase-node-recursively object)
       (values))))
 
-#+NOTYET
 (defmethod adhoc::unbind-this-variable :before ((variable adhoc::array-aggregate-mixin))
   (when (slot-boundp variable 'adhoc::value) 
     (let ((value (adhoc::variable-value variable)))
@@ -206,7 +204,6 @@
 	   (rm-erase-node-recursively element))
       (values))))
 
-#+NOTYET
 (defmethod adhoc::unbind-this-variable :before ((variable adhoc::table-aggregate-mixin))
   (when (slot-boundp variable 'adhoc::value) 
     (let ((value (adhoc::variable-value variable)))

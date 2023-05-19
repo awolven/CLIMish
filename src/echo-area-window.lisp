@@ -5,16 +5,15 @@
   
   :inputs
   ((parent (main-window *app*))
-   (collapsed? nil)
+   (iconified? nil)
    (resizable? nil)
    (memu-bar? nil)
    (scrollbar-x? nil)
    (scrollbar-y? nil)
    (title-bar? nil)
    (modeline? nil)
-   (collapse-button? nil)
+   (iconify-button? nil)
    (close-button? nil)
-   (iconified? nil)
    (rounding? nil))
 
   :attributes

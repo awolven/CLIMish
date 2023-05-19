@@ -40,6 +40,7 @@
 (define-gesture "Delete Next Character" 'text-editor-window-mixin #k"Delete")
 (define-gesture "Delete Next Character" 'text-editor-window-mixin #k"Ctrl-d")
 (define-gesture "Delete Previous Character" 'text-editor-window-mixin #k"Backspace")
+(define-gesture "Delete Previous Character" 'echo-area-window-mixin #k"Backspace")
 (define-gesture "Forward Word" 'text-editor-window-mixin #k"Meta-f")
 (define-gesture "Backward Word" 'text-editor-window-mixin #k"Meta-b")
 (define-gesture "Find File" :global #k"Ctrl-x" #k"Ctrl-f")

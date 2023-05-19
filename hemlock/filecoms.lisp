@@ -122,9 +122,9 @@
                          "Major mode already processed. Using ~S now."
                          substr))
                       (setf seen-major-mode-p t)
-                      (setf (buffer-major-mode buffer) substr))
+                      (setf (buffer-major-mode buffer nil) substr))
                      (t
-                      (setf (buffer-minor-mode buffer substr) t))))
+                      (setf (buffer-minor-mode buffer substr nil) t))))
               (t
                (loud-message "~S is not a defined mode -- ignored." substr)))
         (unless pos
@@ -191,7 +191,7 @@
   "Reprocess this buffer's file options."
   "Reprocess this buffer's file options."
   (declare (ignore p))
-  (let ((buffer (window-buffer (current-window))))
+  (let ((buffer (window-buffer window)))
     (process-file-options buffer)))
 
 (defcommand "Insert File" (window p &optional pathname (buffer (window-buffer window)))
@@ -217,7 +217,7 @@
   "Writes the current region to a file. "
   "Writes the current region to a file. "
   (declare (ignore p))
-  (let ((buffer (window-buffer (current-window))))
+  (let ((buffer (window-buffer window)))
     (let ((region (current-region buffer))
           (pn (or pathname
                   (prompt-for-file window :prompt "File to Write: "
@@ -277,7 +277,7 @@
   "With an argument reverts to the last saved version of the file in the
    current buffer. Without, reverts to the last checkpoint or last saved
    version, whichever is more recent."
-  (let* ((buffer (window-buffer (current-window)))
+  (let* ((buffer (window-buffer window))
          (buffer-pn (buffer-pathname buffer))
          (point (buffer-point buffer))
          (lines (1- (count-lines (region (buffer-start-mark buffer) point)))))
@@ -536,7 +536,7 @@
           (setf (buffer-name buffer) name)))))
   (invoke-hook write-file-hook buffer))
 
-(defcommand "Write File" (window p &optional pathname (buffer (window-buffer (current-window))))
+(defcommand "Write File" (window p &optional pathname (buffer (window-buffer window)))
   "Writes the contents of Buffer, which defaults to the current buffer to
   the file named by Pathname.  The prefix argument is ignored."
   "Prompts for a file to write the contents of the current Buffer to.
@@ -551,7 +551,7 @@
                         :help "Name of file to write to"
                         :default (buffer-default-pathname buffer)))))
 
-(defcommand "Save File" (window p &optional (buffer (window-buffer (current-window))))
+(defcommand "Save File" (window p &optional (buffer (window-buffer window)))
   "Writes the contents of the current buffer to the associated file.  If there
   is no associated file, once is prompted for."
   "Writes the contents of the current buffer to the associated file."
@@ -611,7 +611,7 @@
     "Write the buffer to a file without changing the associated name."
     "Write the buffer to a file without changing the associated name."
   (declare (ignore p))
-  (let ((buffer (window-buffer (current-window))))
+  (let ((buffer (window-buffer window)))
     (let ((file (prompt-for-file window :prompt "Backup to File: "
                                  :help
                                  "Name of a file to backup the current buffer in."
@@ -626,11 +626,11 @@
 
 
 
-(defun previous-buffer (&optional (window (current-window)))
+(defun previous-buffer (current-window)
   "Returns some previously selected buffer that is not the current buffer.
    Returns nil if no such buffer exists."
   (let ((b (car *buffer-history*)))
-    (let ((cb (window-buffer window)))
+    (let ((cb (window-buffer current-window)))
       (or (if (eq b cb) (cadr *buffer-history*) b)
           (find-if-not #'(lambda (x)
                            (or (eq x cb)
@@ -706,7 +706,7 @@
   ;; (previous-window-buffer (current-window)) ?
   ;; or some global previous buffer?
   (let ((buf (prompt-for-buffer window :prompt "Select Buffer: "
-                                :default (previous-buffer))))
+                                :default (previous-buffer window))))
     (when (eq buf *echo-area-buffer*)
       (editor-error "Cannot select Echo Area buffer."))
     (change-to-buffer buf window)))
@@ -721,22 +721,22 @@
    current one leaving the buffer history as it is."
   "Select the buffer selected before this one."
   (if p
-      (circulate-buffers-command nil)
-      (let ((b (previous-buffer)))
+      (circulate-buffers-command window nil)
+      (let ((b (previous-buffer window)))
         (unless b (editor-error "No previous buffer."))
         (change-to-buffer b window)
         ;;
         ;; If the pointer goes to nil, then "Circulate Buffers" will keep doing
         ;; "Select Previous Buffer".
         (setf *buffer-history-ptr* (cddr *buffer-history*))
-        (setf (last-command-type) :previous-buffer))))
+        (setf (last-command-type) :previous-buffer)))
+  (krma.gui::redraw-buffer window))
 
 (defcommand "Circulate Buffers" (window p)
   "Advance through buffer history, selecting successively previous buffer."
   "Advance through buffer history, selecting successively previous buffer."
   (declare (ignore p))
-  (let* ((window (current-window))
-         (cb (window-buffer window)))
+  (let* ((cb (window-buffer window)))
     (if (and (eq (last-command-type) :previous-buffer)
              *buffer-history-ptr*)      ;Possibly nil if never CHANGE-TO-BUFFER.
         (let ((b (pop *buffer-history-ptr*)))
@@ -749,14 +749,15 @@
           (setf (current-buffer (window-buffer (krma.gui::focused-window (krma::main-window krma::*app*)))) b)
           (setf (window-buffer window) b) ;; setf window buffer happens in render thread
           (setf (last-command-type) :previous-buffer))
-        (select-previous-buffer-command window nil))))
+        (select-previous-buffer-command window nil))
+  (krma.gui::redraw-buffer window)))
 
 
 (defcommand "Buffer Not Modified" (window p)
   "Make the current buffer not modified."
   "Make the current buffer not modified."
   (declare (ignore p))
-  (setf (buffer-modified (window-buffer (current-window))) nil)
+  (setf (buffer-modified (window-buffer window)) nil)
   (message "Buffer marked as unmodified."))
 
 (defcommand "Check Buffer Modified" (window p)
@@ -764,7 +765,7 @@
   "Say whether the current buffer is modified or not."
   (declare (ignore p))
   (clear-echo-area)
-  (let ((cb (window-buffer (current-window))))
+  (let ((cb (window-buffer window)))
     (message "Buffer ~S ~:[is not~;is~] modified."
              (buffer-name cb) (buffer-modified cb))))
 
@@ -772,7 +773,7 @@
   "Toggles the read-only flag for the current buffer."
   "Toggles the read-only flag for the current buffer."
   (declare (ignore p))
-  (let ((buffer (window-buffer (current-window))))
+  (let ((buffer (window-buffer window)))
     (message "Buffer ~S is now ~:[read-only~;writable~]."
              (buffer-name buffer)
              (setf (buffer-writable buffer) (not (buffer-writable buffer))))))
@@ -781,7 +782,7 @@
   "Make the current buffer modifiable."
   "Make the current buffer modifiable."
   (declare (ignore p))
-  (let ((buffer (window-buffer (current-window))))
+  (let ((buffer (window-buffer window)))
     (setf (buffer-writable buffer) t)
     (message "Buffer ~S is now writable." (buffer-name buffer))))
 
@@ -800,7 +801,7 @@
   "Delete buffer Buffer-Name, doing sensible things if the buffer is displayed
   or current."
   (declare (ignore p))
-  (let ((wb (window-buffer (current-window))))
+  (let ((wb (window-buffer window)))
     (let ((buffer (if buffer-name
                       (getstring buffer-name *buffer-names*)
                       (prompt-for-buffer window :prompt "Kill Buffer: "
@@ -812,7 +813,7 @@
                  (prompt-for-y-or-n window :prompt "Save it first? "))
         (save-file-command window nil buffer))
       (if (eq buffer wb)
-          (let* ((previous (or (previous-buffer)
+          (let* ((previous (or (previous-buffer window)
                                (editor-error "Cannot kill last buffer.")))
                  (new (if (value ask-for-new-buffer)
                           (prompt-for-buffer
@@ -837,7 +838,7 @@
   file."
   "Change the name of the current buffer."
   (declare (ignore p))
-  (let* ((buf (window-buffer (current-window)))
+  (let* ((buf (window-buffer window))
          (pn (buffer-pathname buf))
          (name (if pn (pathname-to-buffer-name pn) (buffer-name buf)))
          (new (prompt-for-string window :prompt "New Name: "
@@ -846,7 +847,8 @@
     (multiple-value-bind (entry foundp) (getstring new *buffer-names*)
       (cond ((or (not foundp) (eq entry buf))
              (setf (buffer-name buf) new))
-            (t (editor-error "Name ~S already in use." new))))))
+            (t (editor-error "Name ~S already in use." new))))
+    (krma.gui::rm-redraw-node-recursively window)))
 
 
 (defcommand "Insert Buffer" (window p)
@@ -854,11 +856,11 @@
   The name of the buffer to insert is prompted for."
   "Prompt for a buffer to insert at the point."
   (declare (ignore p))
-  (let ((buffer (window-buffer (current-window)))
+  (let ((buffer (window-buffer window))
         (region (buffer-region (prompt-for-buffer
                                 window
                                 ;; previous buffer needs to kinda be some global thing
-                                :default (previous-buffer)
+                                :default (previous-buffer window)
                                 :help
                                 "Type the name of a buffer to insert."))))
     (with-buffer-globals (buffer)
@@ -1391,7 +1393,7 @@
   (declare (ignore p))
   (when (= (length *window-list*) 2)
     (editor-error "Cannot delete only window."))
-  (let ((window (current-window)))
+  (let ((window window))
     (previous-window-command window nil)
     (delete-window window)))
 
@@ -1409,9 +1411,9 @@
   (declare (ignore p))
   (if (<= (length *window-list*) 2)
       (editor-error "Cannot delete only window")
-      (delete-window (next-window (current-window)))))
+      (delete-window (next-window window))))
 
-(defcommand "Go to One Window" (p)
+(defcommand "Go to One Window" (window p)
   "Deletes all windows leaving one with the \"Default Initial Window X\",
    \"Default Initial Window Y\", \"Default Initial Window Width\", and
    \"Default Initial Window Height\"."
@@ -1419,13 +1421,13 @@
    \"Default Initial Window Y\", \"Default Initial Window Width\", and
    \"Default Initial Window Height\"."
   (declare (ignore p))
-  (let ((win (make-window (window-display-start (current-window))
+  (let ((win (make-window (window-display-start window)
                           :ask-user t
                           :x (value default-initial-window-x)
                           :y (value default-initial-window-y)
                           :width (value default-initial-window-width)
                           :height (value default-initial-window-height))))
-    (setf (current-window) win)
+    (krma.gui::focus-window win)
     (dolist (w *window-list*)
       (unless (or (eq w win)
                   (eq w *echo-area-window*))

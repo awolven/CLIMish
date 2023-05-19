@@ -8,6 +8,9 @@
 (defclass krma-gui-window-mixin (event-queue-mixin krma-window-mixin)
   ((focused-window :initform nil :accessor focused-window)
    (resize-window :initform nil :accessor window-to-resize)
+   (drag-window :initform nil :accessor window-to-drag)
+   (drag-last-x :initform nil :accessor drag-last-x)
+   (drag-last-y :initform nil :accessor drag-last-y)
    (last-event :initform nil :accessor window-last-event)
    (command-loop-go-semaphore :initform (bt:make-semaphore :name "command-loop-go-semaphore") :accessor command-loop-go-semaphore)))
 
@@ -359,6 +362,15 @@
       (setf (resize-mode resize-window) nil)
       (setf (window-to-resize self) nil)
       (clui:handle-event resize-window (make-instance 'clui:window-resize-event :window resize-window))))
+
+  (setf (window-to-drag self) nil)
+  
+  (values))
+
+(defmethod clui:handle-event :after ((self title-bar) (event clui::pointer-button-release-event-mixin))
+
+  (setf (window-to-drag (clui::window-parent (the root))) nil)
+  
   (values))
 
 (defmethod clui:handle-event :after ((self krma-gui-window-mixin) (event clui::pointer-motion-event-mixin))
@@ -375,6 +387,18 @@
 	    (:southeast (resize-window resize-window x y (max (- (clui::pointer-event-x event) x) 20) (max (+ (- (clui::pointer-event-y event) y)) 20)))
 	    (:east (resize-window resize-window x y (max (- (clui::pointer-event-x event) x) 20) height))
 	    (:west (resize-window resize-window (clui::pointer-event-x event) y (max (+ width (- x (clui::pointer-event-x event))) 20) height)))))))
+  
+  (let ((drag-window (window-to-drag self)))
+    (when drag-window
+
+      (change-class event 'clui::pointer-button-hold-and-drag-event-mixin)
+      
+      (setf (clui::pointer-drag-delta-x event) (- (clui::pointer-event-x event) (drag-last-x self)))
+      
+      (setf (clui::pointer-drag-delta-y event) (- (clui::pointer-event-y event) (drag-last-y self)))
+	  
+      (clui:handle-event self event)))
+	  
   (lparallel.queue:push-queue event (input-event-queue self))
   (values))
 
@@ -410,7 +434,7 @@
    (height (+ (the size) (* 2 (the style frame-padding-y))))))
 
 
-(defobject collapse-button (title-bar-button-mixin))
+(defobject iconify-button (title-bar-button-mixin))
 
 
 (defobject close-button (title-bar-button-mixin)
@@ -427,7 +451,7 @@
   ((title)
    (button-size)
    
-   (collapse-button? t)
+   (iconify-button? t)
    (close-button? t))
   
   :attributes
@@ -446,7 +470,7 @@
 			   (the button-size)
 			   (* 2 (the style frame-padding-x))))
 
-   (collapse-button :type (if (the collapse-button?) 'collapse-button 'null-object)
+   (iconfiy-button :type (if (the iconify-button?) 'iconify-button 'null-object)
 		    group (the group)
 		    size (the button-size)
 		    x (ecase (the style window-menu-button-position)
@@ -459,14 +483,14 @@
 					(* 2 (the style frame-padding-x))))))))
 
 (defmethod rm-draw-node ((self title-bar))
-  (let ((scene (the scene))
-	(style (the style))
-	(window (the window))
-	(group (the group))
-	(highlighted? (the hovered?)))
+  (let* ((scene (the scene))
+	 (style (the style))
+	 (window (the window))
+	 (group (the group))
+	 (focused? (send window focused?)))
     
-    (if (send window collapsed?)
-	(let ((title-bar-color (if highlighted? (send style title-bg-active-color) (send style title-bg-collapsed-color))))
+    (if (send window iconified?)
+	(let ((title-bar-color (if focused? (send style title-bg-active-color) (send style title-bg-collapsed-color))))
 	  ;; draw just title bar
 	  (push
 	   (scene-add-filled-2d-rectangle-list-primitive
@@ -476,7 +500,7 @@
 	    (the layer))
 	   (the primitive-handles)))
     
-	(let ((title-bar-color (if highlighted? (send style title-bg-active-color) (send style title-bg-color))))
+	(let ((title-bar-color (if focused? (send style title-bg-active-color) (send style title-bg-color))))
 	  (push
 	   (scene-add-filled-2d-rectangle-list-primitive
 	    scene group nil title-bar-color
@@ -509,15 +533,24 @@
    (scene (application-scene *app*))
    (style *style*)
    (font (the style current-font))
-   (collapsed? nil)
+   (iconified? (:noticer (if value
+			     (progn
+			       (rm-erase-node-recursively self)
+			       (unfocus-window self)
+			       (rm-draw-node-recursively (the title-bar)))
+			     (focus-window self)))
+	       nil)
+   (focused? (:noticer (if value
+			   (%focus-window self)
+			   (%unfocus-window self)))
+	     nil)
    (resizable? t)
    (menu-bar? nil)
    (scrollbar-x? nil)
    (scrollbar-y? nil)
    (title-bar? t)
-   (collapse-button? t)
+   (iconify-button? t)
    (close-button? t)
-   (iconified? nil)
    (rounding? nil)
    (alpha 0.7)
    
@@ -543,7 +576,7 @@
    
    (title-bar :type (if (the title-bar?) 'title-bar 'null-object)
 	      title (the title)
-	      collapse-button? (the collapse-button?)
+	      iconify-button? (the iconify-button?)
 	      close-button? (the close-button?)
 	      button-size (font-size (the font)))
 
@@ -606,29 +639,29 @@
 	
 	(call-next-method))))
 
-(defmethod clui:handle-event ((title-bar title-bar) (event clui::pointer-motion-event-mixin))
+(defmethod clui:handle-event ((self title-bar) (event clui::pointer-motion-event-mixin))
   (let ((last-event (clui::display-last-event
-		     (clui::window-display (window-parent (send title-bar window))))))
+		     (clui::window-display (window-parent (the window))))))
 
-    (when (or (typep last-event 'clui::pointer-button-press-event-mixin)
-	      (typep last-event 'clui::pointer-button-hold-and-drag-event-mixin))
+    (when (or (typep last-event 'clui::pointer-button-press-event-mixin))
+
+      (setf (window-to-drag (clui::window-parent (the root))) (the window))
 
       (change-class event 'clui::pointer-button-hold-and-drag-event-mixin)
 
-      (setf (clui::pointer-drag-delta-x event) (- (clui::pointer-event-x event)
-						  (clui::pointer-event-x last-event)))
+      (setf (clui::pointer-drag-delta-x event) (- (clui::pointer-event-x event) (clui::pointer-event-x last-event)))
 
-      (setf (clui::pointer-drag-delta-y event) (- (clui::pointer-event-y event)
-						  (clui::pointer-event-y last-event)))
+      (setf (clui::pointer-drag-delta-y event) (- (clui::pointer-event-y event) (clui::pointer-event-y last-event)))
       
-      (clui:handle-event (regenerate! title-bar) event))))
+      (clui:handle-event (clui::window-parent (the root)) event))))
 
-(defmethod clui:handle-event ((title-bar title-bar) (event clui::pointer-button-hold-and-drag-event-mixin))
+(defmethod clui:handle-event ((self krma-gui-window-mixin) (event clui::pointer-button-hold-and-drag-event-mixin))
+  (setf (drag-last-x self) (clui::pointer-event-x event))
+  (setf (drag-last-y self) (clui::pointer-event-y event))
   (let* ((dx (clui::pointer-drag-delta-x event))
 	 (dy (clui::pointer-drag-delta-y event)))
-    (multiple-value-bind (x y) (window-position (send title-bar root))
-      (set-window-position (send title-bar window)
-			   (+ x dx) (+ y dy)))))
+    (multiple-value-bind (x y) (window-position (window-to-drag self))
+      (set-window-position (window-to-drag self) (+ x dx) (+ y dy)))))
 
 (defmethod window-cursor-position ((self view-mixin))
   (multiple-value-bind (x y) (window-cursor-position (window-parent (the root)))
@@ -655,6 +688,13 @@
   (let ((homemade-window (send button window)))
     (destroy-window homemade-window)))
 
+(defmethod clui:handle-event ((button iconify-button) (event clui::pointer-button-press-event-mixin))
+  (let ((homemade-window (send button window)))
+    (if (send homemade-window iconified?)
+	(setf (send homemade-window iconified?) nil)
+	(setf (send homemade-window iconified?) t))
+    (values)))
+
 (defmethod clui:handle-event ((button title-bar-button-mixin) (event clui::pointer-boundary-event-mixin))
   (call-next-method)
   (rm-redraw-node-recursively button)
@@ -669,7 +709,7 @@
 (defmethod clui::window-p ((window homemade-window-mixin))
   t)
 
-(defmethod clui:focus-window ((self homemade-window-mixin))
+(defmethod %focus-window ((self homemade-window-mixin))
   (let ((scene (the scene)))
     (let ((siblings (remove self (krma::node-children scene))))
       (setq siblings (sort siblings #'< :key #'(lambda (self) (the z-index))))
@@ -677,9 +717,33 @@
 	    for sibling in siblings
 	    do (setf (send sibling z-index) i)
 	    finally (setf (the z-index) (length siblings))
-	   (mapcar #'rm-redraw-node-recursively (nconc siblings (list self)))
+		    (mapcar #'rm-redraw-node-recursively (nconc siblings (list self)))
 		    (setf (focused-window (window-parent (the root))) self))
       (values))))
+
+(defmethod %unfocus-window ((self homemade-window-mixin))
+  (let ((scene (the scene)))
+    (let ((siblings (remove self (krma::node-children scene))))
+      (setq siblings (sort siblings #'> :key #'(lambda (self) (the z-index))))
+      (clui::focus-window (first siblings)))
+    (values)))
+
+(defmethod clui:focus-window ((self homemade-window-mixin))
+  (setf (the focused?) t)
+  (values))
+
+(defmethod clui::unfocus-window ((self homemade-window-mixin))
+  (setf (the focused?) nil)
+  (values))
+
+(defmethod clui::iconify-window ((self homemade-window-mixin))
+  (setf (the iconified?) t)
+  (values))
+
+(defmethod clui::restore-window ((self homemade-window-mixin))
+  (when (the iconified? t)
+    (setf (the iconified?) nil))
+  (values))
 
 (defmethod clui:window-position ((self view-mixin))
   (let* ((vec4 (m* (vec4 (the x) (the y) 0 1) (the matrix)))
@@ -741,7 +805,7 @@
       ;; draw window background
       (scene-add-filled-2d-rectangle-list-primitive
        scene group nil (send style window-bg-color)
-       (list (the x0) (the y0) (the x1) (the y1))
+       (list (the x0) (if (the title-bar?) (the title-bar y1) (the y0)) (the x1) (the y1))
        (the object-id)
        (the layer)))))
 
@@ -958,7 +1022,7 @@
 			       object-id
 			       layer))  
 
-(defmethod rm-draw-node ((self collapse-button))
+(defmethod rm-draw-node ((self iconify-button))
 
   (let* ((scene (the scene))
 	 (style (the style))
@@ -991,7 +1055,7 @@
 	(push (scene-add-arrow scene group
 			       (+ (the x) (send style frame-padding-x))
 			       (+ (the y) (send style frame-padding-y))
-			       text-col (if (send window collapsed?) :right :down)
+			       text-col (if (send window iconified?) :right :down)
 			       1.0f0
 			       object-id
 			       (1+ layer)

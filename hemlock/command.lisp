@@ -64,7 +64,7 @@
   "Read a character from the terminal and insert it.
   With prefix argument, insert the character that many times."
   "Reads a key-event from *editor-input* and inserts it at the point."
-  (let* ((window (current-window))
+  (let* ((window window)
          (buffer (window-buffer window))
          (char (hemlock-ext:key-event-char (get-key-event *editor-input* t))))
     (unless char (editor-error "Can't insert that character."))
@@ -75,6 +75,7 @@
     (hi::update-all-buffer-windows
      buffer )))
 
+#+MOVED
 (defcommand "Forward Character" (window p)
     "Move the point forward one character.
    With prefix argument move that many characters, with negative argument
@@ -96,6 +97,7 @@
       (maybe-rebottom-current-on-mark-then-update-all-buffer-windows
        buffer (buffer-point buffer) window))))
 
+#+MOVED
 (defcommand "Backward Character" (window p)
   "Move the point backward one character.
   With prefix argument move that many characters backward."
@@ -121,8 +123,9 @@
     (editor-error "No previous character.")))
 |#
 
+#+MOVED
 (defcommand "Delete Next Character" (window p)
-  "Deletes the character to the right of the point.
+    "Deletes the character to the right of the point.
    With prefix argument, delete that many characters to the right
   (or left if prefix is negative)."
     "Deletes p characters to the right of the point."
@@ -133,13 +136,15 @@
         (t
          (editor-error "Not enough next characters."))))
 
+#+MOVED
 (defcommand "Delete Previous Character" (window p)
-  "Deletes the character to the left of the point.
+    "Deletes the character to the left of the point.
    Will push characters from successive deletes on to the kill ring."
   "Deletes the character to the left of the point.
    Will push characters from successive deletes on to the kill ring."
   (delete-next-character-command window (- (or p 1))))
 
+#+MOVED
 (defcommand "Transpose Characters" (window p)
     "Exchanges the characters on either side of the point and moves forward
   With prefix argument, does this that many times.  A negative prefix
@@ -192,8 +197,9 @@
           ((null (find-attribute mark :word-delimiter))
            (return nil))))))
 
+#+MOVED
 (defcommand "Forward Word" (window p)
-  "Moves forward one word.
+    "Moves forward one word.
   With prefix argument, moves the point forward over that many words."
     "Moves the point forward p words."
   (with-buffer-globals ((window-buffer (current-window)))
@@ -205,8 +211,9 @@
            (buffer-end .point. .buffer.)
            (editor-error "No next word.")))))
 
+#+MOVED
 (defcommand "Backward Word" (window p)
-  "Moves forward backward word.
+    "Moves forward backward word.
   With prefix argument, moves the point back over that many words."
   "Moves the point backward p words."
   (forward-word-command window (- (or p 1))))
@@ -222,6 +229,7 @@
        *target-column*
        (setq *target-column* (hi::.mark-column. ,mark))))
 
+#+MOVED
 (defcommand "Next Line" (window p)
     "Moves the point to the next line.
    With prefix argument, moves the point that many lines down (or up if
@@ -257,8 +265,9 @@
     (maybe-recenter-current-on-mark-then-update-all-buffer-windows
      b (buffer-point b) cw)))
 
+#+MOVED
 (defcommand "Previous Line" (window p)
-  "Moves the point to the previous line.
+    "Moves the point to the previous line.
   With prefix argument, moves the point that many lines up (or down if
   the prefix is negative)."
   "Moves the point up p lines."
@@ -268,22 +277,22 @@
   "Sets the current region from point to the end of the buffer."
   "Sets the current region from point to the end of the buffer."
   (declare (ignore p))
-  (with-buffer-globals ((window-buffer (current-window)))
+  (with-buffer-globals ((window-buffer window))
     (push-buffer-mark .buffer. (buffer-end (copy-mark .point.) .buffer.) t)))
 
 (defcommand "Mark to Beginning of Buffer" (window p)
   "Sets the current region from the beginning of the buffer to point."
   "Sets the current region from the beginning of the buffer to point."
   (declare (ignore p))
-  (with-buffer-globals ((window-buffer (current-window)))
+  (with-buffer-globals ((window-buffer window))
     (push-buffer-mark .buffer. (buffer-start (copy-mark .point.) .buffer.) t)))
 
 
+#+MOVED
 (defcommand "Beginning of Buffer" (window p)
   "Moves the point to the beginning of the current buffer."
     "Moves the point to the beginning of the current buffer."
-  (let* ((window (current-window))
-         (buffer (window-buffer window)))
+  (let* ((buffer (window-buffer window)))
     (with-buffer-globals (buffer)
       (buffer-start .point. .buffer.))
     ;; the window redisplay scheduler cannot be inside with-buffer-globals
@@ -292,6 +301,7 @@
     (maybe-recenter-current-on-mark-then-update-all-buffer-windows
      buffer (buffer-point buffer) window)))
 
+#+MOVED
 (defcommand "End of Buffer" (window p)
   "Moves the point to the end of the current buffer."
     "Moves the point to the end of the current buffer."
@@ -302,8 +312,9 @@
     (maybe-rebottom-current-on-mark-then-update-all-buffer-windows
      buffer (buffer-point buffer) window)))
 
+#+MOVED
 (defcommand "Beginning of Line" (window p)
-  "Moves the point to the beginning of the current line.
+    "Moves the point to the beginning of the current line.
   With prefix argument, moves the point to the beginning of the prefix'th
   next line."
     "Moves the point down p lines and then to the beginning of the line."
@@ -314,8 +325,9 @@
         (unless (line-offset point (if p p 0)) (editor-error "No such line."))
         (line-start point)))))
 
+#+MOVED
 (defcommand "End of Line" (window p)
-  "Moves the point to the end of the current line.
+    "Moves the point to the end of the current line.
   With prefix argument, moves the point to the end of the prefix'th next line."
     "Moves the point down p lines and then to the end of the line."
   (let* ((window (current-window))
@@ -326,7 +338,7 @@
         (line-end point)))))
 
 
-
+#+MOVED
 (defcommand "Scroll Window Down" (window p)
   "Move down one screenfull.
   With prefix argument scroll down that many lines."
@@ -355,6 +367,7 @@
               (hi::.scroll-window. window (if (<= height overlap)
                                               height (- height overlap)))))))))
 
+#+MOVED
 (defcommand "Scroll Window Up" (window p)
     "Move up one screenfull.
   With prefix argument scroll up that many lines."
@@ -372,6 +385,7 @@
               (hi::.scroll-window. window (if (>= height overlap)
                                               height (- height overlap)))))))))
 
+#+MOVED
 (defcommand "Mousewheel Scroll" (window p)
     "Use mousewheel to scroll."
     "Use mousewheel to scroll."
@@ -387,15 +401,15 @@
 (defcommand "Scroll Next Window Down" (window p)
   "Do a \"Scroll Window Down\" on the next window."
   "Do a \"Scroll Window Down\" on the next window."
-  (let ((win (next-window (current-window))))
-    (when (eq win (current-window)) (editor-error "Only one window."))
+  (let ((win (next-window window)))
+    (when (eq win window) (editor-error "Only one window."))
     (scroll-window-down-command p win)))
 
 (defcommand "Scroll Next Window Up" (window p)
   "Do a \"Scroll Window Up\" on the next window."
   "Do a \"Scroll Window Up\" on the next window."
-  (let ((win (next-window (current-window))))
-    (when (eq win (current-window)) (editor-error "Only one window."))
+  (let ((win (next-window window)))
+    (when (eq win window) (editor-error "Only one window."))
     (scroll-window-up-command p win)))
 
 (defcommand "Top of Window" (window p)
@@ -403,21 +417,18 @@
   The point is left before the first character displayed in the window."
   "Move the point to the top of the current window."
   (declare (ignore p))
-  (let ((window (current-window)))
-    (hi::with-render-thread (*app*)
-      (with-buffer-globals ((window-buffer window))
-        (move-mark .point. (window-display-start window))))))
+  (let ()
+    (with-buffer-globals ((window-buffer window))
+      (move-mark .point. (window-display-start window)))))
 
 (defcommand "Bottom of Window" (window p)
   "Move the point to the bottom of the current window.
   The point is left at the start of the bottom line."
   "Move the point to the bottom of the current window."
   (declare (ignore p))
-  (let ((window (current-window)))
-    (hi::with-render-thread (*app*)
-      (with-buffer-globals ((window-buffer window))
-        (line-start .point.
-                    (mark-line (window-display-end window)))))))
+  (with-buffer-globals ((window-buffer window))
+    (line-start .point.
+                (mark-line (window-display-end window)))))
 
 ;;;; Kind of miscellaneous commands:
 
@@ -432,10 +443,10 @@
   "Refreshes everything in the window, centering current line.
    Given an argument, scroll that many lines."
   (unless p
-    (let* ((window (current-window))
-           (buffer (window-buffer window))
+    (let* ((buffer (window-buffer window))
            (point (buffer-point buffer)))
-      (hi::recenter-current-on-mark-then-update-all-buffer-windows buffer point window))))
+      (hi::center-window-on-mark window point)
+      (krma.gui::redraw-buffer window))))
 
 
 
@@ -447,7 +458,7 @@
   "Make the current window track the buffer's point."
   (declare (ignore p))
   ;; interesting flag
-  (setf (window-display-recentering (current-window)) t))
+  (setf (window-display-recentering window) t))
 ;;;
 (defun reset-window-display-recentering (window &optional buffer)
   (declare (ignore buffer))
@@ -459,10 +470,12 @@
   "Prompts for and executes an extended command."
   "Prompts for and executes an extended command.  The prefix argument is
   passed to the command."
-  (let* ((name (prompt-for-keyword *echo-area-window* (list *command-names*)
+  (let* ((name (prompt-for-keyword window
+                                   (list *command-names*)
                                    :prompt "Extended Command: "
                                    :help "Name of a Hemlock command")))
-   ;; (hi::update-window *echo-area-window*)
+    ;; (hi::update-window *echo-area-window*)
+    (krma.gui::redraw-buffer *echo-area-window*)
     (let ((function (command-function (getstring name *command-names*))))
       (funcall function window p))))
 

@@ -1,8 +1,10 @@
 (in-package :hi)
 
 (defcommand "Next Line" (window p)
-    ""
-    ""
+    "Moves the point to the next line.
+   With prefix argument, moves the point that many lines down (or up if
+   the prefix is negative)."
+    "Moves the down p lines."
   (when (typep window 'krma.gui::text-editor-window)
     (with-buffer-globals ((window-buffer window))
       (let* ((target (hemlock::.set-target-column. .point.)))
@@ -28,8 +30,10 @@
       (krma.gui::redraw-buffer window))))
 
 (defcommand "Previous Line" (window p)
-    ""
-    ""
+    "Moves the point to the previous line.
+  With prefix argument, moves the point that many lines up (or down if
+  the prefix is negative)."
+    "Moves the point up p lines."
   (next-line-command window (- (or p 1))))
 
 (defcommand "Insert Newline" (window p)
@@ -38,8 +42,10 @@
   (krma.gui::handle-character-input window #\Newline (or p 1)))
 
 (defcommand "Beginning of Line" (window p)
-    ""
-    ""
+    "Moves the point to the beginning of the current line.
+  With prefix argument, moves the point to the beginning of the prefix'th
+  next line."
+    "Moves the point down p lines and then to the beginning of the line."
   (with-buffer-globals ((window-buffer window))
     (unless (line-offset .point. (if p p 0)) (editor-error "No such line."))
     (line-start .point.)
@@ -48,8 +54,9 @@
 
 
 (defcommand "End of Line" (window p)
-    ""
-    ""
+    "Moves the point to the end of the current line.
+  With prefix argument, moves the point to the end of the prefix'th next line."
+    "Moves the point down p lines and then to the end of the line."
   (with-buffer-globals ((window-buffer window))
     (unless (line-offset .point. (if p p 0)) (editor-error "No such line."))
     (line-end .point.)
@@ -57,8 +64,10 @@
     (krma.gui::redraw-buffer window)))
 
 (defcommand "Forward Character" (view p)
-    ""
-    ""
+    "Move the point forward one character.
+   With prefix argument move that many characters, with negative argument
+   go backwards."
+    "Move the point of the current buffer forward p characters."
   (let ((p (or p 1)))
     (with-buffer-globals ((view-buffer view))
       (cond ((character-offset .point. p))
@@ -74,13 +83,16 @@
     (update-window-image view)))
 
 (defcommand "Backward Character" (view p)
-    ""
-    ""
+    "Move the point backward one character.
+  With prefix argument move that many characters backward."
+  "Move the point p characters backward."
   (forward-character-command view (- (or p 1))))
 
 (defcommand "Delete Next Character" (view p)
-    ""
-    ""
+    "Deletes the character to the right of the point.
+   With prefix argument, delete that many characters to the right
+  (or left if prefix is negative)."
+    "Deletes p characters to the right of the point."
   (cond ((with-buffer-globals ((view-buffer view))
 	   (hemlock::.kill-characters. .point. (or p 1))))
 	((and p (minusp p))
@@ -89,13 +101,17 @@
   (krma.gui::redraw-buffer view))
 
 (defcommand "Delete Previous Character" (view p)
-    ""
-    ""
+    "Deletes the character to the left of the point.
+   Will push characters from successive deletes on to the kill ring."
+    "Deletes the character to the left of the point.
+   Will push characters from successive deletes on to the kill ring."
   (delete-next-character-command view (- (or p 1))))
 
 (defcommand "Transpose Characters" (view p)
-    ""
-    ""
+    "Exchanges the characters on either side of the point and moves forward
+  With prefix argument, does this that many times.  A negative prefix
+  argument causes the point to be moved backwards instead of forwards."
+    "Exchanges the characters on either side of the point and moves forward."
   (let ((buffer (view-buffer view)))
     (when buffer
       (with-buffer-globals (buffer)
@@ -118,8 +134,9 @@
   (krma.gui::redraw-buffer view))
 
 (defcommand "Forward Word" (view p)
-    ""
-    ""
+    "Moves forward one word.
+  With prefix argument, moves the point forward over that many words."
+    "Moves the point forward p words."
   (with-buffer-globals ((view-buffer view))
     (cond ((word-offset .point. (or p 1)))
           ((and p (minusp p))
@@ -132,8 +149,9 @@
   (krma.gui::redraw-buffer view))
 
 (defcommand "Backward Word" (view p)
-    ""
-    ""
+    "Moves forward backward word.
+  With prefix argument, moves the point back over that many words."
+    "Moves the point backward p words."
   (hi::forward-word-command view (- (or p 1))))
 
 (defun find-or-create-text-editor-window-for-buffer (buffer)
