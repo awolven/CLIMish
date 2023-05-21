@@ -119,8 +119,10 @@
 
 
 (defun lookup-text-color (key)
-  (elt #(;;;fg
-         #xffffffff
+  (canonicalize-color (send *style* text-color))
+  #+NIL
+  (elt (vector;;;fg
+         (send *style* text-color)
          #x019901ff     ;1 = comments
 
          #x00ffffff     ;2 = backquote

@@ -107,31 +107,31 @@
                              #+win32 #'string-equal))))
     (declare (simple-string full-name))
     (setf (value pathname-defaults) (merge-pathnames directory dpn))
-    (change-to-buffer
-     (cond (buffer
-            (when (and dot-files-p
-                       (not (dired-info-dot-files-p
-                             (variable-value 'dired-information
-                                             :buffer buffer))))
-              (setf (dired-info-dot-files-p (variable-value 'dired-information
-                                                            :buffer buffer))
-                    t)
-              (update-dired-buffer directory pattern buffer))
-            buffer)
-           (t
-            (let ((buffer (make-instance 'buffer
-                           :name name :modes '("Dired")
-                           :modeline-fields
-                           (append (value default-modeline-fields)
-                                   (list (modeline-field :dired-cmds)))
-                           :delete-hook (list 'dired-buffer-delete-hook))))
-              (unless (initialize-dired-buffer directory pattern
-                                               dot-files-p buffer)
-                (delete-buffer-if-possible buffer)
-                (editor-error "No entries for ~A." full-name))
-              (push (cons full-name buffer) *pathnames-to-dired-buffers*)
-              buffer)))
-     current-window)))
+    (let ((b
+            (cond (buffer
+                   (when (and dot-files-p
+                              (not (dired-info-dot-files-p
+                                    (variable-value 'dired-information
+                                                    :buffer buffer))))
+                     (setf (dired-info-dot-files-p (variable-value 'dired-information
+                                                                   :buffer buffer))
+                           t)
+                     (update-dired-buffer directory pattern buffer))
+                   buffer)
+                  (t
+                   (let ((buffer (make-instance 'buffer
+                                                :name name :modes '("Dired")
+                                                :modeline-fields
+                                                (append (value default-modeline-fields)
+                                                        (list (modeline-field :dired-cmds)))
+                                                :delete-hook (list 'dired-buffer-delete-hook))))
+                     (unless (initialize-dired-buffer directory pattern
+                                                      dot-files-p buffer)
+                       (delete-buffer-if-possible buffer)
+                       (editor-error "No entries for ~A." full-name))
+                     (push (cons full-name buffer) *pathnames-to-dired-buffers*)
+                     buffer)))))
+      (or (hemlock::find-window-named current-window "Dired") (make-instance 'krma.gui::text-editor-window :buffer b)))))
 
 ;;; INITIALIZE-DIRED-BUFFER gets a dired in the buffer and defines some
 ;;; variables to make it usable as a dired buffer.  If there are no file

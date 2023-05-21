@@ -135,6 +135,8 @@
 (define-gesture "Save All Files" 'text-editor-window-mixin #k"Ctrl-x" #k"s")
 (define-gesture "Save All Files and Exit" 'text-editor-window-mixin #k"Ctrl-x" #k"Ctrl-c")
 
+(define-gesture "Lisp Listener" :global #k"Ctrl-x" #k"l")
+
 
 
 ;;(define-gesture "Bufed" 'text-editor-window-mixin #k"Ctrl-x" #k"Ctrl-b")

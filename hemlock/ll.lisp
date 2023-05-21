@@ -42,31 +42,33 @@
             #+sbcl (sb-ext:*invoke-debugger-hook* nil)
             (*debugger-hook* nil))
         (with-nonbroken-debugger
-            (loop
-	      (show-prompt)
-              (finish-output)
-              (restart-case
-                  (let ()
-                    (tagbody
-                     read
-                       (setq .form. (read stream nil lispbuf-eof))
-                       (when (eq .form. lispbuf-eof)
-                         (go read)))
+	    (progn (eval (read-from-string "(in-package :krma)"))
+	      (loop
+		(princ (or (first (package-nicknames *package*)) (package-name *package*)) stream)
+		(princ "> " stream)
+		(finish-output)
+		(restart-case
+                    (let ()
+                      (tagbody
+                       read
+			 (setq .form. (read stream nil lispbuf-eof))
+			 (when (eq .form. lispbuf-eof)
+                           (go read)))
 
-                    (setq +++ ++ ++ + + - - .form.)
-                    (unwind-protect
-                         (let ((this-eval
-                                 (multiple-value-list
-                                  (eval .form.))))
-                           (fresh-line)
-                           (dolist (x this-eval) (prin1 x) (terpri))
-                           (setq /// // // / / this-eval)
-                           (setq *** ** ** * * (car this-eval)))
-                      (fresh-line)))
-                (abort ()
-                  :report (lambda (stream)
-                            (format stream "Return to the top level."))
-                  (values nil t)))))))))
+                      (setq +++ ++ ++ + + - - .form.)
+                      (unwind-protect
+                           (let ((this-eval
+                                   (multiple-value-list
+                                    (eval .form.))))
+                             (fresh-line)
+                             (dolist (x this-eval) (prin1 x) (terpri))
+                             (setq /// // // / / this-eval)
+                             (setq *** ** ** * * (car this-eval)))
+			(fresh-line)))
+                  (abort ()
+                    :report (lambda (stream)
+                              (format stream "Return to the top level."))
+                    (values nil t))))))))))
 
 
 
@@ -75,24 +77,43 @@
     "Start an REPL in a thread"
     "Start an REPL in a thread"
   (declare (ignore p))
-  (let ((buffer (make-instance 'buffer :name "Lisp Listener"))
-	(current-buffer (hi::window-buffer window)))
-    (setf (buffer-undo-p buffer) nil)
-    (setf (buffer-minor-mode buffer current-buffer "Save") nil)
-    (setf (buffer-minor-mode buffer current-buffer "Interactive-Character-Stream") t)
-    (setf (buffer-minor-mode buffer current-buffer "Lisp Listener") t)
-    #+NOTYET(setf (buffer-major-mode buffer) "LISP")
-    (let* ((stream (variable-value 'hemlock::buffer-stream :buffer buffer))
-	   (thread (bt:make-thread #'(lambda ()
-                                       (repl stream))
-				   :name "Lisp Listener")))
-      (defhvar "Lisp Listener Thread" "Lisp Listener Thread" :buffer buffer
-        :value thread)
-      (add-hook hemlock::delete-buffer-hook #'(lambda (buffer)
-						(when (buffer-minor-mode "Lisp Listener" buffer *echo-area-buffer*)
-						  (bt:destroy-thread (hemlock::variable-value 'hemlock::lisp-listener-thread :buffer buffer)))))
-      (krma.gui::focus-window (krma.gui::find-or-create-text-editor-window-for-buffer buffer))
-      (values))))
+  (let ((existing (find-window-named window "Lisp Listener")))
+    (or (and existing (progn (krma.gui::focus-window existing) existing))
+	(let ((buffer (make-instance 'buffer :name "Lisp Listener"))
+	      (current-buffer (hi::window-buffer window)))
+	  (setf (buffer-undo-p buffer) nil)
+	  (setf (buffer-minor-mode buffer current-buffer "Save") nil)
+	  (setf (buffer-minor-mode buffer current-buffer "Interactive-Character-Stream") t)
+	  (setf (buffer-minor-mode buffer current-buffer "Lisp Listener") t)
+	  (setf (buffer-major-mode buffer current-buffer) "LISP")
+	  (let* ((stream (variable-value 'hemlock::buffer-stream :buffer buffer))
+		 (thread (bt:make-thread #'(lambda ()
+					     (repl stream))
+					 :name "Lisp Listener")))
+	    (defhvar "Lisp Listener Thread" "Lisp Listener Thread" :buffer buffer
+              :value thread)
+	    (add-hook hemlock::delete-buffer-hook #'(lambda (buffer)
+						      (when (buffer-minor-mode buffer "Lisp Listener")
+							(bt:destroy-thread (hemlock::variable-value 'hemlock::lisp-listener-thread :buffer buffer)))))
+	    (krma.gui::focus-window (krma.gui::find-or-create-text-editor-window-for-buffer buffer))
+	    (values))))))
+
+(defmethod find-window-named ((w clui::os-window-mixin) name)
+  (find-window-named-1 (krma.gui::focused-window w) name))
+
+(defmethod find-window-named ((w krma.gui::homemade-window-mixin) name)
+  (find-window-named-1 w name))
+
+(defun find-window-named-1 (w name)
+  (flet ((is-named? (win)
+	   (when (eq name (adhoc:send win krma.gui::title))
+	     (return-from find-window-named-1 win))))
+    
+    (is-named? w)
+	   
+    (do ((next (krma.gui::next w) (krma.gui::next next)))
+	((eq next w))
+      (is-named? next))))
 
 (defcommand "Interrupt Lisp" (window p)
     "Interrupt a running Lisp Listener Thread"

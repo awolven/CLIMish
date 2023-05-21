@@ -2,7 +2,7 @@
 
 (defobject modeline (selectable-mixin group-mixin view-mixin)
   :inputs
-  ((bg-color #xaaaaaa99)
+  ((bg-color #x73737399)
    (fg-color #x000000ff))
   
   :attributes

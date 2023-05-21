@@ -19,6 +19,7 @@
    (:file "src/setup")
    (:file "src/scene-graph")
    (:file "src/metaclasses")
+   (:file "src/style")
    (:file "src/views")
    (:file "src/event-queue")
    

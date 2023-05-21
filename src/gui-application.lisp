@@ -812,7 +812,7 @@
   (declare (ignore initargs))
   
   (unless (boundp '*style*)
-    (setq *style* (make-instance 'classic-style
+    (setq *style* (make-instance 'light-style
 				 'display (application-display app)
 				 'monitor (clui::get-primary-monitor (application-display app)))))
   (krma.gui::make-echo-area-window :app app)
