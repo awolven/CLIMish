@@ -1,4 +1,4 @@
-(in-package :hi)
+(in-package :hemlock)
 
 (defcommand "Next Line" (window p)
     "Moves the point to the next line.
@@ -69,7 +69,7 @@
    go backwards."
     "Move the point of the current buffer forward p characters."
   (let ((p (or p 1)))
-    (with-buffer-globals ((view-buffer view))
+    (with-buffer-globals ((hi::window-buffer view))
       (cond ((character-offset .point. p))
 	    ((= p 1)
 	     (editor-error "No next character."))
@@ -93,7 +93,7 @@
    With prefix argument, delete that many characters to the right
   (or left if prefix is negative)."
     "Deletes p characters to the right of the point."
-  (cond ((with-buffer-globals ((view-buffer view))
+  (cond ((with-buffer-globals ((hi::view-buffer view))
 	   (hemlock::.kill-characters. .point. (or p 1))))
 	((and p (minusp p))
 	 (editor-error "Not enough previous characters."))
@@ -112,7 +112,7 @@
   With prefix argument, does this that many times.  A negative prefix
   argument causes the point to be moved backwards instead of forwards."
     "Exchanges the characters on either side of the point and moves forward."
-  (let ((buffer (view-buffer view)))
+  (let ((buffer (hi::view-buffer view)))
     (when buffer
       (with-buffer-globals (buffer)
 	(let ((arg (or p 1))
@@ -137,7 +137,7 @@
     "Moves forward one word.
   With prefix argument, moves the point forward over that many words."
     "Moves the point forward p words."
-  (with-buffer-globals ((view-buffer view))
+  (with-buffer-globals ((hi::view-buffer view))
     (cond ((word-offset .point. (or p 1)))
           ((and p (minusp p))
            (buffer-start .point. .buffer.)
@@ -152,11 +152,9 @@
     "Moves forward backward word.
   With prefix argument, moves the point back over that many words."
     "Moves the point backward p words."
-  (hi::forward-word-command view (- (or p 1))))
+  (forward-word-command view (- (or p 1))))
 
-(defun find-or-create-text-editor-window-for-buffer (buffer)
-  (or (first (buffer-windows buffer))
-      (make-instance 'krma.gui::text-editor-window :buffer buffer)))
+
 
 (defcommand "Find File" (view p &optional pathname)
   "Visit a file in its own buffer.
@@ -174,7 +172,7 @@
                   :help "Name of file to read into its own buffer."
                   :default (hemlock-ext:default-directory))))
          (buffer (find-file-buffer view pn))
-	 (window (find-or-create-text-editor-window-for-buffer buffer)))
+	 (window (krma.gui::find-or-create-text-editor-window-for-buffer buffer)))
     ;;(change-to-buffer buffer view)
     (krma.gui::focus-window window)
     buffer))
@@ -189,6 +187,32 @@
       (hi::.scroll-window. window (- (* 2 (round offset)))))
     (krma.gui::redraw-buffer window)))
 
+(defcommand "Cycle Windows" (window p)
+    "Focus next window"
+    "Focus next window"
+  (declare (ignore p))
+  (let ((next (krma.gui::next window)))
+    (when (clui::window-iconified? next)
+      (setf (clui::window-iconified? next) nil))
+    (krma.gui::focus-window next)))
+
+(defcommand "Reverse Cycle Windows" (window p)
+    "Focus previous window"
+    "Focus previous window"
+  (declare (ignore p))
+  (let ((prev (krma.gui::prev window)))
+    (when (clui::window-iconified? prev)
+      (setf (clui::window-iconified? prev) nil))
+    (krma.gui::focus-window prev)))
+
+(defcommand "Iconify Window" (window p)
+    "Iconify Window"
+    "Iconify Window and focus on next window."
+  (declare (ignore p))
+  (let ((next (krma.gui::next window)))
+    (krma.gui::focus-window next)
+    (setf (clui::window-iconified? window) t)))
+
 (defcommand "Beginning of Buffer" (window p)
   "Moves the point to the beginning of the current buffer."
     "Moves the point to the beginning of the current buffer."
@@ -196,7 +220,7 @@
   (let* ((buffer (window-buffer window)))
     (with-buffer-globals (buffer)
       (buffer-start .point. .buffer.))
-    (maybe-recenter-window-on-mark window (buffer-point buffer))
+    (hi::maybe-recenter-window-on-mark window (buffer-point buffer))
     (krma.gui::redraw-buffer window)))
 
 (defcommand "End of Buffer" (window p)
@@ -206,7 +230,7 @@
   (let* ((buffer (window-buffer window)))
     (with-buffer-globals (buffer)
       (buffer-end .point. .buffer.))
-    (maybe-rebottom-window-on-mark window (buffer-point buffer))
+    (hi::maybe-rebottom-window-on-mark window (buffer-point buffer))
     (krma.gui::redraw-buffer window)))
 
 (defcommand "Scroll Window Down" (window p)

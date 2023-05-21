@@ -376,26 +376,26 @@
 ;;; using real-line-length.
 ;;;
 (defun cursorpos-to-mark (x y window)
-  (check-type window window)
-    (with-slots (the-sentinel) window
-      (with-buffer-globals ((window-buffer window))
-        (let ((width (window-width window))
-              (first (window-first-line window)))
-          (when (>= x width)
-            (return-from cursorpos-to-mark nil))
-          (do* ((prev first dl)
-                (dl (cdr first) (cdr dl))
-                (ppos (mark-charpos (window-display-start window))
-                      (if dl
-                          (if (eq (dis-line-line (car dl)) (dis-line-line (car prev)))
-                              (dis-line-end (car prev)) 0)
-                          0)))
-               ((eq dl the-sentinel)
-                (copy-mark (window-display-end window) :temporary))
-            (when (= (dis-line-position (car dl)) y)
-              (let* ((line (dis-line-line (car dl)))
-                     (end (dis-line-end (car dl))))
-                (return (mark line (or (.find-position. line x ppos end width) end))))))))))
+  (with-slots (the-sentinel) window
+    (with-buffer-globals ((window-buffer window))
+      (let ((width (window-width window))
+            (first (window-first-line window)))
+        (when (>= x width)
+          (return-from cursorpos-to-mark nil))
+        (do* ((prev first dl)
+              (dl (cdr first) (cdr dl))
+              (ppos (mark-charpos (window-display-start window))
+                    (if dl
+                        (if (eq (dis-line-line (car dl)) (dis-line-line (car prev)))
+                            (dis-line-end (car prev)) 0)
+                        0)))
+             ((eq dl the-sentinel)
+              (copy-mark (window-display-end window) :temporary))
+          
+          (when (= (dis-line-position (car dl)) y)
+            (let* ((line (dis-line-line (car dl)))
+                   (end (dis-line-end (car dl))))
+              (return (mark line (or (.find-position. line x ppos end width) end))))))))))
 
 ;;; Dis-Line-Offset-Guess  --  Internal
 ;;;
@@ -471,7 +471,7 @@
          (when iscurrent (move-mark point bpoint))
          (unless (displayed-p point ,window-sym)
            (move-mark point start)
-           (.dis-line-offset-guess. point (truncate (window-height ,window-sym) 2)
+           (.dis-line-offset-guess. point (round (window-height ,window-sym) 2)
                                     width)
            (when iscurrent (move-mark bpoint point))))
        (update-window-image ,window-sym)
@@ -561,7 +561,7 @@
       (move-mark end mark)
       ;; i don't really understand how to use dis-line-offset-guess
       ;; i basically just use it where the original code uses it
-      (unless (.dis-line-offset-guess. start (- (- height 1))
+      (unless (.dis-line-offset-guess. start (- (1- height))
                                        (window-width window))
         (move-mark start (buffer-start-mark .buffer.)))
       ;; If that doesn't work, panic and make the start the point.

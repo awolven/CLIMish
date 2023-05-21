@@ -474,10 +474,12 @@
                                    (list *command-names*)
                                    :prompt "Extended Command: "
                                    :help "Name of a Hemlock command")))
-    ;; (hi::update-window *echo-area-window*)
     (krma.gui::redraw-buffer *echo-area-window*)
-    (let ((function (command-function (getstring name *command-names*))))
-      (funcall function window p))))
+    (let ((cmd (getstring name *command-names*)))
+      (clear-echo-area)
+      (message (command-name cmd))
+      (let ((function (command-function cmd)))
+        (funcall function window p)))))
 
 (defcommand "Eval Expresion" (window p)
   "" ""

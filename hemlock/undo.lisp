@@ -96,7 +96,7 @@
 ;;;; -- Primitives --
 
 (defun save-for-undo (name method
-                      &optional cleanup method-undo (buffer (current-buffer)))
+                      &optional cleanup method-undo buffer)
   "Stashes information for next \"Undo\" command invocation.  If there is
    an undo-info object, it is cleaned up first."
   (cond (*undo-info*

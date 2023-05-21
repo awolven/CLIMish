@@ -17,37 +17,37 @@
 
 ;;;; Help.
 
-(defcommand "Help" (window p)
-  "Give helpful information.
+(defcommand "Help" (current-window p)
+    "Give helpful information.
   This command dispatches to a number of other documentation commands,
   on the basis of a character command."
-  "Prompt for a single character command to dispatch to another helping
+    "Prompt for a single character command to dispatch to another helping
   function."
   (declare (ignore p))
   (command-case (:prompt "Doc (Help for Help): "
                  :help "Type a Help option to say what kind of help you want:"
-                 :current-window window)
-    (#k"a" "List all commands, variables and attributes Apropos a keyword."
-     (apropos-command window nil))
-    (#k"d" "Describe a command, given its name."
-     (describe-command-command window nil))
-    (#k"g" "Generic describe, any Hemlock thing (e.g., variables, keys, attributes)."
-     (generic-describe-command window nil))
-    (#k"v" "Describe variable and show its values."
-     (describe-and-show-variable-command window nil))
-    (#k"c" "Describe the command bound to a Character."
-     (describe-key-command window nil))
-    (#k"l" "List the last 60 characters typed."
-     (what-lossage-command window nil))
-    (#k"m" "Describe a mode."
-     (describe-mode-command window nil))
-    (#k"p" "Describe commands with mouse/pointer bindings."
-     (describe-pointer-command window nil))
-    (#k"w" "Find out Where a command is bound."
-     (where-is-command window nil))
-    (#k"t" "Describe a Lisp object."
-       (editor-describe-command window nil))
-    ((#k"q" :no) "Quits, You don't really want help.")))
+                 :current-window current-window)
+      (#.#k"a" "List all commands, variables and attributes Apropos a keyword."
+         (apropos-command current-window nil))
+      (#.#k"d" "Describe a command, given its name."
+         (describe-command-command current-window nil))
+      (#.#k"g" "Generic describe, any Hemlock thing (e.g., variables, keys, attributes)."
+         (generic-describe-command current-window nil))
+      (#.#k"v" "Describe variable and show its values."
+         (describe-and-show-variable-command current-window nil))
+      (#.#k"c" "Describe the command bound to a Character."
+         (describe-key-command current-window nil))
+      (#.#k"l" "List the last 60 characters typed."
+         (what-lossage-command current-window nil))
+      (#.#k"m" "Describe a mode."
+         (describe-mode-command current-window nil))
+      (#.#k"p" "Describe commands with mouse/pointer bindings."
+         (describe-pointer-command current-window nil))
+      (#.#k"w" "Find out Where a command is bound."
+         (where-is-command current-window nil))
+      (#.#k"t" "Describe a Lisp object."
+         (editor-describe-command current-window nil))
+      ((#.#k"q" :no) "Quits, You don't really want help." (clear-echo-area))))
 
 (defcommand "Where Is" (window p)
   "Find what key a command is bound to.
@@ -156,17 +156,17 @@
 ;;;; Describe command, key, pointer.
 
 (defcommand "Describe Command" (window p)
-  "Describe a command.
+    "Describe a command.
   Prompts for a command and then prints out it's full documentation."
-  "Print out the command documentation for a command which is prompted for."
+    "Print out the command documentation for a command which is prompted for."
   (declare (ignore p))
   (multiple-value-bind (nam com)
       (prompt-for-keyword
        window
-                        (list *command-names*)
-                        :prompt "Describe command: "
-                        :help "Name of a command to document.")
-    (let ((bindings (command-bindings com)))
+       (list *command-names*)
+       :prompt "Describe command: "
+       :help "Name of a command to document.")
+    (let ((bindings (krma.gui::command-bindings window com)))
       (with-pop-up-display (s :current-window window)
         (format s "Documentation for ~S:~%   ~A~%"
                 nam (command-documentation com))

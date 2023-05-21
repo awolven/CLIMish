@@ -137,6 +137,7 @@
       (setf (current-buffer) (window-buffer window)
             (current-window) window))))
 
+#+NOMORE
 (defun next-window (window)
   "Return the next window after Window, wrapping around if Window is the
   bottom window."
@@ -144,6 +145,7 @@
   (device-next-window (device-hunk-device (window-hunk window))
                       window))
 
+#+NOMORE
 (defun previous-window (window)
   "Return the previous window after Window, wrapping around if Window is the
   top window."

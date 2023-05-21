@@ -389,8 +389,8 @@
   (defun command-case-tag (tag key-event char)
     (cond ((and (characterp tag) (standard-char-p tag))
            `(and ,char (char= ,char ,tag)))
-          ((and (consp tag) (eq (car tag) 'clui::intern-input-event))
-           `(and ,char (eq ,char (eval ,tag))))
+          ((and (typep tag 'clui::input-event-id))
+           `(eq ,key-event ,tag))                
           ((and (symbolp tag) (keywordp tag))
            `(logical-key-event-p ,key-event ,tag))
           (t
@@ -467,9 +467,6 @@
                       (push (cons (command-case-tag tag bind bind-char) rest)
                             cases)
                       (setq tag (list tag)))
-                     ((eq (car tag) 'clui::intern-input-event)
-                      (push (cons (command-case-tag tag bind bind-char) rest)
-                            cases))
                      (t
                       (do ((tag tag (cdr tag))
                            (res ()
@@ -652,32 +649,34 @@
 (defun lisp-error-error-handler (condition &optional internalp)
   (declare (ignore internalp))
   (beep)
-  (format #+sbcl sb-sys::*stdout* #-sbcl *debug-io* "~%~W" condition)
-  (hemlock::simple-backtrace #+sbcl sb-sys::*stdout* #-sbcl *debug-io*)
-  (finish-output #+sbcl sb-sys::*stdout* #-sbcl *debug-io*)
+  ;;(format #+sbcl sb-sys::*stdout* #-sbcl *debug-io* "~%~W" condition)
+  ;;(hemlock::simple-backtrace #+sbcl sb-sys::*stdout* #-sbcl *debug-io*)
+  ;;(finish-output #+sbcl sb-sys::*stdout* #-sbcl *debug-io*)
   (let ((message-only-p (typep condition 'editor-error)))
     (cond
       (*debug-on-error*
        (hemlock::simple-backtrace *standard-output*)
        (invoke-debugger condition))
-     ((and *stack-trace-on-error* (not message-only-p))
-      (with-pop-up-display (s :height 100 :current-window (krma.gui::focused-window (clui::window-parent *echo-area-window*)))
-        (format s "An error of type ~A has been caught and ignored:~%  ~A~%~%"
-                (type-of condition)
-                condition)
-        (format s "The stack trace at the time of the error was:~%~%")
-        (hemlock::simple-backtrace s)
-        (format s "~%Restarts would have been:~%~%")
-        (simple-print-restarts s)
-        (hemlock::beginning-of-buffer-command nil))
-      (throw 'command-loop-catcher nil))
-     (message-only-p
-      (message "Error: ~A" condition)
-      (throw 'command-loop-catcher nil))
-     (t
-      (warn "ignoring error: ~A" condition)
-      (message "Error: ~A" condition)
-      (throw 'command-loop-catcher nil)))))
+      ((and *stack-trace-on-error* (not message-only-p))
+       (let ((cw (make-instance 'krma.gui::text-editor-window :buffer (make-instance 'buffer :name "f00"))))
+         (with-pop-up-display (s :height 100 :current-window cw)
+           (format s "An error of type ~A has been caught and ignored:~%  ~A~%~%"
+                   (type-of condition)
+                   condition)
+           (format s "The stack trace at the time of the error was:~%~%")
+           (hemlock::simple-backtrace s)
+           (format s "~%Restarts would have been:~%~%")
+           (simple-print-restarts s)
+           (hemlock::beginning-of-buffer-command cw nil)
+           (krma.gui::rm-redraw-node-recursively cw)))
+       (throw 'command-loop-catcher nil))
+      (message-only-p
+       (message "Error: ~A" condition)
+       (throw 'command-loop-catcher nil))
+      (t
+       (warn "ignoring error: ~A" condition)
+       (message "Error: ~A" condition)
+       (throw 'command-loop-catcher nil)))))
 
 (defmacro handle-lisp-errors (&body body)
   "Handle-Lisp-Errors {Form}*

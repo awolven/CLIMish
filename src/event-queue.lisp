@@ -77,7 +77,7 @@
 			       (when string
 				 (apply #'message string
 					(editor-error-format-arguments c)))
-			       (throw 'command-loop-catcher nil)))))
+			       (throw 'hi::command-loop-catcher nil)))))
     
 	(tagbody
 
@@ -142,7 +142,7 @@
 				      (go GET))
 				 
 				     (t (catch 'ignore
-					  (catch 'command-loop-catcher
+					  (catch 'hi::command-loop-catcher
 					    (funcall result w p)))
 					(go RESET)))))
 			 
@@ -154,7 +154,7 @@
 			   (GO GET))
 				   
 			  (t (catch 'ignore
-			       (catch 'command-loop-catcher
+			       (catch 'hi::command-loop-catcher
 				 (funcall hi::*invoke-hook* result w p)))
 			     (go RESET))))))))))
 
@@ -167,5 +167,4 @@
   (declare (ignore initargs))
   (start-command-loop window)
   (values))
-
 

@@ -46,7 +46,10 @@
 	((= i (hi::window-height view)) (setf (hi::window-spare-lines view) res)))))
 
 (defmethod destroy-window :after ((view text-editor-view-mixin))
-  (setf (hi::buffer-windows (hi::window-buffer view)) (remove view (hi::buffer-windows (hi::window-buffer view))))
+  (let ((buffer (hi::window-buffer view)))
+    (setf (hi::buffer-windows buffer) (remove view (hi::buffer-windows buffer)))
+    (unless (hi::buffer-windows buffer)
+      (hi::delete-buffer buffer *echo-area-buffer*)))
   (values))	
 
 (defmethod initialize-instance :after ((view text-editor-view-mixin) &rest initargs
@@ -71,8 +74,8 @@
       (let ((time (get-internal-real-time)))
 	(when (evenp (floor time (* 0.5 internal-time-units-per-second)))
 	  (let ((self (focused-window window)))
-	    (unless (the iconified?)
-	      (when self
+	    (when self
+	      (unless (the iconified?)
 		(when (typep self 'text-editor-window-mixin)
 		  (multiple-value-bind (ox oy) (global-window-position (the buffer-view text))
 		    (multiple-value-bind (x y) (hi::mark-to-cursorpos (hi::window-point self) self)
@@ -172,8 +175,9 @@
 		  (setq last-line-seen? (eq dl last-line))
 		  (flet ((buffer-view-add-string (x y font text-color-key string start end)
 			   (unless end (setq end length))
+			   (unless start (setq start 0))
 			   (when (< start end)
-			     (let* ((color (lookup-text-color text-color-key))
+			     (let* ((color (lookup-text-color (or text-color-key 0)))
 				    (xval (float (+ (* x space-width) xp)))
 				    (yval (float (+ (* y font-size) -2 yp))))
 			       (krma::draw-data-add-text-primitive draw-data group nil font color

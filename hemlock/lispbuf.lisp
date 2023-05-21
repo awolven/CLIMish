@@ -546,7 +546,7 @@
 (defun editor-compile-region (current-window buffer region &optional quiet)
   (unless quiet (message "Compiling region ..."))
   (let ((pathname (buffer-pathname buffer)))
-    (in-lisp
+    (in-lisp buffer
      (with-input-from-region (stream region)
        (with-pop-up-display (*error-output* :height 19 :current-window current-window)
          ;; JDz: We don't record source locations and what not, but this
@@ -885,20 +885,22 @@
                            #'(lambda (x) (not (eq x :prefix))))
            (form-offset (move-mark mark2 mark1) 1)))))
 
-#+NIL
+
 (defcommand "Editor Describe" (window p)
   "Call Describe on a Lisp object.
   Prompt for an expression which is evaluated to yield the object."
   "Prompt for an object to describe."
   (declare (ignore p))
-  (in-lisp
+  (in-lisp (window-buffer window)
     (let* ((exp (prompt-for-expression
                  window
                 :prompt "Object: "
                 :help "Expression to evaluate to get object to describe."))
           (obj (eval exp)))
-     (with-pop-up-display (*standard-output*)
-       (describe obj)))))
+     (with-pop-up-display (*standard-output* :current-window window)
+       (describe obj)
+       (krma.gui::rm-redraw-node-recursively window)
+       ))))
 
 #+NIL
 (defcommand "Filter Region" (window p)

@@ -603,6 +603,7 @@
 
 ;;; PRINT-PRETTY-KEY -- Public.
 ;;;
+#+NIL
 (defun print-pretty-key (key &optional (stream *standard-output*) long-names-p)
   "This prints key, a key-event or vector of key-events, to stream in a
    user-expected fashion.  Long-names-p indicates whether modifiers should

@@ -228,7 +228,8 @@
     "Kill p words at the point"
   (let ((buffer (window-buffer window)))
     (with-buffer-globals (buffer)
-      (.kill-next-word. p))))
+      (.kill-next-word. p))
+    (krma.gui::redraw-buffer window)))
 
 (defcommand "Kill Previous Word" (window p)
   "Kill a word before the point.
@@ -238,7 +239,8 @@
     "Kill p words before the point"
   (let ((buffer (window-buffer window)))
     (with-buffer-globals (buffer)
-      (.kill-next-word. (- (or p 1))))))
+      (.kill-next-word. (- (or p 1))))
+    (krma.gui::redraw-buffer window)))
 
 (defmacro kill-line-macro (buffer p)
   (let ((p-sym (gensym "KILL-LINE_P"))
@@ -284,7 +286,8 @@
   deletes that many lines past the point (or before if the prefix is negative)."
     "Kills p lines after the point."
   (let ((buffer (window-buffer window)))
-    (kill-line buffer p)))
+    (kill-line buffer p)
+    (krma.gui::redraw-buffer window)))
 
 (defcommand "Backward Kill Line" (window p)
     "Kill from the point to the beginning of the line.
@@ -340,7 +343,7 @@
         (delete-region (region beg-mark end-mark))))))
 
 
-(defcommand "Un-Kill" (window p)
+(defcommand #+NO "Un-Kill" #+NO "uncle" "Yank" (window p)
     "Inserts the top item in the kill-ring at the point.
   The mark is left mark before the insertion and the point after.  With prefix
   argument inserts the prefix'th most recent item."
@@ -355,10 +358,11 @@
                       (mark (copy-mark point)))
                  (push-buffer-mark buffer mark)
                  (hi::.insert-region. point region)
-                 (make-region-undo :delete "Un-Kill"
+                 (make-region-undo :delete "Yank"
                                    (region (copy-mark mark) (copy-mark point))))
                (setf (last-command-type) :unkill))
-              (t (editor-error)))))))
+              (t (editor-error)))))
+    (krma.gui::redraw-buffer window)))
 ;;;
 (push :unkill *ephemerally-active-command-types*)
 

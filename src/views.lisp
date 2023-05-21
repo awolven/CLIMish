@@ -289,6 +289,14 @@
 
   :components
   ((client-rect :type 'client-rect)))
+
+(defmethod untransform-coordinate ((vec vec3) (self view-mixin))
+  (let ((vec4 (m* (vec4 (- (vx vec) (the x)) (- (vy vec) (the y)) (vz vec) 1) (the inverse-matrix))))
+    (safe-euclid vec4)))
+
+(defmethod untransform-global-coordinate ((vec vec3) (self node-mixin))
+  (let ((vec4 (m* (vec4 (- (vx vec) (the x)) (- (vy vec) (the y)) (vz vec) 1) (the inverse-global-matrix))))
+    (safe-euclid vec4)))
 		
 
 (defmethod view-p (object)
@@ -404,10 +412,7 @@
 
 (defgeneric resize-window (window new-x new-y new-width new-height))
 
-(defmethod resize-window ((window homemade-window-mixin) new-x new-y new-width new-height)
-  (clui:set-window-size window new-width new-height)
-  (clui:set-window-position window new-x new-y)
-  (values))
+
 
 (defmethod clui:handle-event ((self resize-border) (event clui::pointer-exit-event-mixin))
   (setf (clui::window-cursor (clui::window-parent (the root))) (make-instance 'clui::arrow-cursor :display (clui::window-display (clui::window-parent (the root)))))
@@ -519,14 +524,37 @@
        (the object-id)
        (1+ (the layer))))))
 
-(defobject homemade-window-mixin (selectable-mixin group-owner-view-mixin)
+(defclass ring-element-mixin ()
+  ((next :initform nil :accessor next)
+   (prev :initform nil :accessor prev)))
+
+(defun ring-initialize (new-element)
+  (setf (next new-element) new-element)
+  (setf (prev new-element) new-element)
+  (values))
+  
+
+(defun ring-link-new-element-at-start (new start)
+  (let ((last (prev start)))
+    (setf (next new) start)
+    (setf (prev new) last)
+    (setf (prev start) new)
+    (setf (next last) new))
+  (values))
+
+(defun ring-remove-element (element)
+  (setf (next (prev element)) (next element))
+  (setf (prev (next element)) (prev element))
+  (values))
+  
+
+(defobject homemade-window-mixin (ring-element-mixin selectable-mixin group-owner-view-mixin)
   :metaclass homemade-window-class
 
   
   :slots
   ((command-table :initform (make-hash-table :test #'eq) :reader command-table)
    (resize-mode :initform nil :accessor resize-mode))
-
 
   :inputs
   ((parent (main-window *app*))
@@ -603,6 +631,11 @@
    (vertical-scrollbar :type (if (the scrollbar-y?) 'scrollbar 'null-object)
 		       axis :vertical)))
 
+(defmethod resize-window ((window homemade-window-mixin) new-x new-y new-width new-height)
+  (clui:set-window-size window new-width new-height)
+  (clui:set-window-position window new-x new-y)
+  (values))
+
 (defmethod node-parent ((self homemade-window-mixin))
   ;; node-parent ::= node in the scene graph
   (the scene))
@@ -671,6 +704,7 @@
 
 (defmethod destroy-window ((homemade-window homemade-window-mixin))
   (rm-erase-node-recursively homemade-window)
+  (ring-remove-element homemade-window)
   (let ((scene (send homemade-window scene)))
     ;; remove the graphical representation from the draw-lists
     (setf (krma::node-children scene)
@@ -682,6 +716,7 @@
       (setf (krma::immediate-mode-work-function-1 (clui::window-display (window-parent homemade-window))) nil))
     #+ccl(ccl:gc)
     #+sbcl(sb-sys::gc :full t)
+    (focus-window (next homemade-window))
     (values)))
 
 (defmethod clui:handle-event ((button close-button) (event clui::pointer-button-press-event-mixin))
@@ -748,6 +783,12 @@
     (setf (the iconified?) nil))
   (values))
 
+(defmethod clui::window-iconified? ((self homemade-window-mixin))
+  (the iconified?))
+
+(defmethod (setf clui::window-iconified?) (value (self homemade-window-mixin))
+  (setf (the iconified?) (and value t)))
+
 (defmethod clui:window-position ((self view-mixin))
   (let* ((vec4 (m* (vec4 (the x) (the y) 0 1) (the matrix)))
 	 (vec3 (safe-euclid vec4)))
@@ -784,7 +825,8 @@
 (defmethod initialize-instance :after ((self homemade-window-mixin) &rest initargs)
   (declare (ignore initargs))
 
-  (let ((highest-z-index 0))
+  (let ((highest-z-index 0)
+	(os-window (window-parent (the root))))
     
     (when (krma::node-children (the scene))
       (setq highest-z-index
@@ -794,9 +836,16 @@
     (setf (the z-index) (1+ highest-z-index))
     (setf (krma::node-children (the scene)) (append (krma::node-children (the scene)) (list self)))
 
-    (setf (focused-window (window-parent (the root))) self))
+    (if (focused-window os-window)
+	
+	(ring-link-new-element-at-start self (focused-window os-window))
+
+	(ring-initialize self))
+    
+    (setf (focused-window os-window) self))
 
   (values))
+
 
 
 (defmethod rm-draw-node ((self homemade-window-mixin))
@@ -1092,11 +1141,14 @@
 
 (defmethod clui:handle-event ((window homemade-window-mixin) (event clui::pointer-button-press-event-mixin))
   (call-next-method)
-  (clui:focus-window window))
+  (setf (send window focused?) t)
+  (values))
 
 (defmethod clui:handle-event ((self title-bar) (event clui::pointer-button-press-event-mixin))
   (call-next-method)
-  (clui:focus-window (the window)))
+  (unless (the window iconified?)
+    (setf (the window focused?) t))
+  (values))
 
 (defmethod clui:handle-event ((window krma-window-mixin) (event clui::pointer-button-press-event-mixin))
   ;;(call-next-method)

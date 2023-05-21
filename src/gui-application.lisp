@@ -1,9 +1,9 @@
 (in-package :krma.gui)
 
-(defclass krma-gui-application-mixin (krma-application-mixin)
+(defclass application-mixin (krma-application-mixin)
   ())
 
-(defclass krma-gui-application (krma-gui-application-mixin)
+(defclass application (application-mixin)
   ())
 
 (defun post-init-hemlock (hemlock::initial-buffer)
@@ -67,7 +67,6 @@
 				#'(lambda (window new-buff)
 				    (when (and (eq window hi::*echo-area-window*)
 					       (not (eq new-buff hi::*echo-area-buffer*)))
-				      (break)
 				      (hi::editor-error "Can't change echo area window."))))
 	     (defhvar "Active Regions Enabled"
 		 "When set, some commands that affect the current region only work when the
@@ -91,6 +90,11 @@
 	       :current-buffer initial-buffer)
 	     
 	     
+
+	     (hemlock::add-hook hemlock::make-buffer-hook #'(lambda (buffer)
+							      (hemlock::hcmd-new-buffer-hook-fun
+							       buffer
+							       initial-buffer)))
 	     
 	     (dolist (buff hi::*buffer-list*) (hcmd-new-buffer-hook-fun buff initial-buffer))
 	     
@@ -804,12 +808,9 @@
 	     (defmode "Lisp Listener" :major-p nil :current-buffer initial-buffer)
 	     ))
 
-(defmethod initialize-instance :after ((app krma-gui-application) &rest initargs)
+(defmethod initialize-instance :after ((app application) &rest initargs)
   (declare (ignore initargs))
-  hemlock::(add-hook hemlock::make-buffer-hook #'(lambda (buffer)
-						   (hcmd-new-buffer-hook-fun
-						    buffer
-						    (window-buffer (krma.gui::focused-window (krma::main-window krma.gui::app))))))
+  
   (unless (boundp '*style*)
     (setq *style* (make-instance 'classic-style
 				 'display (application-display app)

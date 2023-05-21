@@ -1364,23 +1364,22 @@
              (move-mark (push-buffer-mark (copy-mark point) t) end))))))
 
 (defcommand "Forward Kill Form" (window p)
-  "Kill the next Form.
+    "Kill the next Form.
    With a positive argument, kills the next p Forms.
    Kills backward with a negative argument."
     "Kill the next Form."
-  (let ((window (current-window)))
-    (when window
-      (let ((buffer (window-buffer window)))
-        (when buffer
-          (with-buffer-globals (buffer)
-            (with-mark ((m1 .point.)
-                        (m2 .point.))
-              (.pre-command-parse-check. m1)
-              (let ((count (or p 1)))
-                (unless (form-offset m1 count) (editor-error))
-                (if (minusp count)
-                    (.kill-region. (region m1 m2) :kill-backward)
-                    (.kill-region. (region m2 m1) :kill-forward))))))))))
+  (let ((buffer (window-buffer window)))
+    (when buffer
+      (with-buffer-globals (buffer)
+        (with-mark ((m1 .point.)
+                    (m2 .point.))
+          (.pre-command-parse-check. m1)
+          (let ((count (or p 1)))
+            (unless (form-offset m1 count) (editor-error))
+            (if (minusp count)
+                (.kill-region. (region m1 m2) :kill-backward)
+                (.kill-region. (region m2 m1) :kill-forward))))))
+    (krma.gui::redraw-buffer window)))
 
 (defcommand "Backward Kill Form" (window p)
   "Kill the previous Form.

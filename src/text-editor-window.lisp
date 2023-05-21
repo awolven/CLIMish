@@ -15,6 +15,7 @@
 
 (defmethod rm-draw-node ((self modeline))
   (unless (the window iconified?)
+    (hi::update-modeline-fields (hi::window-buffer (the window)) (the window))
     (let ((scene (the scene))
 	  (group (the group)))
     
@@ -62,10 +63,40 @@
 (defun make-hemlock-window ()
   (make-instance 'text-editor-window 'x 100 'y 75))
 
-(defun command-save-file (window p)
-  (declare (ignore window))
-  (dotimes (n p)
-    (print 'hiya)))
+(defmethod print-object ((object text-editor-window-mixin) stream)
+  (print-unreadable-object (object stream :type t :identity t)
+    (princ (send object title) stream)))
+
+(defun find-or-create-text-editor-window-for-buffer (buffer)
+  (let ((window (or (first (hi::buffer-windows buffer))
+		    (make-instance 'text-editor-window :buffer buffer))))
+    (focus-window window)
+    window))
+
+(defun find-or-create-typeout-window (buffer-name)
+  (let ((first (focused-window (clui::window-parent *echo-area-window*)))
+	(buffer (hi::make-unique-buffer buffer-name :modes '("Typeout"))))
+    (flet ((is-typeout? (w)
+	     (string= (send w title) "Random Typeout")))
+      (if (is-typeout? first)
+	  (progn
+	    (setf (window-buffer first) buffer)
+	    (setf (send first visible?) t)
+	    (focus-window first)
+	    first)
+	  (progn
+	    (do ((w (next first) (next w)))
+		((eq w first))
+	      (when (is-typeout? w)
+		(progn
+		  (setf (window-buffer w) buffer)
+		  (setf (send w visible?) t)
+		  (focus-window w)
+		  (return-from find-or-create-typeout-window w))))
+	    (make-instance 'text-editor-window :buffer buffer 'visible? t))))))
+
+
+      
 
 
 

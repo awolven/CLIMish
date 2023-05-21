@@ -1,5 +1,15 @@
 (in-package :krma.gui)
 
+(defun print-pretty-gesture (gesture stream)
+  (loop for keys on gesture
+	do (clui::print-pretty-input-event-id (car keys) stream)
+	   (when (cdr keys)
+	     (princ " " stream)))
+  gesture)
+
+(defun hemlock-ext::print-pretty-key (thing stream)
+  (print-pretty-gesture thing stream))
+
 (setf (hi::logical-key-event-p #k"Ctrl-s" :forward-search) t)
 (setf (hi::logical-key-event-p #k"Ctrl-r" :backward-search) t)
 (setf (hi::logical-key-event-p #k"Ctrl-r" :recursive-edit) t)
@@ -30,24 +40,47 @@
 (define-gesture "Save File" 'text-editor-window-mixin #k"C-x" #k"C-s")
 (define-gesture "Beginning of Line" 'text-editor-window-mixin #k"Home")
 (define-gesture "Beginning of Line" 'text-editor-window-mixin #k"Ctrl-a")
+(define-gesture "Beginning of Line" 'echo-area-window-mixin #k"Home")
+(define-gesture "Beginning of Line" 'echo-area-window-mixin #k"Ctrl-a")
 (define-gesture "End of Line" 'text-editor-window-mixin #k"End")
 (define-gesture "End of Line" 'text-editor-window-mixin #k"Ctrl-e")
+(define-gesture "End of Line" 'echo-area-window-mixin #k"End")
+(define-gesture "End of Line" 'echo-area-window-mixin #k"Ctrl-e")
+
 (define-gesture "Forward Character" 'text-editor-window-mixin #k"RightArrow")
 (define-gesture "Forward Character" 'text-editor-window-mixin #k"Ctrl-f")
+(define-gesture "Forward Character" 'echo-area-window-mixin #k"RightArrow")
+(define-gesture "Forward Character" 'echo-area-window-mixin #k"Ctrl-f")
+
 (define-gesture "Backward Character" 'text-editor-window-mixin #k"LeftArrow")
 (define-gesture "Backward Character" 'text-editor-window-mixin #k"Ctrl-b")
+
+(define-gesture "Backward Character" 'echo-area-window-mixin #k"LeftArrow")
+(define-gesture "Backward Character" 'echo-area-window-mixin #k"Ctrl-b")
+
 (define-gesture "Transpose Characters" 'text-editor-window-mixin #k"Ctrl-t")
+(define-gesture "Transpose Characters" 'echo-area-window-mixin #k"Ctrl-t")
+
 (define-gesture "Delete Next Character" 'text-editor-window-mixin #k"Delete")
 (define-gesture "Delete Next Character" 'text-editor-window-mixin #k"Ctrl-d")
+(define-gesture "Delete Next Character" 'echo-area-window-mixin #k"Delete")
+(define-gesture "Delete Next Character" 'echo-area-window-mixin #k"Ctrl-d")
+
 (define-gesture "Delete Previous Character" 'text-editor-window-mixin #k"Backspace")
-(define-gesture "Delete Previous Character" 'echo-area-window-mixin #k"Backspace")
+(define-gesture "Echo Area Delete Previous Character" 'echo-area-window-mixin #k"Backspace")
+
 (define-gesture "Forward Word" 'text-editor-window-mixin #k"Meta-f")
+(define-gesture "Forward Word" 'echo-area-window-mixin #k"Meta-f")
+
 (define-gesture "Backward Word" 'text-editor-window-mixin #k"Meta-b")
+(define-gesture "Backward Word" 'echo-area-window-mixin #k"Meta-b")
+
 (define-gesture "Find File" :global #k"Ctrl-x" #k"Ctrl-f")
 
 (define-gesture "Confirm Parse" 'echo-area-window-mixin #k"Enter")
-(define-gesture "Echo Area Delete Previous Character" 'echo-area-window-mixin #k"Backspace")
+
 (define-gesture "Extended Command" :global #k"Meta-x")
+
 (define-gesture "Confirm Line of Input" "Interactive-Character-Stream" #k"Enter")
 (define-gesture "Mousewheel Scroll" 'text-editor-window-mixin #k"MouseWheel")
 (define-gesture "Beginning of Buffer" 'text-editor-window-mixin #k"Ctrl-Home")
@@ -56,19 +89,43 @@
 (define-gesture "Scroll Window Down" 'text-editor-window-mixin #k"PageDn")
 
 (define-gesture "Kill Line" 'text-editor-window-mixin #k"Ctrl-k")
+(define-gesture "Kill Line" 'echo-area-window-mixin #k"Ctrl-k")
+
+(define-gesture "Kill Next Word" 'text-editor-window-mixin #k"Meta-d")
+(define-gesture "Kill Next Word" 'echo-area-window-mixin #k"Meta-d")
+
+(define-gesture "Kill Previous Word" 'text-editor-window-mixin #k"Meta-Backspace")
+(define-gesture "Kill Previous Word" 'echo-area-window-mixin #k"Meta-Backspace")
+
+(define-gesture "Forward Kill Form" "Lisp" #k"Ctrl-Meta-k")
+
+(define-gesture "Yank" 'text-editor-window-mixin #k"Ctrl-y")
+(define-gesture "Yank" 'echo-area-window-mixin #k"Ctrl-y")
+
 (define-gesture "Query Replace" 'text-editor-window-mixin #k"Shift-Meta-5")
 (define-gesture "Reverse Incremental Search" 'text-editor-window-mixin #k"Ctrl-r")
 (define-gesture "Incremental Search" 'text-editor-window-mixin #k"Ctrl-s")
 (define-gesture "Forward Search" 'text-editor-window-mixin #k"Meta-s")
 (define-gesture "Reverse Search" 'text-editor-window-mixin #k"Meta-r")
+
 (define-gesture "Universal Argument" 'text-editor-window-mixin #k"Ctrl-u")
+(define-gesture "Universal Argument" 'echo-area-window-mixin #k"Ctrl-u")
+
 (define-gesture "Help" 'text-editor-window-mixin #k"Ctrl-h")
 (define-gesture "Help" 'text-editor-window-mixin #k"Shift-Ctrl-\-")
 (define-gesture "Help" 'text-editor-window-mixin #k"F1")
+(define-gesture "Help" 'echo-area-window-mixin #k"Ctrl-h")
+(define-gesture "Help" 'echo-area-window-mixin #k"Shift-Ctrl-\-")
+(define-gesture "Help" 'echo-area-window-mixin #k"F1")
+
 (define-gesture "Describe Key" 'text-editor-window-mixin #k"Shift-Meta-/")
+(define-gesture "Describe Key" 'echo-area-window-mixin #k"Shift-Meta-/")
 
 (define-gesture "Top Line to Here" 'text-editor-window-mixin #k"RightMouse")
-;;(define-gesture "Point to Here" 'text-editor-window-mixin #k"LeftMouse")
+
+(define-gesture "Point to Here" 'text-editor-window-mixin #k"LeftMouse")
+(define-gesture "Point to Here" 'echo-area-window-mixin #k"LeftMouse")
+
 (define-gesture "Insert Kill Buffer" 'text-editor-window-mixin #k"Super-RightMouse")
 
 (define-gesture "Insert File" 'text-editor-window-mixin #k"Ctrl-x" #k"Ctrl-r")
@@ -77,6 +134,8 @@
 (define-gesture "Backup File" 'text-editor-window-mixin #k"Ctrl-x" #k"Meta-b")
 (define-gesture "Save All Files" 'text-editor-window-mixin #k"Ctrl-x" #k"s")
 (define-gesture "Save All Files and Exit" 'text-editor-window-mixin #k"Ctrl-x" #k"Ctrl-c")
+
+
 
 ;;(define-gesture "Bufed" 'text-editor-window-mixin #k"Ctrl-x" #k"Ctrl-b")
 (define-gesture "Buffer Not Modified" 'text-editor-window-mixin #k"Shift-Meta-`")
@@ -88,7 +147,22 @@
 (define-gesture "Kill Buffer" 'text-editor-window-mixin #k"Ctrl-x" #k"k")
 (define-gesture "Select Random Typeout Buffer" 'text-editor-window-mixin #k"Hyper-t")
 
+(define-gesture "Cycle Windows" 'text-editor-window-mixin #k"Ctrl-Tab")
+(define-gesture "Cycle Windows" 'text-editor-window-mixin #k"Ctrl-x" #k"o")
 
+(define-gesture "Reverse Cycle Windows" 'text-editor-window-mixin #k"Shift-Ctrl-Tab")
+
+(define-gesture "Cycle Windows" 'echo-area-window-mixin #k"Ctrl-Tab")
+(define-gesture "Cycle Windows" 'echo-area-window-mixin #k"Ctrl-x" #k"o")
+
+(define-gesture "Reverse Cycle Windows" 'echo-area-window-mixin #k"Shift-Ctrl-Tab")
+
+(define-gesture "Exit Recursive Edit" 'echo-area-window-mixin "Ctrl-Meta-z")
+
+(define-gesture "Interrupt Lisp" "Lisp Listener" #k"Ctrl-c" #k"Ctrl-c")
+
+(define-gesture "Iconify Window" 'homemade-window-mixin #k"Ctrl-x" #k"0")
+(define-gesture "Iconify Window" 'text-editor-window-mixin #k"Ctrl-x" #k"0")
 
 
 (when (boundp 'krma::*app*)

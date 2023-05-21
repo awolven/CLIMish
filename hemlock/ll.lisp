@@ -82,19 +82,23 @@
     (setf (buffer-minor-mode buffer current-buffer "Interactive-Character-Stream") t)
     (setf (buffer-minor-mode buffer current-buffer "Lisp Listener") t)
     #+NOTYET(setf (buffer-major-mode buffer) "LISP")
-    (let ((stream (variable-value 'hemlock::buffer-stream :buffer buffer)))
+    (let* ((stream (variable-value 'hemlock::buffer-stream :buffer buffer))
+	   (thread (bt:make-thread #'(lambda ()
+                                       (repl stream))
+				   :name "Lisp Listener")))
       (defhvar "Lisp Listener Thread" "Lisp Listener Thread" :buffer buffer
-        :value (bt:make-thread #'(lambda ()
-                                   (repl stream))
-                               :name "Lisp Listener"))
-      (krma.gui::focus-window (hi::find-or-create-text-editor-window-for-buffer buffer))
+        :value thread)
+      (add-hook hemlock::delete-buffer-hook #'(lambda (buffer)
+						(when (buffer-minor-mode "Lisp Listener" buffer *echo-area-buffer*)
+						  (bt:destroy-thread (hemlock::variable-value 'hemlock::lisp-listener-thread :buffer buffer)))))
+      (krma.gui::focus-window (krma.gui::find-or-create-text-editor-window-for-buffer buffer))
       (values))))
 
-(defcommand "Interrupt Lisp" (p)
+(defcommand "Interrupt Lisp" (window p)
     "Interrupt a running Lisp Listener Thread"
     "Interrupt a running Lisp Listener Thread"
   (declare (ignore p))
-  (let* ((buffer (current-buffer))
+  (let* ((buffer (window-buffer window))
          (thread (variable-value 'hemlock::lisp-listener-thread :buffer buffer)))
     (when thread
       (beep)

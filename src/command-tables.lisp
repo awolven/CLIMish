@@ -44,6 +44,63 @@
       
       t)))
 
+(defun command-bindings (view command)
+  (let ((bindings (hi::command-%bindings command))
+	(results ()))
+    ;;(break "~S" *global-command-table*)
+    ;;(break "~S" bindings)
+    (flet ((test (bindings table)
+	     (let ((result))
+	       (tagbody
+		again (when (null bindings)
+			(go exit))
+		  
+		  (setq result (gethash (car bindings) table))
+		  
+		  (if result
+		      (if (hash-table-p result)
+			  
+			  (progn
+			    (setq table result)
+			    (setq bindings (cdr bindings))
+			    (go again))
+			  
+			  (go exit))
+		      (go exit))
+		  exit)
+	       result)))
+
+      (loop for binding in bindings
+	    do
+	       (when (test (car binding) *global-command-table*)
+		 (push (list (car binding) :global (hi::view-buffer view)) results))
+      
+	       (when (test (car binding) (get-command-table (class-of view)))
+		 (push (list (car binding) (list :class (class-of view)) (hi::view-buffer view)) results))
+	       
+	       (let ((buffer (hi::view-buffer view)))
+		 (when buffer
+		   (let ((reverse-modes (reverse (hi::buffer-mode-objects buffer))))
+		     (loop for mode in reverse-modes
+			   with mode-table = nil
+			   when (test (car binding) (hi::mode-object-bindings mode))
+			     do (push (list (car binding) (list :mode mode) (hi::view-buffer view)) results)))
+
+		   (when (hi::buffer-bindings (hi::view-buffer view))
+		     (when (test (car binding) (hi::buffer-bindings (hi::view-buffer view)))
+		       (push (list (car binding) (list :buffer (hi::view-buffer view)) (hi::view-buffer view)) results))))))
+      
+      results)))
+
+	  
+      
+	  
+
+      
+
+      
+      
+
 (defmethod get-table-entry (object table key)
   (declare (ignore object))
   (gethash key table))

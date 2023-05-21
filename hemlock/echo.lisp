@@ -174,13 +174,11 @@
          (point (buffer-point *echo-area-buffer*)))
     (move-mark *parse-starting-mark* point)
     (insert-string point (or *parse-default-string* *parse-default*))
-    (setf (krma.gui::focused-window (clui::window-parent *echo-area-window*))
-          *echo-area-window*)
-    (krma.gui::redraw-buffer *echo-area-window*)
+    (clui::focus-window *echo-area-window*)
     (unwind-protect
          (progn
            (recursive-edit nil))
-      (setf (krma.gui::focused-window (clui::window-parent *echo-area-window*)) start-window)
+      (clui::focus-window start-window)
       (unless (eq *echo-area-window* start-window)
         (change-to-buffer start-buffer start-window)))))
 
@@ -348,7 +346,7 @@
              (:ambiguous
               (delete-region *parse-input-region*)
               (insert-string (region-start *parse-input-region*) prefix)
-              (let ((point (current-point)))
+              (let ((point (buffer-point *echo-area-buffer*)))
                 (move-mark point (region-start *parse-input-region*))
                 (unless (character-offset point ambig)
                   (buffer-end point)))
@@ -521,21 +519,24 @@
   (prompt-for-key-event* current-window prompt change-window))
 
 (defun prompt-for-key-event* (current-window prompt change-window)
-  (let ((old-window current-window))
-    (unwind-protect
-        (progn
-          (when change-window
-            (setf (krma.gui::focused-window (krma::main-window krma::*app*)) *echo-area-window*))
-          (display-prompt-nicely prompt)
-          (get-key-event *editor-input* t))
-      (when change-window (setf (krma.gui::focused-window (krma::main-window krma::*app*)) old-window)))))
-
-
+  (unwind-protect
+       (progn
+         (when change-window
+           (krma.gui::focus-window *echo-area-window*))
+         (display-prompt-nicely prompt)
+         (get-key-event *editor-input* t))
+    (when change-window (krma.gui::focus-window current-window))))
 
 (defmethod get-key-event ((input-source clui::os-window-mixin) &optional ignore-abort-attempts-p)
-  (declare (ignore ignore-abort-attempts-p))
-  (clui::input-event-id (krma.gui::get-next-event input-source)))
-  
+  (let ((event-id))
+    (tagbody
+     again
+       (setq event-id (clui::input-event-id (krma.gui::get-next-event input-source)))
+       (when (eq event-id #k"MouseMove")
+         (go again))
+       (when (and ignore-abort-attempts-p (eq event-id #k"Ctrl-g"))
+         (go again)))
+    event-id))  
 
 (defvar *prompt-key* (make-array 10 :adjustable t :fill-pointer 0))
 (defun prompt-for-key (current-window &key ((:must-exist must-exist) t)
@@ -743,14 +744,11 @@
           ((null o))
         (let ((option (caar o)))
           (if (and (consp option)
-                   (eq (car option) 'clui::intern-input-event))
-              (princ (eval option) s)
+                   (typep (car option) 'clui::input-event-id))
+              (princ (car option) s)
               (if (consp option)
                   (loop for o in option
-                        do (if (and (consp option)
-                                    (eq (car option) 'clui::intern-input-event))
-                               (princ (eval option) s)
-                               (princ option s)))
+                        do (princ option s))
                   (princ option s)))
                      
           (write-string "  - " s)

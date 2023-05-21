@@ -111,21 +111,21 @@
   (string-eval (format nil "(load ~S)"
                        (namestring (library-entry-load-file t)))))
 
-(defcommand "Editor Load Library Entry" (p)
+(defcommand "Editor Load Library Entry" (window p)
   "Loads the current library entry into the editor Lisp."
   "Loads the current library entry into the editor Lisp."
   (declare (ignore p))
   (unless (hemlock-bound-p 'library-entries :buffer (current-buffer))
     (editor-error "Not in a Lisp Library buffer."))
-  (in-lisp (load (library-entry-load-file nil))))
+  (in-lisp (window-buffer window) (load (library-entry-load-file nil))))
 
-(defcommand "Editor Load Pointer Library Entry" (p)
+(defcommand "Editor Load Pointer Library Entry" (window p)
   "Loads the library entry indicated by the mouse into the editor Lisp."
   "Loads the library entry indicated by the mouse into the editor Lisp."
   (declare (ignore p))
   (unless (hemlock-bound-p 'library-entries :buffer (current-buffer))
     (editor-error "Not in a Lisp Library buffer."))
-  (in-lisp (load (library-entry-load-file t))))
+  (in-lisp (window-buffer window) (load (library-entry-load-file t))))
 
 ;;; LIBRARY-ENTRY-LOAD-FILE uses the mouse's position or the current point,
 ;;; depending on pointerp, to return a file that will load that library entry.

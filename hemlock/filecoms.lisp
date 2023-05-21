@@ -709,7 +709,8 @@
                                 :default (previous-buffer window))))
     (when (eq buf *echo-area-buffer*)
       (editor-error "Cannot select Echo Area buffer."))
-    (change-to-buffer buf window)))
+    (change-to-buffer buf window)
+    (krma.gui::rm-redraw-node-recursively window)))
 
 
 (defvar *buffer-history-ptr* ()
@@ -802,17 +803,23 @@
   or current."
   (declare (ignore p))
   (let ((wb (window-buffer window)))
+    
     (let ((buffer (if buffer-name
                       (getstring buffer-name *buffer-names*)
                       (prompt-for-buffer window :prompt "Kill Buffer: "
-                                         :default wb))))
+                                                :default wb))))
       (unless buffer
         (editor-error "No buffer named ~S" buffer-name))
+
+
+
       (when (and (buffer-modified buffer)
                  (buffer-pathname buffer)
                  (prompt-for-y-or-n window :prompt "Save it first? "))
         (save-file-command window nil buffer))
+
       (if (eq buffer wb)
+          (progn 
           (let* ((previous (or (previous-buffer window)
                                (editor-error "Cannot kill last buffer.")))
                  (new (if (value ask-for-new-buffer)
@@ -826,10 +833,11 @@
               (editor-error "You must select a different buffer."))
             (dolist (w (buffer-windows buffer))
               (setf (window-buffer w) new))
-            (setf (current-buffer (window-buffer (krma.gui::focused-window (krma::main-window krma::*app*)))) new))
+            (setf (current-buffer (window-buffer (krma.gui::focused-window (clui::window-parent *echo-area-window*)))) new)))
           (dolist (w (buffer-windows buffer))
             (delete-window w)))
-      (delete-buffer buffer))))
+      (delete-buffer buffer *echo-area-window*)
+      (krma.gui::rm-redraw-node-recursively window))))
 
 
 (defcommand "Rename Buffer" (window p)

@@ -472,17 +472,26 @@
   released."
   "Move the top line to the line the mouse is on."
   (declare (ignore p))
-  (multiple-value-bind (x y window) (last-key-event-cursorpos)
-    (hi::with-render-thread (*app*)
-      (with-buffer-globals ((window-buffer window))
-        (unless y (editor-error))
-        (cond ((< x 2)
+  ;;(when (typep window 'krma.gui::text-editor-view-mixin)
+    (let ((last-event (krma.gui::window-last-event (clui::window-parent window))))
+      ;;(when (typep last-event 'clui::pointer-button-press-event-mixin)
+        (let* ((x (clui::pointer-event-x last-event))
+               (y (clui::pointer-event-y last-event))
+               (coord (krma.gui::untransform-global-coordinate (3d-vectors::vec3 x y 0) (adhoc::send window krma.gui::buffer-view)))
+               (font (hi::window-font-family window))
+               (cursor-pos-x (floor (3d-vectors::vx coord) (slot-value (slot-value font 'krma::data) '3b-bmfont-common::space-size)))
+               (cursor-pos-y (floor (3d-vectors::vy coord) (krma.gui::font-size font))))
+          (with-buffer-globals ((window-buffer window))
+            ;;(unless cursor-pos-y (editor-error))
+            (cond ((< cursor-pos-x 2)
                (loop
                  (when (listen-editor-input *editor-input*) (return))
                  (hi::.scroll-window. window -1)
                  (editor-finish-output window)))
               (t
-               (hi::.scroll-window. window (- y))))))))
+               (hi::.scroll-window. window (- cursor-pos-y)))))))
+  (krma.gui::redraw-buffer window));;);;)
+
 
 (defcommand "Here to Top of Window" (window p)
   "Move the line the mouse is on to the top of the window.
@@ -542,24 +551,20 @@
    mark off a region with the mouse."
     "Move the point to the position of the mouse."
   (declare (ignore p))
-  (multiple-value-bind (x y w) (last-key-event-cursorpos)
-    (unless x (editor-error))
-    (let ((buffer (window-buffer w)))
-      (when buffer
-        (maybe-change-window w window)
-        (hi::with-render-thread (*app*)
-          (if y
-              (let ((m (cursorpos-to-mark x y window)))
-                (when m
-                  (with-buffer-globals (buffer)
-                    (move-mark .point. m))))
-              (with-buffer-globals (buffer)
-                (let* ((region (buffer-region .buffer.)))
-                  (push-buffer-mark .buffer. (copy-mark .point.))
-                  (move-mark .point. (region-start region))
-                  (line-offset .point. (round (* (1- (count-lines region)) x)
-                                              (1- (window-width window))))))))))
-    (supply-generic-pointer-up-function #'point-to-here-up-action)))
+  (when (typep window 'krma.gui::text-editor-view-mixin)
+    (let ((last-event (krma.gui::window-last-event (clui::window-parent window))))
+      (when (typep last-event 'clui::pointer-button-press-event-mixin)
+        (let* ((x (clui::pointer-event-x last-event))
+               (y (clui::pointer-event-y last-event))
+               (coord (krma.gui::untransform-global-coordinate (3d-vectors::vec3 x y 0) (adhoc::send window krma.gui::buffer-view)))
+               (font (hi::window-font-family window))
+               (new-cursor-pos-x (floor (3d-vectors::vx coord) (slot-value (slot-value font 'krma::data) '3b-bmfont-common::space-size)))
+               (new-cursor-pos-y (floor (3d-vectors::vy coord) (krma.gui::font-size font)))
+               (m (cursorpos-to-mark new-cursor-pos-x new-cursor-pos-y window)))
+            (when m
+              (with-buffer-globals ((window-buffer window))
+                (move-mark .point. m))
+              (update-window-image window)))))))
 
 (defun point-to-here-up-action ()
   (multiple-value-bind (x y window) (last-key-event-cursorpos)

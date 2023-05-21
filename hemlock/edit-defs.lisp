@@ -150,15 +150,15 @@
                    window
                    :prompt "Name: "
                    :help "Symbol name of function.")))
-    (get-def-info-and-go-to-it fun-name)))
+    (get-def-info-and-go-to-it window fun-name)))
 
-(defun get-def-info-and-go-to-it (fun-name)
+(defun get-def-info-and-go-to-it (current-window fun-name)
   (let ((in-editor-p (value editor-definition-info))
         (info (value current-eval-server)))
     (if (or in-editor-p
             (not info))
         (multiple-value-bind (pathname type name)
-                             (in-lisp
+                             (in-lisp (window-buffer current-window)
                               (definition-editing-info fun-name))
           (unless in-editor-p
             (message "Editing definition from editor Lisp ..."))

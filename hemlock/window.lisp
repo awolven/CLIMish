@@ -152,6 +152,7 @@
 ;;; initial windows, setup some hooks to cause modeline recomputation, and call
 ;;; any device init necessary.  This is called from ED.
 ;;;
+#+NIL
 (defun %init-redisplay (backend-type display)
   (%init-screen-manager backend-type display)
   (add-hook hemlock::buffer-major-mode-hook 'queue-buffer-change)
@@ -285,12 +286,13 @@
                (len (window-width window)))
           ;; window-width is not always up-to-date with dis-line-chars length
           (replace (the simple-string (dis-line-chars dis-line)) ml-buffer
-                   :end1 (length (dis-line-chars dis-line)) :end2 (length ml-buffer))
+                   :end1 (min (length ml-buffer) (length (dis-line-chars dis-line))) :end2 (length ml-buffer))
           (when (< effective-length len)
-            (fill (dis-line-chars dis-line) #\space :start effective-length))
+            (fill (dis-line-chars dis-line) #\space :start (min effective-length (length (dis-line-chars dis-line)))))
           (setf (window-modeline-buffer-len window) len)
           (setf (dis-line-length dis-line) len)
           (setf (dis-line-flags dis-line) changed-bit))))))
+    
 
 ;;; UPDATE-MODELINE-FIELD must replace the entire dis-line-chars with ml-buffer
 ;;; after blt'ing into buffer.  Otherwise it has to do all the work

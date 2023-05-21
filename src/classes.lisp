@@ -392,7 +392,6 @@
       (dolist (m (cdr modes))
 	(setf (buffer-minor-mode buffer current-buffer m) t)))
 
-    #+NOTYET
     (invoke-hook hemlock::make-buffer-hook buffer)
 
     (values)))

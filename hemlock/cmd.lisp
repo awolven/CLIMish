@@ -552,7 +552,7 @@ BOOL CreateProcessW(
   (let ((buffer (make-buffer "CMD"))
 	(current-buffer (window-buffer window)))
     (if (eq window *echo-area-window*)
-	(change-to-buffer buffer (setq window (find-or-create-text-editor-window-for-buffer buffer)))
+	(change-to-buffer buffer (setq window (krma.gui::find-or-create-text-editor-window-for-buffer buffer)))
 	(change-to-buffer buffer window))
     (setf (buffer-undo-p buffer) nil)
     (setf (buffer-minor-mode buffer current-buffer "Interactive-Character-Stream") t)

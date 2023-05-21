@@ -21,30 +21,29 @@
 
 (defun invoke-with-pop-up-display (current-window cont buffer-name height)
   (declare (ignore height))
-  (let ((buf (make-unique-buffer buffer-name :modes '("Typeout"))))
+  (let* ((window (krma.gui::find-or-create-typeout-window buffer-name))
+         (buf (window-buffer window)))
     (cond ((eq current-window *echo-area-window*)
            ;; Can't pop-up in the echo area window, so choose another.
-           (let ((window (find-if-not #'(lambda (w) (eq w *echo-area-window*))
-                                      *window-list*)))
-             (krma.gui::focus-window window)
-             (change-to-buffer buf window)
-             (with-output-to-mark (stream (buffer-point buf))
-               (funcall cont stream))
-             (buffer-start (buffer-point buf) buf)
-             (setf (buffer-modified buf) nil
-                   (buffer-writable buf) nil)
-             ;; Switch back to the echo window and buffer.
-             (setf (krma.gui::focused-window (clui::window-parent *echo-area-window*)) *echo-area-window*)
-             (change-to-buffer *echo-area-buffer* current-window)
-             ))
-          (t
-           (change-to-buffer buf current-window)
+
+           (change-to-buffer buf window)
            (with-output-to-mark (stream (buffer-point buf))
              (funcall cont stream))
+           (krma.gui::rm-redraw-node-recursively window)
            (buffer-start (buffer-point buf) buf)
            (setf (buffer-modified buf) nil
                  (buffer-writable buf) nil)
-           ))))
+           ;; Switch back to the echo window and buffer.
+           (krma.gui::focus-window *echo-area-window*)
+           (change-to-buffer *echo-area-buffer* current-window))
+          (t
+           (change-to-buffer buf window)
+           (with-output-to-mark (stream (buffer-point buf))
+             (funcall cont stream))
+           (krma.gui::rm-redraw-node-recursively window)
+           (buffer-start (buffer-point buf) buf)
+           (setf (buffer-modified buf) nil
+                 (buffer-writable buf) nil)))))
 
 (declaim (special *random-typeout-ml-fields* *buffer-names*))
 
