@@ -117,12 +117,12 @@
 
      exit)
 
-    (let ((break0 0)
-	  (break1 (hi::dis-line-length (car dis-lines))))
+    (let ((break0 -1)
+	  (break1 (1- (hi::dis-line-length (car dis-lines)))))
 
       (tagbody
-       check (when (or (and (<= break0 charpos)
-			    (< charpos break1))
+       check (when (or (and (< break0 charpos)
+			    (<= charpos break1))
 		       (eql dis-lines the-sentinel))
 	       (go exit))
 
