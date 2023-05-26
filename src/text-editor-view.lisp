@@ -20,7 +20,7 @@
 		width (- (the client-rect width) (* 2 (the style frame-padding-x)))
 		height (- (the client-rect height) (* 2 (the style frame-padding-y))))))
 
-(defmethod resize-window :after ((view text-editor-view-mixin) new-x new-y new-width new-height)
+(defmethod resize-window :before ((view text-editor-view-mixin) new-x new-y new-width new-height)
   (declare (ignore new-x new-y new-height new-width))
   (let ((font-family (hi::window-font-family view)))
     (setf (hi::window-width view) (floor (send view client-rect width) (slot-value (slot-value font-family 'krma::data) '3b-bmfont-common::space-size))
@@ -29,7 +29,7 @@
     (invalidate-hemlock-window-size view)
     
     (hi::update-window-image view)
-    (redraw-buffer view)
+    ;;(redraw-buffer view)
     (values)))
 
 (defun invalidate-hemlock-window-size (view)
@@ -76,7 +76,7 @@
 	  (let ((self (focused-window window)))
 	    (when self
 	      (unless (the iconified?)
-		(when (typep self 'text-editor-window-mixin)
+		(when (typep self 'text-editor-view-mixin)
 		  (multiple-value-bind (ox oy) (global-window-position (the buffer-view text))
 		    (multiple-value-bind (x y) (hi::mark-to-cursorpos (hi::window-point self) self)
 		      (when x
@@ -91,12 +91,147 @@
 			   (list xval yval (+ xval space-width) (+ yval font-size))
 			   0 (1+ (the buffer-view text layer)))))))))))))))
 
+(defun wrapped-line? (window dis-lines)
+  (eql (hi::dis-line-line (car dis-lines))
+       (hi::dis-line-line (cadr dis-lines))))       
+
+(defun find-dis-line (window mark)
+  (let* ((dis-lines (cdr (hi::window-first-line window)))
+	 (the-sentinel (slot-value window 'hi::the-sentinel))
+	 (line (hi::mark-line mark))
+	 (charpos (hi::mark-charpos mark))
+	 (offset charpos))
+
+    (when (eql (hi::mark-%kind mark) :right-inserting)
+      (incf charpos))
+
+    (tagbody
+     check
+       (when (or (eq (hi::dis-line-line (car dis-lines)) line)
+		 (eql dis-lines the-sentinel))
+	 (go exit))
+
+       (setq dis-lines (cdr dis-lines))
+
+       (go check)
+
+     exit)
+
+    (let ((break0 0)
+	  (break1 (hi::dis-line-length (car dis-lines))))
+
+      (tagbody
+       check (when (or (and (<= break0 charpos)
+			    (< charpos break1))
+		       (eql dis-lines the-sentinel))
+	       (go exit))
+
+	 (unless (wrapped-line? window dis-lines)
+	   (go exit))
+
+	 (setq dis-lines (cdr dis-lines))
+
+	 (setq break0 break1)
+	 (setq break1 (+ break1 (hi::dis-line-length (car dis-lines))))
+	 (setq offset (- offset break0))
+
+	 (go check)
+
+       exit))
+
+    (values dis-lines offset)))
+
+(defun draw-active-region-closure-generator (window scene)
+  #'(lambda ()
+      (block draw-region
+	(let ((self (focused-window window)))
+	  (when (and self
+		     (the visible?)
+		     (not (the iconified?))
+		     (typep self 'text-editor-view-mixin))
+	    (let ((buffer (window-buffer self)))
+	      (when (hemlock::region-active-p buffer)
+		(with-buffer-globals (buffer)
+		  (with-slots (hi::the-sentinel) self
+		    (let* ((font (the font))
+			   (font-size (font-size font))
+			   (font-data (font-data font))
+			   (space-width (slot-value font-data '3b-bmfont-common::space-size)))
+		      (multiple-value-bind (ox oy) (global-window-position (the buffer-view text))
+			(let* ((active-region (current-region buffer t nil))
+			       (m0 (hi::region-start active-region))
+			       (m1 (hi::region-end active-region)))
+			  (unless (hi::mark= m0 m1)
+			    (flet ((before-start? (mark start)
+				     (let* ((line (hi::mark-line mark))
+					    (number (hi::line-number line))
+					    (charpos (hi::mark-charpos mark))
+					    (offset (hi::mark-charpos start))
+					    (start-number (hi::line-number (hi::mark-line start))))
+				       (or (< number start-number)
+					   (and (= number start-number) (< charpos offset)))))
+				   (after-end? (mark end)
+				     (let* ((line (hi::mark-line mark))
+					    (number (hi::line-number line))
+					    (charpos (hi::mark-charpos mark))
+					    (offset (hi::mark-charpos end))
+					    (end-number (hi::line-number (hi::mark-line end))))
+				       (or (> number end-number)
+					   (and (= number end-number) (> charpos offset))))))
+
+			      (let ((start-mark (hi::window-display-start self))
+				    (end-mark (hi::window-display-end self)))
+
+				(when (or (before-start? m1 start-mark)
+					  (after-end? m0 end-mark))
+				  (return-from draw-region (values)))
+
+				(when (before-start? m0 start-mark)
+				  (setq m0 (copy-mark start-mark :right-inserting)))
+
+				(when (after-end? m1 end-mark)
+				  (setq m1 (copy-mark end-mark :left-inserting)))
+				
+				(multiple-value-bind (dis-line-m0 offset-m0) (find-dis-line self m0)
+				  (multiple-value-bind (dis-line-m1 offset-m1) (find-dis-line self m1)
+
+				    (when dis-line-m0
+				      (let ((ypos (hi::dis-line-position (car dis-line-m0))))
+
+					(flet ((draw (y x0 x1)
+						 (scene-draw-filled-2d-rectangle-list
+						  scene :cursor #xff770077
+						  (list (+ (* x0 space-width) ox) (+ (* y font-size) oy)
+							(+ (* x1 space-width) ox) (+ (* (1+ y) font-size) oy))
+						  0 (1+ (the buffer-view text layer)))))
+
+					  (when (eql dis-line-m0 dis-line-m1)
+					    ;; it's just a partial line, draw and return
+					    (draw ypos offset-m0 offset-m1)
+					    (return-from draw-region (values)))
+
+					  ;; draw the first line
+					  (draw ypos offset-m0 (hi::dis-line-length (car dis-line-m0)))
+					       
+					  ;; draw the middle lines (if any)
+					  (do ((dl (cdr dis-line-m0) (cdr dl)))
+					      ((or (eql dl hi::the-sentinel)
+						   (eql dl dis-line-m1)))
+					    (draw (incf ypos) 0 (hi::dis-line-length (car dl))))
+					  
+					  (draw (incf ypos) 0 offset-m1))
+					  
+					  )))))))))))))))))))
+  
+
 (defmethod initialize-instance :around ((self text-editor-view-mixin) &rest initargs)
   (declare (ignore initargs))
   (call-next-method)
   (let ((os-window (window-parent (the root))))
     (setf (krma::immediate-mode-work-function-1 (clui::window-display os-window))
-	  (draw-cursor-closure-generator os-window (the scene))))
+	  (draw-cursor-closure-generator os-window (the scene)))
+    (setf (krma::immediate-mode-work-function-2 (clui::window-display os-window))
+	  (draw-active-region-closure-generator os-window (the scene))))
   (rebuild-command-table self)
   self)
 

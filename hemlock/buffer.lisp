@@ -217,6 +217,7 @@
     (setf (car (buffer-modes buffer)) name)
     (funcall (mode-object-setup-function mode) buffer)
     (invoke-hook (%value (mode-object-hook-name mode)) buffer t))
+  (mapcar #'krma.gui::rebuild-command-table (buffer-windows buffer))
   nil)
 
 

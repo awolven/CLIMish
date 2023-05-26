@@ -332,8 +332,9 @@
 ;;; mark.  NIL is returned if the mark is not displayed in the window given
 ;;;
 ;;;
-(defun mark-to-cursorpos (mark window) ;; this needs to be changed to %rt-mark-to-cursorpos
+(defun mark-to-cursorpos (mark window)
   "Return the (x, y) position of mark within window, or NIL if not displayed."
+  (maybe-update-window-image window)
   (handler-case
       (with-slots (the-sentinel) window
         (with-buffer-globals ((window-buffer window))

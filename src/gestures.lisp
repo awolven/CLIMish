@@ -86,7 +86,7 @@
 (define-gesture "Beginning of Buffer" 'text-editor-window-mixin #k"Ctrl-Home")
 (define-gesture "End of Buffer" 'text-editor-window-mixin #k"Ctrl-End")
 (define-gesture "Scroll Window Up" 'text-editor-window-mixin #k"PageUp")
-(define-gesture "Scroll Window Down" 'text-editor-window-mixin #k"PageDn")
+(define-gesture "Scroll Window Down" 'text-editor-window-mixin #k"PageDown")
 
 (define-gesture "Kill Line" 'text-editor-window-mixin #k"Ctrl-k")
 (define-gesture "Kill Line" 'echo-area-window-mixin #k"Ctrl-k")
@@ -121,12 +121,18 @@
 (define-gesture "Describe Key" 'text-editor-window-mixin #k"Shift-Meta-/")
 (define-gesture "Describe Key" 'echo-area-window-mixin #k"Shift-Meta-/")
 
-(define-gesture "Top Line to Here" 'text-editor-window-mixin #k"RightMouse")
+(define-gesture "Top Line to Here" 'text-editor-window-mixin #k"RightMouseDown")
 
-(define-gesture "Point to Here" 'text-editor-window-mixin #k"LeftMouse")
-(define-gesture "Point to Here" 'echo-area-window-mixin #k"LeftMouse")
+(define-gesture "Generic Pointer Up" :global #k"LeftMouseUp")
+(define-gesture "Generic Pointer Up" :global #k"RightMouseUp")
+(define-gesture "Generic Pointer Up" :global #k"MiddleMouseUp")
 
-(define-gesture "Insert Kill Buffer" 'text-editor-window-mixin #k"Super-RightMouse")
+(define-gesture "Generic Pointer Move" :global #k"MouseMove")
+
+(define-gesture "Point to Here" 'text-editor-window-mixin #k"LeftMouseDown")
+(define-gesture "Point to Here" 'echo-area-window-mixin #k"LeftMouseDown")
+
+(define-gesture "Insert Kill Buffer" 'text-editor-window-mixin #k"Super-RightMouseDown")
 
 (define-gesture "Insert File" 'text-editor-window-mixin #k"Ctrl-x" #k"Ctrl-r")
 (define-gesture "Visit File" 'text-editor-window-mixin #k"Ctrl-x" #k"Ctrl-v")

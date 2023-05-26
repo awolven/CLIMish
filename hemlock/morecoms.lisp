@@ -516,11 +516,19 @@
   "This is the function for the \"Generic Pointer Up\" command that defines
    its action.  Other commands set this in preparation for this command's
    invocation.")
+
+(defvar *generic-pointer-move-fun* nil)
+
 ;;;
 (defun supply-generic-pointer-up-function (fun)
   "This provides the action \"Generic Pointer Up\" command performs."
   (check-type fun function)
   (setf *generic-pointer-up-fun* fun))
+
+(defun supply-generic-pointer-move-function (fun)
+  "This provides the action \"Generic Pointer Up\" command performs."
+  (check-type fun function)
+  (setf *generic-pointer-move-fun* fun))
 
 (defcommand "Generic Pointer Up" (window p)
   "Other commands determine this command's action by supplying functions that
@@ -533,11 +541,21 @@
       \"Bufed Goto and Quit\"
          The action is a no-op."
   "Invoke whatever is on *generic-pointer-up-fun*."
-  (declare (ignore p))
-  (unless *generic-pointer-up-fun*
-    (editor-error "No commands have supplied a \"Generic Pointer Up\" action."))
-  (funcall *generic-pointer-up-fun*))
+  (declare (ignore window p))
+  (when *generic-pointer-up-fun*
+    (funcall *generic-pointer-up-fun*)))
 
+(defcommand "Generic Pointer Move" (window p)
+  "Other commands determine this command's action by supplying functions that
+   this command invokes.  The following built-in commands supply the following
+   generic up actions:
+      \"Point to Here\"
+      \"Bufed Goto and Quit\"
+         The action is a no-op."
+    "Invoke whatever is on *generic-pointer-move-fun*."
+  (declare (ignore window p))
+  (when *generic-pointer-move-fun*
+    (funcall *generic-pointer-move-fun*)))
 
 (defcommand "Point to Here" (window p)
     "Move the point to the position of the mouse.
@@ -554,32 +572,91 @@
   (when (typep window 'krma.gui::text-editor-view-mixin)
     (let ((last-event (krma.gui::window-last-event (clui::window-parent window))))
       (when (typep last-event 'clui::pointer-button-press-event-mixin)
-        (let* ((x (clui::pointer-event-x last-event))
-               (y (clui::pointer-event-y last-event))
-               (coord (krma.gui::untransform-global-coordinate (3d-vectors::vec3 x y 0) (adhoc::send window krma.gui::buffer-view)))
+        (let* ((pixel-x (clui::pointer-event-x last-event))
+               (pixel-y (clui::pointer-event-y last-event))
+               (coord (krma.gui::untransform-global-coordinate
+                       (3d-vectors::vec3 pixel-x pixel-y 0) (adhoc::send window krma.gui::buffer-view)))
                (font (hi::window-font-family window))
-               (new-cursor-pos-x (floor (3d-vectors::vx coord) (slot-value (slot-value font 'krma::data) '3b-bmfont-common::space-size)))
-               (new-cursor-pos-y (floor (3d-vectors::vy coord) (krma.gui::font-size font)))
-               (m (cursorpos-to-mark new-cursor-pos-x new-cursor-pos-y window)))
-            (when m
-              (with-buffer-globals ((window-buffer window))
-                (move-mark .point. m))
-              (update-window-image window)))))))
+               (x (floor (3d-vectors::vx coord)
+                         (slot-value (slot-value font 'krma::data) '3b-bmfont-common::space-size)))
+               (y (floor (3d-vectors::vy coord) (krma.gui::font-size font)))
+               (m (cursorpos-to-mark x y window)))
+          (unless m (editor-error))
+          ;;(maybe-change-window window window)
+          (with-buffer-globals ((window-buffer window))
+            (let (#+NIL(region (buffer-region .buffer.)))
+              
+              (move-mark .point. m)
+              (push-buffer-mark .buffer. m t)
 
-(defun point-to-here-up-action ()
-  (multiple-value-bind (x y window) (last-key-event-cursorpos)
-    (unless x (editor-error))
-    (when y
-      (hi::with-render-thread (*app*)
-        (maybe-change-window window)
-        (let ((m (cursorpos-to-mark x y window)))
-          (when m
-            (with-buffer-globals ((window-buffer window))
-              (when (eq (line-buffer (mark-line .point.))
-                        (line-buffer (mark-line m)))
-                (unless (mark= m .point.)
-                  (push-buffer-mark .buffer. (copy-mark .point.) t)))
-              (move-mark .point. m))))))))
+              #+NIL
+              (line-offset .point. (round (* (1- (count-lines region)) x)
+                                          (1- (window-width window))))
+              ;; let cursor function show our new point:
+              ))
+          
+          (update-window-image window)
+          (print "region-active")
+          (print (region-active-p (window-buffer window)))
+          (supply-generic-pointer-move-function #'(lambda ()
+                                                    (point-to-here-move-action window)))
+                                                      
+          (supply-generic-pointer-up-function #'(lambda ()
+                                                  (point-to-here-up-action window))))))))
+
+(defun point-to-here-move-action (window)
+  (when (typep window 'krma.gui::text-editor-view-mixin)
+    (let ((last-event (krma.gui::window-last-event (clui::window-parent window))))
+      (when (or (typep last-event 'clui::pointer-button-press-event-mixin)
+                (typep last-event 'clui::pointer-motion-event-mixin))
+        (let* ((pixel-x (clui::pointer-event-x last-event))
+               (pixel-y (clui::pointer-event-y last-event))
+               (coord (krma.gui::untransform-global-coordinate
+                       (3d-vectors::vec3 pixel-x pixel-y 0) (adhoc::send window krma.gui::buffer-view)))
+               (font (hi::window-font-family window))
+               (x (floor (3d-vectors::vx coord)
+                         (slot-value (slot-value font 'krma::data) '3b-bmfont-common::space-size)))
+               (y (floor (3d-vectors::vy coord) (krma.gui::font-size font)))
+               (m (cursorpos-to-mark x y window)))
+          ;;(maybe-change-window window window)
+          (unless m (editor-error))
+          (with-buffer-globals ((window-buffer window))
+            (move-mark .point. m)
+            
+            (print (current-mark .buffer.))
+            (print .point.))
+          (activate-region (window-buffer window))
+          (update-window-image window)
+            ))))
+
+  
+  (print "region-active2")
+  (print (region-active-p (window-buffer window))))
+
+(defun point-to-here-up-action (window)
+  (when (typep window 'krma.gui::text-editor-view-mixin)
+    (let ((last-event (krma.gui::window-last-event (clui::window-parent window))))
+      (when (typep last-event 'clui::pointer-button-release-event-mixin)
+        (let* ((pixel-x (clui::pointer-event-x last-event))
+               (pixel-y (clui::pointer-event-y last-event))
+               (coord (krma.gui::untransform-global-coordinate
+                       (3d-vectors::vec3 pixel-x pixel-y 0) (adhoc::send window krma.gui::buffer-view)))
+               (font (hi::window-font-family window))
+               (x (floor (3d-vectors::vx coord)
+                         (slot-value (slot-value font 'krma::data) '3b-bmfont-common::space-size)))
+               (y (floor (3d-vectors::vy coord) (krma.gui::font-size font)))
+               (m (cursorpos-to-mark x y window)))
+          ;;(maybe-change-window window window)
+          (unless m (editor-error))
+          (with-buffer-globals ((window-buffer window))
+            
+            (move-mark .point. m)
+            (activate-region (window-buffer window))
+            (update-window-image window))))))
+  (setf *generic-pointer-up-fun* nil)
+  (setf *generic-pointer-move-fun* nil))
+  
+          
 
 
 (defcommand "Insert Kill Buffer" (window p)

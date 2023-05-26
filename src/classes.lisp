@@ -296,8 +296,9 @@
     :initform nil
     :initarg :write-date)
    
-   (active-region-p
-    :accessor buffer-active-region-p
+   (%active-region-p
+    :writer (setf %buffer-active-region-p)
+    :reader buffer-active-region-p
     :initform nil
     :initarg :active-region-p)
    
@@ -339,6 +340,10 @@
    (plist
     :accessor buffer-plist
     :initform nil)))
+
+(defmethod (setf buffer-active-region-p) (value (buffer buffer))
+  (unless value (break))
+  (setf (%buffer-active-region-p buffer) value))
 
 (defun make-buffer (name &rest args)
   (apply #'make-instance 'buffer :name name args))

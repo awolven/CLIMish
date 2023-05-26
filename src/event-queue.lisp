@@ -1,5 +1,10 @@
 (in-package :krma.gui)
 
+(defclass event-queue-mixin ()
+  ((input-event-queue
+    :initform (lparallel.queue:make-queue)
+    :reader input-event-queue)))
+
 (defun peek-next-event (window)
   (lparallel.queue:peek-queue (input-event-queue window)))
 
@@ -45,6 +50,9 @@
 (defmethod clui:handle-event :after ((window krma-gui-window-mixin)
 				     (event clui::joystick-event-mixin))
   (lparallel.queue:push-queue event (input-event-queue window)))
+
+;; handle-event :after krma-gui-window-mixin pointer-press-event and pointer-release-event
+;; are in views.lisp
 
 (defun message (format-string &rest args)
   (apply #'format *debug-io* format-string args)

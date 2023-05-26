@@ -1,13 +1,8 @@
 (in-package :krma.gui)
 
-(defclass event-queue-mixin ()
-  ((input-event-queue
-    :initform (lparallel.queue:make-queue)
-    :reader input-event-queue)))
-
 (defclass krma-gui-window-mixin (event-queue-mixin krma-window-mixin)
   ((vk::clear-value :initform (make-array 4 :element-type 'single-float
-					    :initial-contents (list 0.94f0 0.94f0 0.94f0 0.70f0)))
+					    :initial-contents (list 0.84f0 0.84f0 0.84f0 1.0f0)))
    (focused-window :initform nil :accessor focused-window)
    (resize-window :initform nil :accessor window-to-resize)
    (drag-window :initform nil :accessor window-to-drag)
@@ -204,7 +199,9 @@
       (clui:handle-event resize-window (make-instance 'clui:window-resize-event :window resize-window))))
 
   (setf (window-to-drag self) nil)
-  
+
+  ;; make sure the event-queue sees this event
+  (lparallel.queue:push-queue event (input-event-queue self))
   (values))
 
 (defmethod clui:handle-event :after ((self title-bar) (event clui::pointer-button-release-event-mixin))
@@ -238,7 +235,8 @@
       (setf (clui::pointer-drag-delta-y event) (- (clui::pointer-event-y event) (drag-last-y self)))
 	  
       (clui:handle-event self event)))
-	  
+
+  ;; make sure the event-queue sees this event:
   (lparallel.queue:push-queue event (input-event-queue self))
   (values))
 
@@ -365,6 +363,7 @@
   (setf (prev new-element) new-element)
   (values))
   
+
 
 (defun ring-link-new-element-at-start (new start)
   (let ((last (prev start)))

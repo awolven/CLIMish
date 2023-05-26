@@ -171,7 +171,7 @@
   ((bg-color                       #(0.94f0 0.94f0 0.94f0 0.70f0))
    (text-color                     #(0.00f0 0.00f0 0.00f0 1.00f0))
    (text-disabled-color            #(0.60f0 0.60f0 0.60f0 1.00f0))
-   (window-bg-color                #(0.77f0 0.77f0 0.77f0 0.7f0)#+NIL #(0.94f0 0.94f0 0.94f0 0.70f0))
+   (window-bg-color                #(0.67f0 0.67f0 0.67f0 0.7f0)#+NIL #(0.94f0 0.94f0 0.94f0 0.70f0))
    (child-bg-color                 #(0.00f0 0.00f0 0.00f0 0.00f0))
    (popup-bg-color                 #(1.00f0 1.00f0 1.00f0 0.98f0))
    (border-color                   #(0.00f0 0.00f0 0.00f0 0.30f0))

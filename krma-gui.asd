@@ -112,7 +112,7 @@
    (:file "hemlock/cmd")
 
    
-   
+   (:file "src/kill-ring")
    (:file "src/gui-application")
    (:file "src/text-editor-view")
    (:file "src/text-editor-window")

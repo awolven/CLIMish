@@ -93,16 +93,17 @@
             failure (eq direction :forward) string)
     (finish-output *echo-area-stream*)))
 
-(defun i-search (buffer direction)
+(defun i-search (current-window buffer direction)
   (setf (last-command-type) nil)
   (%i-search-echo-refresh "" direction nil)
   (let* ((point (buffer-point buffer))
          (save-start (copy-mark point :temporary)))
     (with-mark ((here point))
       (when (eq (catch 'exit-i-search
-                  (%i-search buffer "" point here direction nil))
+                  (%i-search current-window buffer "" point here direction nil))
                 :control-g)
         (move-mark point save-start)
+        (krma.gui::redraw-buffer current-window)
         (invoke-hook abort-hook)
         (editor-error))
       (if (region-active-p buffer)
@@ -125,7 +126,7 @@
   "Search for input string as characters are typed in.
   It sets up for the recursive searching and checks return values."
   (declare (ignore p))
-  (i-search (window-buffer window) :forward))
+  (i-search window (window-buffer window) :forward))
 
 
 (defcommand "Reverse Incremental Search" (window p)
@@ -144,7 +145,7 @@
   "Search for input string as characters are typed in.
   It sets up for the recursive searching and checks return values."
   (declare (ignore p))
-  (i-search (window-buffer window) :backward))
+  (i-search window (window-buffer window) :backward))
 
 ;;;      %I-SEARCH recursively (with support functions) searches to provide
 ;;; incremental searching.  There is a loop in case the recursion is ever
@@ -159,10 +160,10 @@
   (do* ((curr-point (copy-mark point :temporary))
         (curr-trailer (copy-mark trailer :temporary)))
        (nil)
-    (let ((next-key-event (get-key-event *editor-input* t)))
+    (let ((peek-event (my-listen *editor-input*)))
       (case (%i-search-char-eval current-window
                                  buffer
-                                 next-key-event string point trailer
+                                 (clui::input-event-id peek-event) string point trailer
                                  direction failure)
         (:cancel
          (%i-search-echo-refresh string direction failure)
@@ -179,55 +180,103 @@
       (move-mark point curr-point)
       (move-mark trailer curr-trailer))))
 
-;;;      %I-SEARCH-CHAR-EVAL evaluates the last character typed and takes
-;;; necessary actions.
-;;;
-(defun %i-search-char-eval (current-window buffer key-event string point trailer direction failure)
-  (declare (simple-string string))
-  (cond ((let ((character (key-event-char key-event)))
-           (and character (standard-char-p character)))
-         (%i-search-printed-char buffer
-                                 key-event string point trailer
-                                 direction failure))
-        ((or (logical-key-event-p key-event :forward-search)
-             (logical-key-event-p key-event :backward-search))
-         (%i-search-control-s-or-r buffer
-                                   key-event string point trailer
+
+(defun my-listen (input)
+  (let ((event nil))
+    (loop
+      until (setq event
+                  (krma.gui::peek-next-event input))
+      do (sleep 0.001)
+      finally (return event))))
+
+(defun next-event-character/id (input)
+  (clui::input-event-id
+   (krma.gui::get-next-event input)))
+
+(defun discard-next-event (input)
+  (krma.gui::get-next-event input))
+
+(defun maybe-discard-char-event (input)
+  (sleep 0.01) ;; race condition problem.
+  (let ((peeked-event (krma.gui::peek-next-event input)))
+    (when (typep peeked-event 'clui::character-event-mixin)
+      (discard-next-event input))))
+  
+(defun %i-search-test-peeked-event
+    (current-window buffer peeked-event string point trailer direction failure)
+  (cond ((or (logical-key-event-p peeked-event :forward-search)
+             (logical-key-event-p peeked-event :backward-search))
+         (%i-search-control-s-or-r current-window buffer
+                                   (next-event-character/id *editor-input*)
+                                   string point trailer
                                    direction failure))
-        ((logical-key-event-p key-event :cancel) :return-cancel)
-        ((logical-key-event-p key-event :abort)
+        
+        ((logical-key-event-p peeked-event :cancel)
+         (discard-next-event *editor-input*) ;; discard this key (backspace or delete)
+         :return-cancel)
+        
+        ((logical-key-event-p peeked-event :abort)
+         (discard-next-event *editor-input*) ;; discard this key (ctrl-g)
          (unless failure
            (clear-echo-area)
            (message "Search aborted.")
            (throw 'exit-i-search :control-g))
          :control-g)
-        ((logical-key-event-p key-event :quote)
-         (%i-search-printed-char buffer
-                                 (get-key-event *editor-input* t)
-                                 string point trailer direction failure))
-        ((and (zerop (length string)) (logical-key-event-p key-event :exit))
+        
+        ((logical-key-event-p peeked-event :quote)
+         (discard-next-event *editor-input*) ;; discard this key (ctrl-q)
+         (%i-search-printed-char current-window buffer
+                                 (next-event-character/id *editor-input*)
+                                 string point trailer
+                                 direction failure))
+        
+        ((and (zerop (length string)) (logical-key-event-p peeked-event :exit))
+         (discard-next-event *editor-input*)
          (if (eq direction :forward)
              (forward-search-command current-window nil)
              (reverse-search-command current-window nil))
          (throw 'exit-i-search nil))
-        (t
-         (unless (logical-key-event-p key-event :exit)
-           (unget-key-event key-event *editor-input*))
+        
+        ((logical-key-event-p peeked-event :exit)
+         (discard-next-event *editor-input*)
          (unless (zerop (length string))
            (setf *last-search-string* string))
-         (throw 'exit-i-search nil))))
+         (throw 'exit-i-search nil))
+
+        (t nil)))
+
+;;;      %I-SEARCH-CHAR-EVAL evaluates the last character typed and takes
+;;; necessary actions.
+;;;
+(defun %i-search-char-eval (current-window buffer peeked-event string point trailer direction failure)
+  (declare (simple-string string))
+  (let ((test (%i-search-test-peeked-event current-window buffer peeked-event string point trailer direction failure)))
+    (or test
+        (cond ((progn (discard-next-event *editor-input*)
+                      (let* ((next-event (my-listen *editor-input*))
+                             (character (clui::input-event-character next-event)))
+                        (and character (standard-char-p character))))
+               (%i-search-printed-char current-window buffer
+                                       peeked-event
+                                       string point trailer
+                                       direction failure))
+
+              (t (unless (zerop (length string))
+                   (setf *last-search-string* string))
+                 (throw 'exit-i-search nil))))))
+        
 
 ;;;      %I-SEARCH-CONTROL-S-OR-R handles repetitions in the search.  Note
 ;;; that there cannot be failure in the last COND branch: since the direction
 ;;; has just been changed, there cannot be a failure before trying a new
 ;;; direction.
 ;;;
-(defun %i-search-control-s-or-r (buffer key-event string point trailer
+(defun %i-search-control-s-or-r (current-window buffer key-event string point trailer
                                            direction failure)
   (let ((forward-direction-p (eq direction :forward))
         (forward-character-p (logical-key-event-p key-event :forward-search)))
     (cond ((zerop (length string))
-           (%i-search-empty-string buffer
+           (%i-search-empty-string current-window buffer
                                    point trailer direction forward-direction-p
                                    forward-character-p))
           ((eq forward-direction-p forward-character-p)
@@ -239,15 +288,18 @@
                       (:backward (buffer-end point buffer)))
                     (move-mark trailer point)
                     (%i-search-echo-refresh string direction "Wrapped")
-                    (%i-search-find-pattern buffer string point trailer direction backup)))
+                    (%i-search-find-pattern current-window buffer
+                                            string point trailer
+                                            direction backup)))
                  (t
-                  (%i-search-find-pattern buffer string point (move-mark trailer point)
+                  (%i-search-find-pattern current-window buffer
+                                          string point (move-mark trailer point)
                                           direction))))
           (t
            (let ((new-direction (if forward-character-p :forward :backward)))
              (%i-search-echo-refresh string new-direction nil)
              (i-search-pattern string new-direction)
-             (%i-search-find-pattern buffer string point (move-mark trailer point)
+             (%i-search-find-pattern current-window buffer string point (move-mark trailer point)
                                      new-direction))))))
 
 
@@ -265,7 +317,7 @@
         (*last-search-string*
          (%i-search-echo-refresh *last-search-string* direction nil)
          (i-search-pattern *last-search-string* direction)
-         (%i-search-find-pattern buffer *last-search-string* point trailer direction))
+         (%i-search-find-pattern current-window buffer *last-search-string* point trailer direction))
         (t (beep))))
 
 
@@ -275,20 +327,29 @@
 ;;; of the search.
 ;;;
 (defun %i-search-printed-char (current-window buffer key-event string point trailer direction failure)
-  (let ((tchar (hemlock-ext:key-event-char key-event)))
-    (unless tchar (editor-error "Not a text character -- ~S" (key-event-char
-                                                              key-event)))
-    (when (interactive)
-      (insert-character (buffer-point *echo-area-buffer*) tchar)
-      (force-output *echo-area-stream*))
-    (let ((new-string (concatenate 'simple-string string (string tchar))))
-      (i-search-pattern new-string direction)
-      (cond (failure (%i-search current-window buffer new-string point trailer direction failure))
-            ((and (eq direction :backward) (next-character trailer))
-             (%i-search-find-pattern buffer new-string point (mark-after trailer)
-                                     direction))
-            (t
-             (%i-search-find-pattern buffer new-string point trailer direction))))))
+  (declare (ignore key-event))
+  ;; a key-event got us here, we are expecting a character next
+  ;; should come almost right away, but if not and we get here, another keystroke will be necessary
+  (let* ((event (my-listen *editor-input*))
+        (tchar (clui::input-event-character event)))
+    (if (null tchar)
+        (unless (%i-search-test-peeked-event current-window buffer (clui::input-event-id event)
+                                             string point trailer direction failure)
+          (editor-error "Not a text character -- ~S"
+                        (next-event-character/id *editor-input*)))
+        (progn
+          (discard-next-event *editor-input*)
+          (when (interactive)
+            (insert-character (buffer-point *echo-area-buffer*) tchar)
+            (force-output *echo-area-stream*))
+          (let ((new-string (concatenate 'simple-string string (string tchar))))
+            (i-search-pattern new-string direction)
+            (cond (failure (%i-search current-window buffer new-string point trailer direction failure))
+                  ((and (eq direction :backward) (next-character trailer))
+                   (%i-search-find-pattern current-window buffer new-string point (mark-after trailer)
+                                           direction))
+                  (t
+                   (%i-search-find-pattern current-window buffer new-string point trailer direction))))))))
 
 
 ;;;      %I-SEARCH-FIND-PATTERN takes a pattern for a string and direction
@@ -299,19 +360,25 @@
   (let ((found-offset (find-pattern trailer *last-search-pattern*)))
     (cond (found-offset
             (cond ((eq direction :forward)
-                   (character-offset (move-mark point trailer) found-offset))
+                   (character-offset (move-mark point trailer) found-offset)
+                   (if (hi::maybe-recenter-window-on-mark current-window point)
+                       (krma.gui::redraw-buffer current-window)
+                       (hi::update-window-image current-window)))
                   (t
                    (move-mark point trailer)
-                   (character-offset trailer found-offset)))
-            (maybe-recenter-current-on-mark-then-update-all-buffer-windows
-             buffer (buffer-point buffer)
-             (current-window))
+                   (character-offset trailer found-offset)
+                   (if (hi::maybe-recenter-window-on-mark current-window point)
+                       (krma.gui::redraw-buffer current-window)
+                       (hi::update-window-image current-window))))
 
             (%i-search current-window buffer string point trailer direction nil))
           (t
            (when backup
              (move-mark point backup)
-             (move-mark trailer backup))
+             (move-mark trailer backup)
+             (if (hi::maybe-recenter-window-on-mark current-window point)
+                 (krma.gui::redraw-buffer current-window)
+                 (hi::update-window-image current-window)))
            (%i-search-echo-refresh string direction "Failing")
            (if (interactive)
                (beep)

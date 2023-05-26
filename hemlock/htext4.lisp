@@ -500,7 +500,7 @@
 
 (declaim (special *delete-char-region*))
 
-(defvar hemlock::*kill-ring* (make-ring 10) "The Hemlock kill ring.")
+(defvar hemlock::*kill-ring* nil "The Hemlock kill ring.")
 (defvar *delete-char-region* nil)
 (defvar *delete-char-count* 0)
 
@@ -522,11 +522,8 @@
                 (when *delete-char-region*
                   (ring-push *delete-char-region* hemlock::*kill-ring*)
                   (setf *delete-char-region* nil))
-                (let ((r (ring-ref hemlock::*kill-ring* 0)))
-                  (hi::.ninsert-region. (if (eq ,current-type-sym :char-kill-forward)
-                                        (region-end r)
-                                        (region-start r))
-                                    deleted-region))
+                (let ((string (ring-ref hemlock::*kill-ring* 0)))
+                  (hi::.insert-string. (region-start deleted-region) string))
                 (setf (last-command-type)
                       (if (eq ,current-type-sym :char-kill-forward)
                           :kill-forward
@@ -583,12 +580,10 @@
         (current-type-sym (gensym "KILL-REGION-TOP-OF-RING_CURRENT-TYPE")))
     `(let ((,region-sym ,region)
            (,current-type-sym ,current-type))
-       (let ((r (ring-ref hemlock::*kill-ring* 0)))
-         (hi::.ninsert-region. (if (eq ,current-type-sym :kill-forward)
-                               (region-end r)
-                               (region-start r))
-                               (hi::.delete-and-save-region. ,region-sym))
-         r))))
+       (let ((string (ring-ref hemlock::*kill-ring* 0))
+             (region (hi::.delete-and-save-region. ,region-sym)))
+         (hi::.insert-string. (region-start region) string)
+         region))))
 
 
 
@@ -606,8 +601,10 @@
    The killing of the region is undo-able with \"Undo\".  LAST-COMMAND-TYPE
    is set to current-type.  This interacts with KILL-CHARACTERS."
   (let ((region-sym (gensym "KILL-REGION_REGION"))
-        (current-type-sym (gensym "KILL-REGION_CURRENT-TYPE")))
+        (current-type-sym (gensym "KILL-REGION_CURRENT-TYPE"))
+        (string-sym (gensym "KILL-REGION_STRING")))
     `(let* ((,region-sym ,region)
+            (,string-sym)
             (,current-type-sym ,current-type)
             (last-type (last-command-type))
             (insert-mark (copy-mark (region-start ,region-sym) :left-inserting)))

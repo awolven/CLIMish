@@ -56,7 +56,7 @@
 ;;;    Decrement first modulo the maximum size, delete any old
 ;;; element, and add the new one.
 ;;;
-(defun ring-push (object ring)
+(defmethod ring-push (object ring)
   "Push an object into a ring, deleting an element if necessary."
   (let ((first (ring-first ring))
         (vec (ring-vector ring))
@@ -83,7 +83,7 @@
 ;;;
 ;;;    Increment first modulo the maximum size.
 ;;;
-(defun ring-pop (ring)
+(defmethod ring-pop (ring)
   "Pop an object from a ring and return it."
   (let* ((first (ring-first ring))
          (vec (ring-vector ring))
@@ -104,7 +104,7 @@
 ;;;
 ;;;    Return the current and maximum size.
 ;;;
-(defun ring-length (ring)
+(defmethod ring-length (ring)
   "Return as values the current and maximum size of a ring."
   (let ((diff (- (ring-bound ring) (ring-first ring)))
         (max (length (ring-vector ring))))
@@ -115,7 +115,7 @@
 ;;;
 ;;;    Do modulo arithmetic to find the correct element.
 ;;;
-(defun ring-ref (ring index)
+(defmethod ring-ref (ring index)
   (declare (fixnum index))
   "Return the index'th element of a ring.  This can be set with Setf."
   (let ((first (ring-first ring)))
@@ -139,7 +139,7 @@
 ;;;
 ;;;    Setf form for ring-ref, set a ring element.
 ;;;
-(defun (setf ring-ref) (value ring index)
+(defmethod (setf ring-ref) (value ring index)
   "Set an element in a ring."
   (declare (fixnum index))
   (let* ((first (ring-first ring))
@@ -163,7 +163,7 @@
 ;;;
 ;;;    Rotate a ring, blt'ing elements as necessary.
 ;;;
-(defun rotate-ring (ring offset)
+(defmethod rotate-ring (ring offset)
   "Rotate a ring forward, i.e. second -> first, with positive offset,
   or backwards with negative offset."
   (declare (fixnum offset))

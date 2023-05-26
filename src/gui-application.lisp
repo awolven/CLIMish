@@ -79,7 +79,7 @@
 	       :value t
 	       :current-buffer initial-buffer)
 	     
-	     (hemlock::add-hook hemlock::abort-hook 'hi::control-g-deactivate-region)
+	     (hemlock::add-hook hemlock::abort-hook 'hemlock::control-g-deactivate-region)
 	     
 	     (defhvar "Character Deletion Threshold"
 		 "When this many characters are deleted contiguously via KILL-CHARACTERS,
@@ -810,13 +810,17 @@
 
 (defmethod initialize-instance :after ((app application) &rest initargs)
   (declare (ignore initargs))
-  
+
+  (setq hemlock::*kill-ring* (hi::make-kill-ring
+			      (clui::window-display (krma::main-window app))
+			      10))
   (unless (boundp '*style*)
     (setq *style* (make-instance 'light-style
 				 'display (application-display app)
 				 'monitor (clui::get-primary-monitor (application-display app)))))
   (krma.gui::make-echo-area-window :app app)
   (bt:signal-semaphore (command-loop-go-semaphore (main-window app)))
+
   (values))
 
 

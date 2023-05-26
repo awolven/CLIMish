@@ -69,8 +69,8 @@
 ;;; The following are hook functions for keeping things righteous.
 ;;;
 
-(defun control-g-deactivate-region (current-window)
-  (deactivate-region (window-buffer current-window)))
+(defun control-g-deactivate-region ()
+  (deactivate-region (window-buffer (krma.gui::focused-window (krma::main-window krma::*app*)))))
 ;;;
 
 
@@ -106,7 +106,7 @@
   "Pushes mark into buffer's mark ring, ensuring that the mark is in the right
    buffer and :right-inserting.  Optionally, the current region is made active.
    This never deactivates the current region.  Mark is returned."
-  (cond ((eq (line-buffer (mark-line mark)) buffer)
+  (cond (t;;(eq (line-buffer (mark-line mark)) buffer)
          (setf (mark-kind mark) :right-inserting)
          (ring-push mark (variable-value 'buffer-mark-ring :buffer buffer)))
         (t (error "Mark not in the current buffer.")))
@@ -353,11 +353,11 @@
     (with-buffer-globals (buffer)
       (let ((idx (1- (or p 1))))
         (cond ((> (ring-length *kill-ring*) idx -1)
-               (let* ((region (ring-ref *kill-ring* idx))
+               (let* ((string (ring-ref *kill-ring* idx))
                       (point (buffer-point buffer))
                       (mark (copy-mark point)))
                  (push-buffer-mark buffer mark)
-                 (hi::.insert-region. point region)
+                 (hi::.insert-string. point string)
                  (make-region-undo :delete "Yank"
                                    (region (copy-mark mark) (copy-mark point))))
                (setf (last-command-type) :unkill))
@@ -381,7 +381,7 @@
                (editor-error))
               (t (delete-region (region mark point))
                  (rotate-ring *kill-ring* (or p 1))
-                 (hi::.insert-region. point (ring-ref *kill-ring* 0))
+                 (hi::.insert-string. point (ring-ref *kill-ring* 0))
                  (make-region-undo :delete "Un-Kill"
                                    (region (copy-mark mark) (copy-mark point)))
                  (setf (last-command-type) :unkill)))))))

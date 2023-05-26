@@ -1745,7 +1745,7 @@
   "Put current buffer in LISP mode."
   "Put current buffer in LISP mode."
   (declare (ignore p))
-  (setf (buffer-major-mode (current-buffer)) "LISP"))
+  (setf (buffer-major-mode (window-buffer window) window) "LISP"))
 
 
 
