@@ -78,7 +78,7 @@
 	      (unless (the iconified?)
 		(when (typep self 'text-editor-view-mixin)
 		  (multiple-value-bind (ox oy) (global-window-position (the buffer-view text))
-		    (multiple-value-bind (x y) (hi::mark-to-cursorpos (hi::window-point self) self)
+		    (multiple-value-bind (x y) (krma.gui::mark-to-cursorpos (hi::window-point self) self)
 		      (when x
 			(let* ((font (the font))
 			       (font-size (font-size font))
@@ -92,8 +92,16 @@
 			   0 (1+ (the buffer-view text layer)))))))))))))))
 
 (defun wrapped-line? (window dis-lines)
-  (eql (hi::dis-line-line (car dis-lines))
-       (hi::dis-line-line (cadr dis-lines))))       
+  (declare (ignorable window))
+  (and (cdr dis-lines)
+       (eql (hi::dis-line-line (car dis-lines))
+	    (hi::dis-line-line (cadr dis-lines)))))
+
+(defun krma.gui::mark-to-cursorpos (mark window)
+  (multiple-value-bind (dis-lines offset) (find-dis-line window mark)
+    (unless (eql dis-lines (slot-value window 'hi::the-sentinel))
+      (unless (minusp offset)
+	(values offset (hi::dis-line-position (car dis-lines)))))))
 
 (defun find-dis-line (window mark)
   (let* ((dis-lines (cdr (hi::window-first-line window)))
@@ -101,11 +109,6 @@
 	 (line (hi::mark-line mark))
 	 (charpos (hi::mark-charpos mark))
 	 (offset charpos))
-
-    (when (eql (hi::mark-%kind mark) :left-inserting)
-      (decf charpos))
-
-    (setq offset charpos)
 
     (tagbody
      check
@@ -221,17 +224,17 @@
 
 					  (when (eql dis-line-m0 dis-line-m1)
 					    ;; it's just a partial line, draw and return
-					    (draw ypos offset-m0 (1+ offset-m1))
+					    (draw ypos offset-m0 offset-m1)
 					    (return-from draw-region (values)))
 
 					  ;; draw the first line
-					  (draw ypos offset-m0 (hi::dis-line-length (car dis-line-m0)))
+					  (draw ypos offset-m0 (1+ (hi::dis-line-length (car dis-line-m0))))
 					       
 					  ;; draw the middle lines (if any)
 					  (do ((dl (cdr dis-line-m0) (cdr dl)))
 					      ((or (eql dl hi::the-sentinel)
 						   (eql dl dis-line-m1)))
-					    (draw (incf ypos) 0 (hi::dis-line-length (car dl))))
+					    (draw (incf ypos) 0 (1+ (hi::dis-line-length (car dl)))))
 
 					  (draw (incf ypos) 0 offset-m1))
 					  

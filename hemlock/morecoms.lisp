@@ -596,8 +596,6 @@
               ))
           
           (update-window-image window)
-          (print "region-active")
-          (print (region-active-p (window-buffer window)))
           (supply-generic-pointer-move-function #'(lambda ()
                                                     (point-to-here-move-action window)))
                                                       
@@ -621,17 +619,11 @@
           ;;(maybe-change-window window window)
           (unless m (editor-error))
           (with-buffer-globals ((window-buffer window))
-            (move-mark .point. m)
+            (move-mark .point. m))
             
-            (print (current-mark .buffer.))
-            (print .point.))
           (activate-region (window-buffer window))
           (update-window-image window)
-            ))))
-
-  
-  (print "region-active2")
-  (print (region-active-p (window-buffer window))))
+            )))))
 
 (defun point-to-here-up-action (window)
   (when (typep window 'krma.gui::text-editor-view-mixin)

@@ -342,7 +342,6 @@
     :initform nil)))
 
 (defmethod (setf buffer-active-region-p) (value (buffer buffer))
-  (unless value (break))
   (setf (%buffer-active-region-p buffer) value))
 
 (defun make-buffer (name &rest args)
