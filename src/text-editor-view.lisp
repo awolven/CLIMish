@@ -102,8 +102,10 @@
 	 (charpos (hi::mark-charpos mark))
 	 (offset charpos))
 
-    (when (eql (hi::mark-%kind mark) :right-inserting)
-      (incf charpos))
+    (when (eql (hi::mark-%kind mark) :left-inserting)
+      (decf charpos))
+
+    (setq offset charpos)
 
     (tagbody
      check
@@ -117,29 +119,41 @@
 
      exit)
 
-    (let ((break0 -1)
-	  (break1 (1- (hi::dis-line-length (car dis-lines)))))
+    (let ((i))
 
       (tagbody
-       check (when (or (and (< break0 charpos)
-			    (<= charpos break1))
-		       (eql dis-lines the-sentinel))
-	       (go exit))
+       again
+	 (setq i 0)
+	 (when (wrapped-line? window dis-lines)
+	   (let* ((break0 0)
+		  (length (hi::dis-line-length (car dis-lines)))
+		  (break1 length))
 
-	 (unless (wrapped-line? window dis-lines)
-	   (go exit))
+	     (tagbody
+	      check (when (or (eql (cdr dis-lines) the-sentinel)
+			      (and (<= break0 charpos) (< charpos break1)))
+		      (go exit))	   
+	   
+		(unless (wrapped-line? window dis-lines)
+		  (go again))
 
-	 (setq dis-lines (cdr dis-lines))
+	   
+		(setq dis-lines (cdr dis-lines))
 
-	 (setq break0 break1)
-	 (setq break1 (+ break1 (hi::dis-line-length (car dis-lines))))
-	 (setq offset (- offset break0))
+		(setq break0 break1)
+		(incf break1 length)
+	   
+		(decf offset length)
+	   
+		(setq length (hi::dis-line-length (car dis-lines)))
 
-	 (go check)
+		(incf i)
+	   
+		(go check)
 
-       exit))
+	      exit))))
 
-    (values dis-lines offset)))
+      (values dis-lines (+ offset i)))))
 
 (defun draw-active-region-closure-generator (window scene)
   #'(lambda ()
@@ -207,7 +221,7 @@
 
 					  (when (eql dis-line-m0 dis-line-m1)
 					    ;; it's just a partial line, draw and return
-					    (draw ypos offset-m0 offset-m1)
+					    (draw ypos offset-m0 (1+ offset-m1))
 					    (return-from draw-region (values)))
 
 					  ;; draw the first line
@@ -218,7 +232,7 @@
 					      ((or (eql dl hi::the-sentinel)
 						   (eql dl dis-line-m1)))
 					    (draw (incf ypos) 0 (hi::dis-line-length (car dl))))
-					  
+
 					  (draw (incf ypos) 0 offset-m1))
 					  
 					  )))))))))))))))))))
