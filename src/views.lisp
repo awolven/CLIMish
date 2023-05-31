@@ -135,14 +135,36 @@
 
 (defobject group-owner-view-mixin (group-owner-mixin view-mixin))
 
-(defobject resize-border (selectable-mixin group-mixin view-mixin)
+(defobject border (selectable-mixin group-mixin view-mixin)
   :inputs
-  ((color #x00000000))
+  ((color (the style border-color))
+   (border-size 1)
+   (base-layer 13)
 
+   (x (ecase (the index)
+	((:west :north :south) (+ (the window x) (- (/ (the border-size) 2))))
+	((:east) (+ (the window x) (the window width) (- (/ (the border-size) 2))))))
+   (y (ecase (the index)
+	((:west :east :north) (+ (the window y) (- (/ (the border-size) 2))))
+	((:south) (+ (the window y) (the window height) (- (/ (the border-size) 2))))))
+   (width (ecase (the index)
+	    ((:north :south) (+ (the border-size) (the window width)))
+	    ((:east :west) (the border-size))))
+   (height (ecase (the index)
+	     ((:north :south) (the border-size))
+	     ((:east :west) (+ (the border-size) (the window height))))))
+  
   :attributes
-  ((layer (ecase (the index)
-	    ((:north :south) (+ (the root layer) 15))
-	    ((:east :west) (+ (the root layer) 14))))))
+  ((index (first (the indices)))
+   (layer (ecase (the index)
+	    ((:north :south) (+ (the base-layer) 1))
+	    ((:east :west) (+ (the base-layer) 0))))))
+
+(defobject resize-border (border)
+  :inputs
+  ((color #xffffff00)))
+
+
 
 (defmethod clui:handle-event ((self resize-border) (event clui::pointer-enter-event-mixin))
   (let* ((north-id (the root (resize-borders :north) object-id))
@@ -256,7 +278,22 @@
       (list (the x0) (the y0) (the x1) (the y1))
       (the object-id)
       (the layer))
-     (the primitive-handles))))  
+     (the primitive-handles))))
+
+(defmethod rm-draw-node ((self border))
+  (unless (the window iconified?)
+    (let ((scene (the scene)))
+      (push
+       (scene-add-filled-2d-rectangle-list-primitive
+	scene (the group) nil (the color)
+	(list (the x0) (the y0) (the x1) (the y1))
+	(if (typep (the root (resize-borders (the index))) 'null-object)
+	    0
+	    (the root (resize-borders (the index)) object-id))
+	(the layer))
+       (the primitive-handles)))))
+
+
 
 (defobject title-bar-button-mixin (selectable-mixin group-mixin view-mixin)
   :inputs
@@ -433,7 +470,7 @@
    
    (title "krma")
 
-   (border-size 0)
+   (border-size 1)
 
    (x 0)
    (y 0)
@@ -442,13 +479,14 @@
 
   :attributes
   ((z-index :modifiable 0)
-   (layer (* (the z-index) krma::+view-depth+)))
+   (layer (* (the z-index) krma::+view-depth+))
+   (border-indices '((:north) (:south) (:east) (:west))))
 
   :components
   ((client-rect :type 'client-rect
 		y (if (the title-bar?) (the title-bar y1) (the y))
 		height (if (the title-bar?) (- (the height) (the title-bar height)) (the height)))
-   
+
    (title-bar :type (if (the title-bar?) 'title-bar 'null-object)
 	      title (the title)
 	      iconify-button? (the iconify-button?)
@@ -458,19 +496,14 @@
    (menu-bar :type (if (the menu-bar?) 'menu-bar 'null-object))
 
    (resize-borders :type (if (the resizable?) 'resize-border 'null-object)
-		   :aggregate (:indices '((:north) (:south) (:east) (:west)))
-		   x (ecase (the-part index)
-		       ((:west :north :south) (+ (the x) -3))
-		       ((:east) (+ (the x) (the width) -3)))
-		   y (ecase (the-part index)
-		       ((:west :east :north) (+ (the y) -3))
-		       ((:south) (+ (the y) (the height) -3)))
-		   width (ecase (the-part index)
-			   ((:north :south) (+ 6 (the width)))
-			   ((:east :west) 6))
-		   height (ecase (the-part index)
-			   ((:north :south) 6)
-			   ((:east :west) (+ 6 (the height)))))
+		   :aggregate (:indices (the border-indices))
+		   border-size 6
+		   base-layer 11)
+
+   (border :type 'border
+	   :aggregate (:indices (the border-indices))
+	   border-size 2
+	   base-layer 13)
 
    (horizontal-scrollbar :type (if (the scrollbar-x?) 'scrollbar 'null-object)
 			 axis :horizontal)
@@ -736,6 +769,8 @@
        (list (the x0) (if (the title-bar?) (the title-bar y1) (the y0)) (the x1) (the y1))
        (the object-id)
        (the layer)))))
+
+  
 
 #+NOTYET
 (defun get-window-scrollbar-box (window &optional (axis :vertical))

@@ -290,31 +290,7 @@
 	   #xffffffff
 	   #xff)
    (mod key 17))
-   
-  #+NIL
-  (elt (vector;;;fg
-         (send *style* text-color)
-         #x019901ff     ;1 = comments
-
-         #x00ffffff     ;2 = backquote
-         #x009999ff     ;3 = unquote
-
-         #xff9900ff     ;4 = strings
-         #xffffffff     ;5 = quote
-         #xff0000ff     ;6 = #+
-         #x770000ff     ;7 = #-
-
-         #x03ff03ff
-         #xffff00ff
-         #xff00ffff
-         #xcc00ccff
-
-         #x000000ff
-         #x000000ff
-         #x000000ff
-         #x000000ff
-         #x000000ff)
-       (mod key 17)))
+   )
 
 (defmethod rm-redraw-node ((text buffer-view-text))
   (let ((window (send text window)))
