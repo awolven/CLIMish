@@ -665,12 +665,12 @@
     (mark-symbol mark1 mark2)
     (region-to-string (region mark1 mark2))))
 
-(defun canonicalize-slave-package-name (str)
-  (cl-ppcre:regex-replace "^SB!" (canonical-case str) "SB-"))
+;;(defun canonicalize-slave-package-name (str)
+;;  (cl-ppcre:regex-replace "^SB!" (canonical-case str) "SB-"))
 
-(defun package-at-point (point)
-  (let ((tag (hi::line-tag (mark-line point))))
-    (if tag (hi::tag-package tag) "C_LUSER")))
+;;(defun package-at-point (buffer point)
+;;  (let ((tag (hi::line-tag buffer (mark-line point))))
+;;    (if tag (hi::tag-package tag) "C_LUSER")))
 
 (defcommand "Set Buffer Package" (window p)
   "Set the package to be used by Lisp evaluation and compilation commands

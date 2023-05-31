@@ -21,56 +21,58 @@
   "Generate a comparison of the current buffer with its file on disk."
   "Generate a comparison of the current buffer with its file on disk."
   (declare (ignore p))
-  (let ((buffer (current-buffer)))
-    (unless (buffer-pathname buffer)
+  (let ((current-buffer (window-buffer window)))
+    (unless (buffer-pathname current-buffer)
       (editor-error "No pathname associated with buffer."))
     (let ((other-buffer (or (getstring "Buffer Changes File" *buffer-names*)
                             (make-buffer "Buffer Changes File")))
           (result-buffer (or (getstring "Buffer Changes Result" *buffer-names*)
                              (make-buffer "Buffer Changes Result"))))
-      (visit-file-command nil (buffer-pathname buffer) other-buffer)
-      (delete-region (buffer-region result-buffer))
-      (compare-buffers-command nil buffer other-buffer result-buffer)
-      (delete-buffer other-buffer))))
+      (visit-file-command nil (buffer-pathname current-buffer) other-buffer)
+      (delete-region current-buffer (buffer-region result-buffer))
+      (compare-buffers-command nil current-buffer other-buffer result-buffer)
+      (delete-buffer other-buffer current-buffer))))
 
 ;;; "Compare Buffers" creates two temporary buffers when there is a prefix.
 ;;; These get deleted when we're done.  Buffer-a and Buffer-b are used for
 ;;; names is banners in either case.
 ;;;
 (defcommand "Compare Buffers" (window p &optional buffer-a buffer-b dest-buffer)
-  "Performs a source comparison on two specified buffers.  If the prefix
+    "Performs a source comparison on two specified buffers.  If the prefix
    argument is supplied, only compare the regions in the buffer."
-  "Performs a source comparison on two specified buffers, Buffer-A and
+    "Performs a source comparison on two specified buffers, Buffer-A and
    Buffer-B, putting the result of the comparison into the Dest-Buffer.
    If the prefix argument is supplied, only compare the regions in the
    buffer."
   (srccom-choose-comparison-functions)
-  (multiple-value-bind (buffer-a buffer-b dest-point
-                        delete-buffer-a delete-buffer-b)
-                       (get-srccom-buffers "Compare buffer: " buffer-a buffer-b
-                                           dest-buffer p)
-    (with-output-to-mark (log dest-point)
-      (format log "Comparison of ~A and ~A.~%~%"
-              (buffer-name buffer-a) (buffer-name buffer-b))
-      (with-mark ((mark-a (buffer-start-mark (or delete-buffer-a buffer-a)))
-                  (mark-b (buffer-start-mark (or delete-buffer-b buffer-b))))
-        (loop
-          (multiple-value-bind (diff-a diff-b)
-                               (srccom-find-difference mark-a mark-b)
-            (when (null diff-a) (return nil))
-            (format log "**** Buffer ~A:~%" (buffer-name buffer-a))
-            (insert-region dest-point diff-a)
-            (format log "**** Buffer ~A:~%" (buffer-name buffer-b))
-            (insert-region dest-point diff-b)
-            (format log "***************~%~%")
-            (move-mark mark-a (region-end diff-a))
-            (move-mark mark-b (region-end diff-b))
-            (unless (line-offset mark-a 1) (return))
-            (unless (line-offset mark-b 1) (return)))))
+  (let ((current-buffer (window-buffer window)))
+    (multiple-value-bind (buffer-a buffer-b dest-point
+                          delete-buffer-a delete-buffer-b)
+        (get-srccom-buffers window current-buffer "Compare buffer: " buffer-a buffer-b
+                            dest-buffer p)
+      (with-output-to-mark (log dest-point)
+        (format log "Comparison of ~A and ~A.~%~%"
+                (buffer-name buffer-a) (buffer-name buffer-b))
+        (with-mark ((mark-a (buffer-start-mark (or delete-buffer-a buffer-a)))
+                    (mark-b (buffer-start-mark (or delete-buffer-b buffer-b))))
+
+          (loop
+            (multiple-value-bind (diff-a diff-b)
+                (srccom-find-difference mark-a mark-b)
+              (when (null diff-a) (return nil))
+              (format log "**** Buffer ~A:~%" (buffer-name buffer-a))
+              (insert-region current-buffer dest-point diff-a)
+              (format log "**** Buffer ~A:~%" (buffer-name buffer-b))
+              (insert-region current-buffer dest-point diff-b)
+              (format log "***************~%~%")
+              (move-mark mark-a (region-end diff-a))
+              (move-mark mark-b (region-end diff-b))
+              (unless (line-offset mark-a 1) (return))
+              (unless (line-offset mark-b 1) (return)))))
         (format log "Done.~%"))
-    (when delete-buffer-a
-      (delete-buffer delete-buffer-a)
-      (delete-buffer delete-buffer-b))))
+      (when delete-buffer-a
+        (delete-buffer delete-buffer-a current-buffer)
+        (delete-buffer delete-buffer-b current-buffer)))))
 
 
 ;;; "Merge Buffers" creates two temporary buffers when there is a prefix.
@@ -84,9 +86,10 @@
    putting the resulting text into the Dest-Buffer.  If the prefix argument
    is supplied, only compare the regions in the buffer."
   (srccom-choose-comparison-functions)
+    (let ((current-buffer (window-buffer window)))
   (multiple-value-bind (buffer-a buffer-b dest-point
                         delete-buffer-a delete-buffer-b)
-                       (get-srccom-buffers "Merge buffer: " buffer-a buffer-b
+                       (get-srccom-buffers window current-buffer "Merge buffer: " buffer-a buffer-b
                                            dest-buffer p)
     (with-output-to-mark (stream dest-point)
       (let ((region-a (buffer-region (or delete-buffer-a buffer-a))))
@@ -100,38 +103,40 @@
             (multiple-value-bind (diff-a diff-b)
                                  (srccom-find-difference mark-a mark-b)
               (when (null diff-a)
-                (insert-region dest-point (region temp-a (region-end region-a)))
+                (insert-region current-buffer dest-point (region temp-a (region-end region-a)))
                 (return nil))
               ;; Copy the part that's the same.
-              (insert-region dest-point (region temp-a (region-start diff-a)))
+              (insert-region current-buffer dest-point (region temp-a (region-start diff-a)))
               ;; Put both versions in the buffer, and prompt for which one to use.
               (move-mark temp-a dest-point)
               (format stream "~%**** Buffer ~A (1):~%" (buffer-name buffer-a))
-              (insert-region dest-point diff-a)
+              (insert-region current-buffer dest-point diff-a)
               (move-mark temp-b dest-point)
               (format stream "~%**** Buffer ~A (2):~%" (buffer-name buffer-b))
-              (insert-region dest-point diff-b)
+              (insert-region current-buffer dest-point diff-b)
               (command-case
                   (:prompt "Merge Buffers: "
                    :help "Type one of these characters to say how to merge:")
                 (#\1 "Use the text from buffer 1."
-                     (delete-region (region temp-b dest-point))
-                     (delete-characters temp-a)
+                     (delete-region current-buffer (region temp-b dest-point))
+                     (delete-characters current-buffer temp-a)
                      (delete-region
+                      current-buffer
                       (region temp-a
                               (line-start temp-b
                                           (line-next (mark-line temp-a))))))
                 (#\2 "Use the text from buffer 2."
-                     (delete-region (region temp-a temp-b))
-                     (delete-characters temp-b)
+                     (delete-region current-buffer (region temp-a temp-b))
+                     (delete-characters current-buffer temp-b)
                      (delete-region
+                      current-buffer
                       (region temp-b
                               (line-start temp-a
                                           (line-next (mark-line temp-b))))))
                 (#\b "Insert both versions with **** MERGE LOSSAGE **** around them."
-                     (insert-string temp-a "
+                     (insert-string current-buffer temp-a "
                      **** MERGE LOSSAGE ****")
-                     (insert-string dest-point "
+                     (insert-string current-buffer dest-point "
                      **** END OF MERGE LOSSAGE ****"))
                 (#\a "Align window at start of difference display."
                      (line-start
@@ -153,18 +158,18 @@
               (unless (line-offset mark-b 1) (return))))))
       (message "Done."))
     (when delete-buffer-a
-      (delete-buffer delete-buffer-a)
-      (delete-buffer delete-buffer-b))))
+      (delete-buffer delete-buffer-a current-buffer)
+      (delete-buffer delete-buffer-b current-buffer)))))
 
-(defun get-srccom-buffers (current-window first-prompt buffer-a buffer-b dest-buffer p)
+(defun get-srccom-buffers (current-window current-buffer first-prompt buffer-a buffer-b dest-buffer p)
   (unless buffer-a
     (setf buffer-a (prompt-for-buffer current-window :prompt first-prompt
                                       :must-exist t
-                                      :default (current-buffer))))
+                                      :default current-buffer)))
   (unless buffer-b
     (setf buffer-b (prompt-for-buffer current-window :prompt "With buffer: "
                                       :must-exist t
-                                      :default (previous-buffer))))
+                                      :default (previous-buffer current-window))))
   (unless dest-buffer
     (setf dest-buffer
           (prompt-for-buffer current-window :prompt "Putting results in buffer: "
@@ -180,21 +185,23 @@
          (alt-buffer-b (if alt-buffer-a
                            (make-buffer (prin1-to-string (gensym))))))
     (when alt-buffer-a
-      (ninsert-region (buffer-point alt-buffer-a)
-                      (copy-region (if (mark< (buffer-point buffer-a)
+      (ninsert-region current-buffer (buffer-point alt-buffer-a)
+                      (copy-region current-buffer
+                                   (if (mark< (buffer-point buffer-a)
                                               (buffer-mark buffer-a))
                                        (region (buffer-point buffer-a)
                                                (buffer-mark buffer-a))
                                        (region (buffer-mark buffer-a)
                                                (buffer-point buffer-a)))))
-      (ninsert-region (buffer-point alt-buffer-b)
-                      (copy-region (if (mark< (buffer-point buffer-b)
+      (ninsert-region current-buffer (buffer-point alt-buffer-b)
+                      (copy-region current-buffer
+                                   (if (mark< (buffer-point buffer-b)
                                               (buffer-mark buffer-b))
                                        (region (buffer-point buffer-b)
                                                (buffer-mark buffer-b))
                                        (region (buffer-mark buffer-b)
                                                (buffer-point buffer-b))))))
-    (values buffer-a buffer-b (current-point) alt-buffer-a alt-buffer-b)))
+    (values buffer-a buffer-b (buffer-point current-buffer) alt-buffer-a alt-buffer-b)))
 #|
 (defun get-srccom-buffers (current-window first-prompt buffer-a buffer-b dest-buffer p)
   (unless buffer-a
@@ -374,10 +381,10 @@
 ;;; This is the value of *srccom-line-next* when "Source Compare Ignore Extra
 ;;; Newlines" is non-nil.
 ;;;
-(defun srccom-line-next-ignoring-extra-newlines (line)
+(defun srccom-line-next-ignoring-extra-newlines (buffer line)
   (if (null line) nil
       (do ((line (line-next line) (line-next line)))
-          ((or (null line) (not (blank-line-p line))) line))))
+          ((or (null line) (not (blank-line-p buffer line))) line))))
 
 ;;; SRCCOM-IGNORE-CASE-AND-INDENTATION-LINE=       -- Internal.
 ;;; SRCCOM-CASE-INSENSITIVE-LINE=                  -- Internal.
@@ -392,9 +399,9 @@
                 (or (eq line-a line-b)          ; if they're both NIL
                     (and line-a
                          line-b
-                         (let* ((chars-a (line-string line-a))
+                         (let* ((chars-a (line-string (line-buffer line-a) line-a))
                                 (len-a (length chars-a))
-                                (chars-b (line-string line-b))
+                                (chars-b (line-string (line-buffer line-b) line-b))
                                 (len-b (length chars-b)))
                            (declare (simple-string chars-a chars-b))
                            (cond

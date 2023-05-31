@@ -20,18 +20,18 @@
     (lparallel.queue:push-queue event (input-event-queue window))))
 
 (defun modifier-key-p (event-id)
-  (or (eq (clui::input-event-id-scancode event-id) clui::+key-left-alt+)
-      (eq (clui::input-event-id-scancode event-id) clui::+key-right-alt+)
-      (eq (clui::input-event-id-scancode event-id) clui::+key-left-GUI+)
-      (eq (clui::input-event-id-scancode event-id) clui::+key-right-GUI+)
-      (eq (clui::input-event-id-scancode event-id) clui::+key-left-ctrl+)
-      (eq (clui::input-event-id-scancode event-id) clui::+key-right-ctrl+)
-      (eq (clui::input-event-id-scancode event-id) clui::+key-left-shift+)
-      (eq (clui::input-event-id-scancode event-id) clui::+key-right-shift+)))
+  (or (eq (input-event-id-scancode event-id) clui::+key-left-alt+)
+      (eq (input-event-id-scancode event-id) clui::+key-right-alt+)
+      (eq (input-event-id-scancode event-id) clui::+key-left-GUI+)
+      (eq (input-event-id-scancode event-id) clui::+key-right-GUI+)
+      (eq (input-event-id-scancode event-id) clui::+key-left-ctrl+)
+      (eq (input-event-id-scancode event-id) clui::+key-right-ctrl+)
+      (eq (input-event-id-scancode event-id) clui::+key-left-shift+)
+      (eq (input-event-id-scancode event-id) clui::+key-right-shift+)))
 
 (defmethod clui:handle-event :after ((window krma-gui-window-mixin)
 				     (event clui::key-press-event-mixin))
-  (let ((event-id (clui::input-event-id event)))
+  (let ((event-id (input-event-id event)))
     (unless (modifier-key-p event-id)
       (lparallel.queue:push-queue event (input-event-queue window)))))
 
@@ -68,7 +68,8 @@
 	(table-chain)
 	(event-chain)
 	(result)
-	(p nil))
+	(p nil)
+	(sb-ext:*invoke-debugger-hook* #'gui-debug-condition))
 
 
     (restart-bind ((ignore #'(lambda (&optional c)
@@ -79,7 +80,9 @@
 
 	  ((editor-error #'(lambda (c)
 			     #+sbcl
-			     (sb-thread:release-mutex (buffer-lock hi::*echo-area-buffer*) :if-not-owner :force)
+			     (mapcar (lambda (buffer)
+				       (sb-thread:release-mutex (buffer-lock buffer) :if-not-owner :force))
+				     hi::*buffer-list*)
 			     (hi::clear-echo-area)
 			     (let ((string (editor-error-format-string c)))
 			       (when string
@@ -89,17 +92,20 @@
     
 	(tagbody
 
-	 
+	   (print (or (focused-window window) *echo-area-window*))
+	   (finish-output)
        
 	 RESET (setq w (or (focused-window window) *echo-area-window*))
 	   (setq event-chain ())
 	   (setq table-chain (list (command-table w)))
+
+	   
        
 	   ;; code will continue to wait until it either gets a gesture that matches or C-g is sent
        
 	 GET (setq event (get-next-event window))
 	   (setf (window-last-event window) event)
-	   (setq event-id (clui::input-event-id event))
+	   (setq event-id (input-event-id event))
        
 	 CHECK 
        
@@ -108,6 +114,8 @@
 		  (go RESET))
 
 		 ((eq event-id #k"C-g")
+
+		  (hi::invoke-hook hemlock::abort-hook)
 			   
 		  (message "Abort")
 			   
@@ -134,7 +142,7 @@
 			   (when event
 
 			     (setf (window-last-event window) event)
-			       (setq event-id (clui::input-event-id event))
+			       (setq event-id (input-event-id event))
 			     
 			     (when (characterp event-id)			       
 			       
@@ -169,7 +177,8 @@
 (defun start-command-loop (window)
   (bt:make-thread #'(lambda ()
 		      (bt:wait-on-semaphore (command-loop-go-semaphore window))
-		      (command-loop window)) :name "command loop"))
+		      (command-loop window)) :name "command loop")
+  (sb-thread:release-foreground (bt:current-thread)))
 
 (defmethod initialize-instance :after ((window krma-gui-window-mixin) &rest initargs)
   (declare (ignore initargs))

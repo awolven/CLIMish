@@ -422,7 +422,7 @@
                      (unless prev (return nil))
                      (multiple-value-bind (lines chars)
                          (truncate (line-length prev) w)
-                       (.move-to-position. ,mark-sym
+                       (move-to-position ,mark-sym
                            (cond ((zerop lines) 0)
                                  ((< chars 2)
                                   (* w (1- lines)))
@@ -516,7 +516,7 @@
         (end (window-display-end window)))
     (not (or (mark< mark start) (mark> mark end)
              (if (mark= mark end)
-                 (let ((ch (next-character end)))
+                 (let ((ch (next-character (window-buffer window) end)))
                    (and ch (char/= ch #\newline)))
                  nil)))))
 

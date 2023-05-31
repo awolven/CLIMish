@@ -48,7 +48,7 @@
          (buffer (window-buffer current-window))
          (point (buffer-point buffer))
          (mark (copy-mark point))
-         (won (find-pattern point pattern)))
+         (won (find-pattern buffer point pattern)))
     (cond (won
            (character-offset point won)
            (if (region-active-p buffer)
@@ -340,12 +340,12 @@
         (progn
           (discard-next-event *editor-input*)
           (when (interactive)
-            (insert-character (buffer-point *echo-area-buffer*) tchar)
+            (insert-character *echo-area-buffer* (buffer-point *echo-area-buffer*) tchar)
             (force-output *echo-area-stream*))
           (let ((new-string (concatenate 'simple-string string (string tchar))))
             (i-search-pattern new-string direction)
             (cond (failure (%i-search current-window buffer new-string point trailer direction failure))
-                  ((and (eq direction :backward) (next-character trailer))
+                  ((and (eq direction :backward) (next-character buffer trailer))
                    (%i-search-find-pattern current-window buffer new-string point (mark-after trailer)
                                            direction))
                   (t
@@ -357,7 +357,7 @@
 ;;; If the search failed, tell the user and do not move any pointers.
 ;;;
 (defun %i-search-find-pattern (current-window buffer string point trailer direction &optional backup)
-  (let ((found-offset (find-pattern trailer *last-search-pattern*)))
+  (let ((found-offset (find-pattern buffer trailer *last-search-pattern*)))
     (cond (found-offset
             (cond ((eq direction :forward)
                    (character-offset (move-mark point trailer) found-offset)
@@ -407,7 +407,7 @@
    the active region, depending on whether it is active.  The prefix argument
    may limit the number of replacements."
   (multiple-value-bind (ignore count)
-                       (query-replace-function p target replacement
+                       (query-replace-function window p target replacement
                                                "Replace String" t)
     (declare (ignore ignore))
     (message "~D Occurrences replaced." count)))
@@ -429,10 +429,10 @@
    from the keyboard is given.  If the region is active, limit queries to
    occurrences that occur within it, otherwise use point to end of buffer.
    A prefix argument may limit the number of queries."
-  (let ((buffer (window-buffer (current-window))))
+  (let ((buffer (window-buffer window)))
     (let ((mark (copy-mark (buffer-point buffer))))
       (multiple-value-bind (ignore count)
-          (query-replace-function p target replacement
+          (query-replace-function window p target replacement
                                   "Query Replace")
         (declare (ignore ignore))
         (message "~D Occurrences replaced." count))
@@ -459,12 +459,12 @@
 ;;; an undo information structure into *query-replace-undo-data* which
 ;;; QUERY-REPLACE-FUNCTION uses.
 ;;;
-(defun replace-that-case (lower cap upper mark length dumb)
+(defun replace-that-case (buffer lower cap upper mark length dumb)
   (character-offset mark (- length))
   (let ((insert (cond (dumb lower)
-                      ((upper-case-p (next-character mark))
+                      ((upper-case-p (next-character buffer mark))
                        (mark-after mark)
-                       (prog1 (if (upper-case-p (next-character mark)) upper cap)
+                       (prog1 (if (upper-case-p (next-character buffer mark)) upper cap)
                               (mark-before mark)))
                       (t lower))))
     (with-mark ((undo-mark1 mark :left-inserting)
@@ -474,9 +474,9 @@
              ;; Save :right-inserting, so the INSERT-STRING at mark below
              ;; doesn't move the copied mark the past replacement.
              (copy-mark mark :right-inserting)
-             (delete-and-save-region (region undo-mark1 undo-mark2)))
+             (delete-and-save-region buffer (region undo-mark1 undo-mark2)))
             *query-replace-undo-data*))
-    (insert-string mark insert)))
+    (insert-string buffer mark insert)))
 
 ;;; QUERY-REPLACE-FUNCTION does the work for the main replacement commands:
 ;;; "Query Replace", "Replace String", "Group Query Replace", "Group Replace".
@@ -494,17 +494,18 @@
 ;;; the region would move the second replacement's mark to be before the first
 ;;; replacement.
 ;;;
-(defun query-replace-function (count target replacement name
+(defun query-replace-function (current-window count target replacement name
                                &optional (doing-all? nil))
   (declare (simple-string replacement))
+  (let ((buffer (window-buffer current-window)))
   (let ((replacement-len (length replacement))
         (*query-replace-undo-data* nil))
     (when (and count (minusp count))
       (editor-error "Replacement count is negative."))
     (get-search-pattern target :forward)
     (unwind-protect
-        (query-replace-loop (get-count-region) (or count -1) target replacement
-                            replacement-len (current-point) doing-all?)
+        (query-replace-loop current-window (get-count-region buffer) (or count -1) target replacement
+                            replacement-len (buffer-point buffer) doing-all?)
       (let ((undo-data (nreverse *query-replace-undo-data*)))
         (save-for-undo name
           #'(lambda ()
@@ -512,108 +513,111 @@
                 (setf (mark-kind (replace-undo-mark ele)) :left-inserting))
               (dolist (ele undo-data)
                 (let ((mark (replace-undo-mark ele)))
-                  (delete-characters mark replacement-len)
-                  (ninsert-region mark (replace-undo-region ele)))))
+                  (delete-characters buffer mark replacement-len)
+                  (ninsert-region buffer mark (replace-undo-region ele)))))
           #'(lambda ()
               (dolist (ele undo-data)
-                (delete-mark (replace-undo-mark ele)))))))))
+                (delete-mark (replace-undo-mark ele))))))))))
 
 ;;; QUERY-REPLACE-LOOP is the essence of QUERY-REPLACE-FUNCTION.  The first
 ;;; value is whether we completed all replacements, nil if we aborted.  The
 ;;; second value is how many replacements occurred.
 ;;;
-(defun query-replace-loop (region count target replacement replacement-len
+(defun query-replace-loop (current-window region count target replacement replacement-len
                            point doing-all?)
-  (with-mark ((last-found point)
-              ;; Copy REGION-END before moving point to REGION-START in case
-              ;; the end is point.  Also, make it permanent in case we make
-              ;; replacements on the last line containing the end.
-              (stop-mark (region-end region) :left-inserting))
-    (move-mark point (region-start region))
-    (let ((length (length target))
-          (cap (string-capitalize replacement))
-          (upper (string-upcase replacement))
-          (dumb (not (and (every #'(lambda (ch) (or (not (both-case-p ch))
-                                                    (lower-case-p ch)))
-                                 (the string replacement))
-                          (value case-replace)))))
-      (values
-       (loop
-         (let ((won (find-pattern point *last-search-pattern*)))
-           (when (or (null won) (zerop count) (mark> point stop-mark))
-             (character-offset (move-mark point last-found) replacement-len)
-             (return t))
-           (decf count)
-           (move-mark last-found point)
-           (character-offset point length)
-           (if doing-all?
-               (replace-that-case replacement cap upper point length dumb)
-               (command-case
-                   (:prompt
-                    "Query replace: "
-                    :help "Type one of the following single-character commands:"
-                    :change-window nil :bind key-event)
-                 (:yes "Replace this occurrence."
-                       (replace-that-case replacement cap upper point length
-                                          dumb))
-                 (:no "Don't replace this occurrence, but continue.")
-                 (:do-all "Replace this and all remaining occurrences."
-                          (replace-that-case replacement cap upper point length
-                                             dumb)
-                          (setq doing-all? t))
-                 (:do-once "Replace this occurrence, then exit."
-                           (replace-that-case replacement cap upper point length
-                                              dumb)
-                           (return nil))
-                 (:recursive-edit
-                  "Go into a recursive edit at the current position."
-                  (do-recursive-edit)
-                  (get-search-pattern target :forward))
-                 (:exit "Exit immediately."
-                        (return nil))
-                 (t (unget-key-event key-event *editor-input*)
-                    (return nil))))))
-       (length (the list *query-replace-undo-data*))))))
+  (let ((buffer (window-buffer current-window)))
+    (with-mark ((last-found point)
+                ;; Copy REGION-END before moving point to REGION-START in case
+                ;; the end is point.  Also, make it permanent in case we make
+                ;; replacements on the last line containing the end.
+                (stop-mark (region-end region) :left-inserting))
+      (move-mark point (region-start region))
+      (let ((length (length target))
+            (cap (string-capitalize replacement))
+            (upper (string-upcase replacement))
+            (dumb (not (and (every #'(lambda (ch) (or (not (both-case-p ch))
+                                                      (lower-case-p ch)))
+                                   (the string replacement))
+                            (value case-replace)))))
+        (values
+         (loop
+           (let ((won (find-pattern buffer point *last-search-pattern*)))
+             (when (or (null won) (zerop count) (mark> point stop-mark))
+               (character-offset (move-mark point last-found) replacement-len)
+               (return t))
+             (decf count)
+             (move-mark last-found point)
+             (character-offset point length)
+             (if doing-all?
+                 (replace-that-case buffer replacement cap upper point length dumb)
+                 (command-case
+                     (:prompt
+                      "Query replace: "
+                      :help "Type one of the following single-character commands:"
+                      :change-window nil :bind key-event
+                      :current-window current-window)
+                   (:yes "Replace this occurrence."
+                         (replace-that-case buffer replacement cap upper point length
+                                            dumb))
+                   (:no "Don't replace this occurrence, but continue.")
+                   (:do-all "Replace this and all remaining occurrences."
+                     (replace-that-case buffer replacement cap upper point length
+                                        dumb)
+                     (setq doing-all? t))
+                   (:do-once "Replace this occurrence, then exit."
+                     (replace-that-case buffer replacement cap upper point length
+                                        dumb)
+                     (return nil))
+                   (:recursive-edit
+                    "Go into a recursive edit at the current position."
+                    (do-recursive-edit)
+                    (get-search-pattern target :forward))
+                   (:exit "Exit immediately."
+                          (return nil))
+                   (t (unget-key-event key-event *editor-input*)
+                      (return nil))))))
+         (length (the list *query-replace-undo-data*)))))))
 
 
 
 ;;;; Occurrence searching.
 
 (defcommand "List Matching Lines" (window p &optional string)
-  "Prompts for a search string and lists all matching lines after the point or
+    "Prompts for a search string and lists all matching lines after the point or
    within the current-region, depending on whether it is active or not.
    With an argument, lists p lines before and after each matching line."
-  "Prompts for a search string and lists all matching lines after the point or
+    "Prompts for a search string and lists all matching lines after the point or
    within the current-region, depending on whether it is active or not.
    With an argument, lists p lines before and after each matching line."
-  (unless string
-    (setf string (prompt-for-string window :prompt "List Matching: "
-                                    :default *last-search-string*
-                                    :help "String to search for")))
-  (let ((pattern (get-search-pattern string :forward))
-        (matching-lines nil)
-        (region (get-count-region)))
-    (with-mark ((mark (region-start region))
-                (end-mark (region-end region)))
-      (loop
-        (when (or (null (find-pattern mark pattern)) (mark> mark end-mark))
-          (return))
-        (setf matching-lines
-              (nconc matching-lines (list-lines mark (or p 0))))
-        (unless (line-offset mark 1 0)
-          (return))))
-    (with-pop-up-display (s :height (length matching-lines) :current-window window)
-      (dolist (line matching-lines)
-        (write-line line s)))))
+  (let ((buffer (window-buffer window)))
+    (unless string
+      (setf string (prompt-for-string window :prompt "List Matching: "
+                                             :default *last-search-string*
+                                             :help "String to search for")))
+    (let ((pattern (get-search-pattern string :forward))
+          (matching-lines nil)
+          (region (get-count-region buffer)))
+      (with-mark ((mark (region-start region))
+                  (end-mark (region-end region)))
+        (loop
+          (when (or (null (find-pattern buffer mark pattern)) (mark> mark end-mark))
+            (return))
+          (setf matching-lines
+                (nconc matching-lines (list-lines buffer mark (or p 0))))
+          (unless (line-offset mark 1 0)
+            (return))))
+      (with-pop-up-display (s :height (length matching-lines) :current-window window)
+        (dolist (line matching-lines)
+          (write-line line s))))))
 
 ;;; LIST-LINES creates a lists of strings containing (num) lines before the
 ;;; line that the point is on, the line that the point is on, and (num)
 ;;; lines after the line that the point is on. If (num) > 0, a string of
 ;;; dashes will be added to make life easier for List Matching Lines.
 ;;;
-(defun list-lines (mark num)
+(defun list-lines (buffer mark num)
   (if (<= num 0)
-      (list (line-string (mark-line mark)))
+      (list (line-string buffer (mark-line mark)))
       (with-mark ((mark mark)
                   (beg-mark mark))
         (unless (line-offset beg-mark (- num))
@@ -622,91 +626,94 @@
           (buffer-end mark .buffer.))
         (let ((lines (list "--------")))
           (loop
-            (push (line-string (mark-line mark)) lines)
+            (push (line-string buffer (mark-line mark)) lines)
             (when (same-line-p mark beg-mark)
               (return lines))
             (line-offset mark -1))))))
 
 (defcommand "Delete Matching Lines" (window p &optional string)
-  "Deletes all lines that match the search pattern using delete-region. If
+    "Deletes all lines that match the search pattern using delete-region. If
    the current region is active, limit the search to it. The argument is
    ignored."
-  "Deletes all lines that match the search pattern using delete-region. If
+    "Deletes all lines that match the search pattern using delete-region. If
    the current region is active, limit the search to it. The argument is
    ignored."
   (declare (ignore p))
-  (unless string
-    (setf string (prompt-for-string window :prompt "Delete Matching: "
-                                    :default *last-search-string*
-                                    :help "String to search for")))
-  (let* ((region (get-count-region))
-         (pattern (get-search-pattern string :forward))
-         (start-mark (region-start region))
-         (end-mark (region-end region)))
-    (with-mark ((bol-mark start-mark :left-inserting)
-                (eol-mark start-mark :right-inserting))
-      (loop
-        (unless (and (find-pattern bol-mark pattern) (mark< bol-mark end-mark))
-          (return))
-        (move-mark eol-mark bol-mark)
-        (line-start bol-mark)
-        (unless (line-offset eol-mark 1 0)
-          (buffer-end eol-mark .buffer.))
-        (delete-region (region bol-mark eol-mark))))))
+  (let ((buffer (window-buffer window)))
+    (unless string
+      (setf string (prompt-for-string window :prompt "Delete Matching: "
+                                             :default *last-search-string*
+                                             :help "String to search for")))
+    (let* ((region (get-count-region buffer))
+           (pattern (get-search-pattern string :forward))
+           (start-mark (region-start region))
+           (end-mark (region-end region)))
+      (with-mark ((bol-mark start-mark :left-inserting)
+                  (eol-mark start-mark :right-inserting))
+        (loop
+          (unless (and (find-pattern buffer bol-mark pattern) (mark< bol-mark end-mark))
+            (return))
+          (move-mark eol-mark bol-mark)
+          (line-start bol-mark)
+          (unless (line-offset eol-mark 1 0)
+            (buffer-end eol-mark buffer))
+          (delete-region buffer (region bol-mark eol-mark)))))))
 
 (defcommand "Delete Non-Matching Lines" (window p &optional string)
-  "Deletes all lines that do not match the search pattern using delete-region.
+    "Deletes all lines that do not match the search pattern using delete-region.
    If the current-region is active, limit the search to it. The argument is
    ignored."
-  "Deletes all lines that do not match the search pattern using delete-region.
+    "Deletes all lines that do not match the search pattern using delete-region.
    If the current-region is active, limit the search to it. The argument is
    ignored."
   (declare (ignore p))
-  (unless string
-    (setf string (prompt-for-string window :prompt "Delete Non-Matching:"
-                                    :default *last-search-string*
-                                    :help "String to search for")))
-  (let* ((region (get-count-region))
-         (start-mark (region-start region))
-         (stop-mark (region-end region))
-         (pattern (get-search-pattern string :forward)))
-    (with-mark ((beg-mark start-mark :left-inserting)
-                (end-mark start-mark :right-inserting))
-      (loop
-        (move-mark end-mark beg-mark)
-        (cond ((and (find-pattern end-mark pattern) (mark< end-mark stop-mark))
-               (line-start end-mark)
-               (delete-region (region beg-mark end-mark))
-               (unless (line-offset beg-mark 1 0)
-                 (return)))
-              (t
-               (delete-region (region beg-mark stop-mark))
-               (return)))))))
+  (let ((buffer (window-buffer window)))
+    (unless string
+      (setf string (prompt-for-string window :prompt "Delete Non-Matching:"
+                                             :default *last-search-string*
+                                             :help "String to search for")))
+    (let* ((region (get-count-region buffer))
+           (start-mark (region-start region))
+           (stop-mark (region-end region))
+           (pattern (get-search-pattern string :forward)))
+      (with-mark ((beg-mark start-mark :left-inserting)
+                  (end-mark start-mark :right-inserting))
+        (loop
+          (move-mark end-mark beg-mark)
+          (cond ((and (find-pattern buffer end-mark pattern) (mark< end-mark stop-mark))
+                 (line-start end-mark)
+                 (delete-region buffer (region beg-mark end-mark))
+                 (unless (line-offset beg-mark 1 0)
+                   (return)))
+                (t
+                 (delete-region buffer (region beg-mark stop-mark))
+                 (return))))))))
 
 (defcommand "Count Occurrences" (window p &optional string)
-  "Prompts for a search string and counts occurrences of it after the point or
+    "Prompts for a search string and counts occurrences of it after the point or
    within the current-region, depending on whether it is active or not. The
    argument is ignored."
-  "Prompts for a search string and counts occurrences of it after the point or
+    "Prompts for a search string and counts occurrences of it after the point or
    within the current-region, depending on whether it is active or not. The
    argument is ignored."
   (declare (ignore p))
-  (unless string
-    (setf string (prompt-for-string
-                  window
-                  :prompt "Count Occurrences: "
-                  :default *last-search-string*
-                  :help "String to search for")))
-  (message "~D occurrence~:P"
-           (count-occurrences-region (get-count-region) string)))
+  (let ((buffer (window-buffer window)))
+    (unless string
+      (setf string (prompt-for-string
+                    window
+                    :prompt "Count Occurrences: "
+                    :default *last-search-string*
+                    :help "String to search for")))
+    (message "~D occurrence~:P"
+             (count-occurrences-region buffer (get-count-region buffer) string))))
 
-(defun count-occurrences-region (region string)
+(defun count-occurrences-region (buffer region string)
   (let ((pattern (get-search-pattern string :forward))
         (end-mark (region-end region)))
     (let ((occurrences 0))
       (with-mark ((mark (region-start region)))
         (loop
-          (let ((won (find-pattern mark pattern)))
+          (let ((won (find-pattern buffer mark pattern)))
             (when (or (null won) (mark> mark end-mark))
               (return))
             (incf occurrences)

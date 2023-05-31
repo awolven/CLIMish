@@ -84,15 +84,7 @@
       (setf (getstring (car x) table) (cdr x)))
     table))
 
-(defun map-string-table (result-type fun table)
-  (let ((remove '#:remove))
-    (remove remove
-            (map result-type
-                 (lambda (node)
-                   (if (typep node 'value-node)
-                       (funcall fun (value-node-value node))
-                       remove))
-                 (string-table-value-nodes table)))))
+
 
 (defstruct (word-table
             (:print-function print-word-table))
@@ -130,6 +122,16 @@
 (defun print-value-node (node stream depth)
   (declare (ignore depth))
   (format stream "<Value Node \"~A\">" (value-node-proper node)))
+
+(defun map-string-table (result-type fun table)
+  (let ((remove '#:remove))
+    (remove remove
+            (map result-type
+                 (lambda (node)
+                   (if (typep node 'value-node)
+                       (funcall fun (value-node-value node))
+                       remove))
+                 (string-table-value-nodes table)))))
 
 
 ;;;; Bi-SvPosition, String-Compare, String-Compare*

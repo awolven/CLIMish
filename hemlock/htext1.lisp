@@ -98,6 +98,10 @@
          (setq right-open-pos new-right)
          (setq open-chars new-chars)
          (setq line-cache-length ,new-length-sym)))))
+
+(defun grow-open-chars (buffer &optional (new-length nil))
+  (with-buffer-globals (buffer)
+    (.grow-open-chars. new-length)))
 
 (defmacro .close-line. ()
   "Stuffs the characters in the currently open line back into the line they
@@ -110,6 +114,10 @@
          (%sp-byte-blt open-chars right-open-pos string left-open-pos length)
          (setf (line-chars open-line) string)
          (setf open-line nil)))))
+
+(defun close-line (buffer)
+  (with-buffer-globals (buffer)
+    (.close-line.)))
 
 ;;; We stick decrementing fixnums in the line-chars slot of the open line
 ;;; so that whenever the cache is changed the chars are no longer eq.
@@ -159,6 +167,11 @@
                 (%sp-byte-blt chars 0 open-chars 0 left-open-pos)
                 (%sp-byte-blt chars left-open-pos open-chars right-open-pos
                               line-cache-length)))))))
+
+(defun open-line (buffer line mark)
+  (with-buffer-globals (buffer)
+    (.open-line. line mark)))
+
 
 ;;;; Some macros for Text hacking:
 
@@ -171,6 +184,10 @@
      (unless (and (= (mark-charpos ,mark) left-open-pos) (eq ,line open-line))
        (.open-line. ,line ,mark))
      (setf (line-chars open-line) (decf *cache-modification-tick*))))
+
+(defun modifying-line (buffer line mark)
+  (with-buffer-globals (buffer)
+    (.modifying-line. line mark)))
 
 ;;; Now-Tick tells us when now is and isn't.
 ;;;
@@ -206,7 +223,7 @@
     `(let ((,buffer-sym ,buffer))
        (invoke-modifying-buffer (lambda () ,@forms) ,buffer-sym))))
 
-(defmacro always-change-line-macro (mark new-line)
+(defmacro always-change-line (mark new-line)
   (let ((mark-sym (gensym "ALWAYS-CHANGE-LINE_MARK"))
         (new-line-sym (gensym "ALWAYS-CHANGE-LINE_NEW-LINE")))
     `(let* ((,mark-sym ,mark)
@@ -223,10 +240,8 @@
                     (line-marks ,new-line-sym) scan))))
        (setf (mark-line ,mark-sym) ,new-line-sym))))
 
-(defun always-change-line (mark new-line)
-  (always-change-line-macro mark new-line))
 
-(defmacro change-line-macro (mark new-line)
+(defmacro change-line (mark new-line)
   (let ((mark-sym (gensym "CHANGE-LINE_MARK"))
         (new-line-sym (gensym "CHANGE-LINE_NEW-LINE")))
     `(let* ((,mark-sym ,mark)
@@ -244,8 +259,6 @@
                     (line-marks ,new-line-sym) scan))))
        (setf (mark-line ,mark-sym) ,new-line-sym))))
 
-(defun change-line (mark new-line)
-  (change-line-macro mark new-line))
 
 ;;; MOVE-SOME-MARKS  --  Internal
 ;;;
@@ -362,13 +375,9 @@
            (.close-line.)
            (line-chars ,line-sym)))))
 
-(defun line-string-1 (buffer line)
+(defun line-string (buffer line)
   (with-buffer-globals (buffer)
     (.line-string. line)))
-
-(defun line-string (line)
-  (let ((buffer (line-%buffer line)))
-    (line-string-1 buffer line)))
 
 (defmacro .set-line-string. (string line)
   "Replace the contents of a line."
@@ -388,12 +397,10 @@
                  (setf (mark-charpos m) 0))))
          (setf (line-chars ,line-sym) ,string-sym)))))
 
-(defmethod (setf line-string-1) (string line buffer)
+(defun (setf line-string) (string line buffer)
   (with-buffer-globals (buffer)
     (.set-line-string. string line)))
 
-(defmethod (setf line-string) (string line)
-  (setf (line-string-1 line (line-%buffer line)) string))
 
 (defmacro .line-character. (line index)
   "Return the Index'th character in Line.  If the index is the length of the
@@ -415,12 +422,11 @@
                  #\newline
                  (schar chars ,index-sym)))))))
 
-(defmethod line-character-1 (buffer (line line) index)
+(defun line-character (buffer line index)
   (with-buffer-globals (buffer)
     (.line-character. line index)))
 
-(defmethod line-character (line index)
-  (line-character-1 (line-%buffer line) line index))
+
 
 
 ;;;; Marks.
@@ -471,22 +477,13 @@
         nil))
   (setf (mark-line mark) nil))
 
-(defmacro .move-to-position. (mark charpos &optional (line nil))
+(defun move-to-position (mark charpos &optional (line (mark-line mark)))
   "Changes the Mark to point to the given character position on the Line,
   which defaults to the line the mark is currently on."
-  ;; this could have been left as a function
-  (let ((mark-sym (gensym "MOVE-TO-POSITION_MARK"))
-        (charpos-sym (gensym "MOVE-TO-POSITION_CHARPOS"))
-        (line-sym (gensym "MOVE-TO-POSITION_LINE")))
-    `(let* ((,mark-sym ,mark)
-            (,charpos-sym ,charpos)
-            (,line-sym (or ,line (mark-line ,mark-sym))))
-       (change-line ,mark-sym ,line-sym) ;; change line is ok as a function
-       (setf (mark-charpos ,mark-sym) ,charpos-sym)
-       ,mark-sym)))
+  (change-line mark line)
+  (setf (mark-charpos mark) charpos)
+  mark)
 
-(defun move-to-position (mark charpos &optional (line (mark-line mark)))
-  (.move-to-position. mark charpos line))
 
 ;;;; Regions.
 
@@ -634,19 +631,18 @@
            (and (= left-open-pos 0) (= right-open-pos line-cache-length))
            (= (length (line-chars line)) 0)))))
 
-(defmethod empty-line-p-1 (buffer (mark mark))
+(defun empty-line-p (buffer mark)
   (with-buffer-globals (buffer)
     (.empty-line-p. mark)))
 
-(defmethod empty-line-p (mark)
-  (empty-line-p-1 (line-%buffer (mark-line mark)) mark))
 
-;;(eval-when (:compile-toplevel :execute)
+
+(eval-when (:compile-toplevel :execute)
 (defmacro check-range (chars start end)
   `(do ((i ,start (1+ i)))
        ((= i ,end) t)
      (when (zerop (character-attribute :whitespace (schar ,chars i)))
-       (return nil))));;)
+       (return nil)))))
 ;;;
 (defmacro .blank-between-positions. (line start end)
   (let ((line-sym (gensym "BLANK-BETWEEN-POSITIONS_LINE"))
@@ -672,25 +668,21 @@
 ;;;    Check if a line is blank between two positions.  Used by blank-XXX-p.
 ;;;
 
-(defmethod blank-between-positions-1 (buffer (line line) start end)
+(defun blank-between-positions (buffer line start end)
   (with-buffer-globals (buffer)
     (.blank-between-positions. line start end)))
-
-(defmethod blank-between-positions (line start end)
-  (blank-between-positions-1 (line-%buffer line) line start end))
 
 (defmacro .blank-line-p. (line)
   (let ((line-sym (gensym "BLANK-LINE-P_LINE")))
     `(let ((,line-sym ,line))
        (.blank-between-positions. ,line-sym 0 (line-length ,line-sym)))))
 
-(defmethod blank-line-p-1 (buffer (line line))
+(defun blank-line-p (buffer line)
   "True if line contains only characters with a :whitespace attribute of 1."
   (with-buffer-globals (buffer)
     (.blank-line-p. line)))
 
-(defmethod blank-line-p (line)
-  (blank-line-p-1 (line-%buffer line) line))
+
 
 (defmacro .blank-before-p. (mark)
   "True is all of the characters before Mark on the line it is on have a
@@ -699,12 +691,9 @@
     `(let ((,mark-sym ,mark))
        (.blank-between-positions. (mark-line ,mark-sym) 0 (mark-charpos ,mark-sym)))))
 
-(defmethod blank-before-p-1 (buffer mark)
+(defun blank-before-p (buffer mark)
   (with-buffer-globals (buffer)
     (.blank-before-p. mark)))
-
-(defmethod blank-before-p (mark)
-  (blank-before-p-1 (line-%buffer (mark-line mark)) mark))
 
 (defmacro .blank-after-p. (mark)
   "True if all characters on the part part of the line after Mark have
@@ -715,12 +704,9 @@
        (.blank-between-positions. line (mark-charpos ,mark-sym)
                                   (line-length line)))))
 
-(defmethod blank-after-p-1 (buffer (mark mark))
+(defun blank-after-p (buffer mark)
   (with-buffer-globals (buffer)
     (.blank-after-p. mark)))
-
-(defmethod blank-after-p (mark)
-  (blank-after-p-1 (line-%buffer (mark-line mark)) mark))
 
 (defun same-line-p (mark1 mark2)
   "Returns T if Mark1 and Mark2 point to the same line, Nil otherwise."

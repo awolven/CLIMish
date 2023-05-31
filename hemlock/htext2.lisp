@@ -51,16 +51,11 @@
                  (setq index (1+ index)))))
          string))))
 
-(defmethod region-to-string-1 (buffer region)
+(defun region-to-string (buffer region)
   (with-buffer-globals (buffer)
     (.region-to-string. region)))
 
-(defmethod region-to-string (region)
-  (let ((start-buffer (line-%buffer (mark-line (region-start region))))
-        (end-buffer (line-%buffer (mark-line (region-end region)))))
-    (when (neq start-buffer end-buffer)
-      (warn "buffers do not agree"))
-    (region-to-string-1 start-buffer region)))
+
 
 (defun string-to-region (string)
   "Returns a region containing the characters in the given String."
@@ -119,12 +114,9 @@
                            (1- (+ right-open-pos (- charpos left-open-pos)))))
                  (schar (line-chars line) (1- charpos))))))))
 
-(defmethod previous-character-1 (buffer mark)
+(defun previous-character (buffer mark)
   (with-buffer-globals (buffer)
     (.previous-character. mark)))
-
-(defmethod previous-character (mark)
-  (previous-character-1 (line-%buffer (mark-line mark)) mark))
 
 (defmacro .next-character. (mark)
   "Returns the character immediately after the given Mark."
@@ -148,12 +140,10 @@
                        nil)
                    (schar chars charpos))))))))
 
-(defmethod next-character-1 (buffer mark)
+(defun next-character (buffer mark)
   (with-buffer-globals (buffer)
     (.next-character. mark)))
 
-(defmethod next-character (mark)
-  (next-character-1 (line-%buffer (mark-line mark)) mark))
 
 ;;; %Set-Next-Character  --  Internal
 ;;;
@@ -171,7 +161,7 @@
             (line (mark-line ,mark-sym))
             (next (line-next line)))
        (modifying-buffer .buffer.
-         (.modifying-line. line ,mark-sym)
+         (modifying-line .buffer. line ,mark-sym)
          (cond ((= right-open-pos line-cache-length)
                 ;; The mark is at the end of the line.
                 (unless next
@@ -183,7 +173,7 @@
                     (declare (simple-string chars))
                     (setq right-open-pos (- line-cache-length (length chars)))
                     (when (<= right-open-pos left-open-pos)
-                      (.grow-open-chars. (* (+ (length chars) left-open-pos 1) 2)))
+                      (grow-open-chars .buffer. (* (+ (length chars) left-open-pos 1) 2)))
                     (%sp-byte-blt chars 0 open-chars right-open-pos
                                   line-cache-length)
                     (setf (schar open-chars left-open-pos) ,character-sym)
@@ -212,13 +202,9 @@
                       ,character-sym))))
        ,character-sym)))
 
-(defmethod (setf next-character-1) (character (mark mark) buffer)
+(defun (setf next-character) (character buffer mark)
   (with-buffer-globals (buffer)
     (.set-next-character. character mark)))
-
-(defmethod (setf next-character) (character mark)
-  (setf (next-character-1 mark (line-%buffer (mark-line mark))) character))
-
 
 ;;; (SETF PREVIOUS-CHARACTER) --  Internal
 ;;;
@@ -230,17 +216,15 @@
            (,character-sym ,character))
        (unless (mark-before ,mark)
          (error "~S has no previous character, so it cannot be set." ,mark-sym))
-       (.set-next-character. ,character-sym ,mark-sym)
+       (setf (next-character .buffer. ,mark-sym) ,character-sym)
        (mark-after ,mark-sym)
        ,character-sym)))
 
-(defmethod (setf previous-character-1) (character (mark mark) buffer)
+(defun (setf previous-character) (character buffer mark)
   "Sets the character to the left of the given Mark."
   (with-buffer-globals (buffer)
     (.set-previous-character. character mark)))
 
-(defmethod (setf previous-character) (character mark)
-  (setf (previous-character-1 mark (line-%buffer (mark-line mark))) character))
 
 (defun count-lines (region)
   "Returns the number of lines in the region, first and last lines inclusive."
@@ -280,13 +264,13 @@
   (setf (mark-charpos mark) (line-length* line))
   mark)
 
-(defun buffer-start (mark &optional (buffer nil))
+(defun buffer-start (mark &optional (buffer (line-buffer (mark-line mark))))
   "Change Mark to point to the beginning of Buffer, which defaults to
   the buffer Mark is currently in."
   (unless buffer (error "Mark ~S does not point into a buffer." mark))
   (move-mark mark (buffer-start-mark buffer)))
 
-(defun buffer-end (mark &optional (buffer nil))
+(defun buffer-end (mark &optional (buffer (line-buffer (mark-line mark))))
   "Change Mark to point to the end of Buffer, which defaults to
   the buffer Mark is currently in."
   (unless buffer (error "Mark ~S does not point into a buffer." mark))
@@ -414,82 +398,82 @@
   "For a good time, figure out what this function does, and why it was written."
   (delete #\linefeed (the simple-string string)))
 
-(defun %print-whole-line (structure stream)
-  (let ((buffer (line-%buffer structure)))
-    (unless (typep stream 'hemlock::hemlock-character-io-stream)
-      #+NIL
-      (with-buffer-globals (buffer)
-        (cond ((eq structure open-line)
-               (write-string open-chars stream :end left-open-pos)
-               (write-string open-chars stream :start right-open-pos
-                                               :end line-cache-length))
-              (t
-               (write-string (line-chars structure) stream)))))))
+(defun %print-whole-line (buffer structure stream)
+  (with-buffer-globals (buffer)
+    (cond ((eq structure open-line)
+           (write-string open-chars stream :end left-open-pos)
+           (write-string open-chars stream :start right-open-pos
+                                           :end line-cache-length))
+          (t
+           (write-string (line-chars structure) stream)))))
 
-(defun %print-before-mark (mark stream)
-  (if (mark-line mark)
-      (let ((line (mark-line mark))
-            (charpos (mark-charpos mark)))
-        (unless (typep stream 'hemlock::hemlock-character-io-stream)
-          (with-buffer-globals ((line-%buffer line))
-            (cond
-              ((eq line open-line)
-               (cond ((< charpos left-open-pos)
-                      (write-string open-chars stream :end charpos))
-                     (t
-                      (write-string open-chars stream :end left-open-pos)
-                      (let ((p (+ charpos (- right-open-pos left-open-pos))))
+(defun %print-before-mark (buffer mark stream)
+  (with-buffer-globals (buffer)
+    (if (mark-line mark)
+        (let ((line (mark-line mark))
+              (charpos (mark-charpos mark)))
+          (unless (typep stream 'hemlock::hemlock-character-io-stream)
+            (with-buffer-globals ((line-%buffer line))
+              (cond
+                ((eq line open-line)
+                 (cond ((< charpos left-open-pos)
+                        (write-string open-chars stream :end charpos))
+                       (t
+                        (write-string open-chars stream :end left-open-pos)
+                        (let ((p (+ charpos (- right-open-pos left-open-pos))))
+                          (write-string open-chars stream  :start right-open-pos
+                                                           :end p)))))
+                (t (let ((chars (line-chars line))
+                         (length (line-length line)))
+                     (declare (simple-string chars))
+                     (cond ((or (> charpos length) (< charpos 0))
+                            (write-string "{bad mark}" stream))
+                           (t
+                            (write-string chars stream :end charpos)))))))))
+        (write-string "{deleted mark}" stream))))
+
+
+(defun %print-after-mark (buffer mark stream)
+  (with-buffer-globals (buffer)
+    (if (mark-line mark)
+        (let* ((line (mark-line mark))
+               (charpos (mark-charpos mark))
+               (buffer (line-%buffer line)))
+          (unless (typep stream 'hemlock::hemlock-character-io-stream)
+            (with-buffer-globals (buffer)
+              (cond
+                ((eq line open-line)
+                 (cond ((< charpos left-open-pos)
+                        (write-string open-chars stream  :start charpos
+                                                         :end left-open-pos)
                         (write-string open-chars stream  :start right-open-pos
-                                                         :end p)))))
-              (t (let ((chars (line-chars line))
-                       (length (line-length line)))
-                   (declare (simple-string chars))
-                   (cond ((or (> charpos length) (< charpos 0))
-                          (write-string "{bad mark}" stream))
-                         (t
-                          (write-string chars stream :end charpos)))))))))
-      (write-string "{deleted mark}" stream)))
-
-
-(defun %print-after-mark (mark stream)
-  (if (mark-line mark)
-      (let* ((line (mark-line mark))
-             (charpos (mark-charpos mark))
-             (buffer (line-%buffer line)))
-        (unless (typep stream 'hemlock::hemlock-character-io-stream)
-          (with-buffer-globals (buffer)
-            (cond
-              ((eq line open-line)
-               (cond ((< charpos left-open-pos)
-                      (write-string open-chars stream  :start charpos
-                                                       :end left-open-pos)
-                      (write-string open-chars stream  :start right-open-pos
-                                                       :end line-cache-length))
-                     (t
-                      (let ((p (+ charpos (- right-open-pos left-open-pos))))
-                        (write-string open-chars stream :start p
-                                                        :end line-cache-length)))))
-              (t (let ((chars (line-chars line))
-                       (length (line-length line)))
-                   (declare (simple-string chars))
-                   (cond ((or (> charpos length) (< charpos 0))
-                          (write-string "{bad mark}" stream))
-                         (t
-                          (write-string chars stream :start charpos :end length)))))))))
-      (write-string "{deleted mark}" stream)))
+                                                         :end line-cache-length))
+                       (t
+                        (let ((p (+ charpos (- right-open-pos left-open-pos))))
+                          (write-string open-chars stream :start p
+                                                          :end line-cache-length)))))
+                (t (let ((chars (line-chars line))
+                         (length (line-length line)))
+                     (declare (simple-string chars))
+                     (cond ((or (> charpos length) (< charpos 0))
+                            (write-string "{bad mark}" stream))
+                           (t
+                            (write-string chars stream :start charpos :end length)))))))))
+        (write-string "{deleted mark}" stream))))
 
 (defmethod print-object ((structure line) stream)
   (write-string "#<Hemlock Line \"" stream)
-  (%print-whole-line structure stream)
+  (%print-whole-line (line-%buffer structure) structure stream)
   (write-string "\">" stream))
 
 (defmethod print-object ((object mark) stream)
   (print-unreadable-object (object stream :type t :identity t)
-    (write-string "\"" stream)
-    (%print-before-mark object stream)
-    (write-string "/\\" stream)
-    (%print-after-mark object stream)
-    (write-string "\"" stream)))
+    (let ((buffer (line-%buffer (mark-line object))))
+      (write-string "\"" stream)
+      (%print-before-mark buffer object stream)
+      (write-string "/\\" stream)
+      (%print-after-mark buffer object stream)
+      (write-string "\"" stream))))
 
 (defvar *print-region* 10
   "The number of lines to print out of a region, or NIL if none.")
@@ -505,52 +489,53 @@
            (buffer (line-%buffer first-line)))
       ;; i guess a print error could occur if another thread modifies buffer globals
       ;; while this function is running, for now we don't want to deadlock
+      (with-buffer-globals (buffer)
 
-      (cond
-        ((not (and (linep first-line) (linep last-line)
-                   (eq (line-%buffer first-line) (line-%buffer last-line))
-                   (mark<= start end)))
-         (write-string "{bad region}" stream))
-        (*print-region*
-         (cond ((eq first-line last-line)
-                (let ((cs (mark-charpos start))
-                      (ce (mark-charpos end))
-                      (len (line-length first-line)))
-                  (with-buffer-globals (buffer)
-                    (cond
-                      ((or (< cs 0) (> ce len))
-                       (write-string "{bad region}" stream))
-                      ((eq first-line open-line)
+        (cond
+          ((not (and (linep first-line) (linep last-line)
+                     (eq (line-%buffer first-line) (line-%buffer last-line))
+                     (mark<= start end)))
+           (write-string "{bad region}" stream))
+          (*print-region*
+           (cond ((eq first-line last-line)
+                  (let ((cs (mark-charpos start))
+                        (ce (mark-charpos end))
+                        (len (line-length first-line)))
+                    (with-buffer-globals (buffer)
+                      (cond
+                        ((or (< cs 0) (> ce len))
+                         (write-string "{bad region}" stream))
+                        ((eq first-line open-line)
 
-                       (let ((gap (- right-open-pos left-open-pos)))
-                         (cond
-                           ((<= ce left-open-pos)
-                            (write-string open-chars stream  :start cs  :end ce))
-                           ((>= cs left-open-pos)
-                            (write-string open-chars stream  :start (+ cs gap)
-                                                             :end (+ ce gap)))
-                           (t
-                            (write-string open-chars stream :start cs
-                                                            :end left-open-pos)
-                            (write-string open-chars stream :start right-open-pos
-                                                            :end (+ gap ce))))))
-                      (t
-                       (write-string (line-chars first-line) stream  :start cs
-                                                                     :end ce))))))
-               (t
-                (%print-after-mark start stream)
-                (write-char #\/ stream)
-                (do ((line (line-next first-line) (line-next line))
-                     (last-line (mark-line end))
-                     (cnt *print-region* (1- cnt)))
-                    ((or (eq line last-line)
-                         (when (zerop cnt) (write-string "..." stream) t))
-                     (%print-before-mark end stream))
-                  (%print-whole-line line stream)
-                  (write-char #\/ stream)))))
-        (t
-         (write-string "{mumble}" stream)))))
-  (write-string "\">" stream))
+                         (let ((gap (- right-open-pos left-open-pos)))
+                           (cond
+                             ((<= ce left-open-pos)
+                              (write-string open-chars stream  :start cs  :end ce))
+                             ((>= cs left-open-pos)
+                              (write-string open-chars stream  :start (+ cs gap)
+                                                               :end (+ ce gap)))
+                             (t
+                              (write-string open-chars stream :start cs
+                                                              :end left-open-pos)
+                              (write-string open-chars stream :start right-open-pos
+                                                              :end (+ gap ce))))))
+                        (t
+                         (write-string (line-chars first-line) stream  :start cs
+                                                                       :end ce))))))
+                 (t
+                  (%print-after-mark .buffer. start stream)
+                  (write-char #\/ stream)
+                  (do ((line (line-next first-line) (line-next line))
+                       (last-line (mark-line end))
+                       (cnt *print-region* (1- cnt)))
+                      ((or (eq line last-line)
+                           (when (zerop cnt) (write-string "..." stream) t))
+                       (%print-before-mark .buffer. end stream))
+                    (%print-whole-line .buffer. line stream)
+                    (write-char #\/ stream)))))
+          (t
+           (write-string "{mumble}" stream)))))
+    (write-string "\">" stream)))
 
 (defun %print-hbuffer (structure stream d)
   (declare (ignore d))

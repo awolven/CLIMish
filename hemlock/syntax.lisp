@@ -540,7 +540,7 @@
                     chars 0 ,(or start '(strlen chars)) ,char-set ,mask))))
 ;;;
 (defmacro rev-cache-find-attribute (buffer start result char-set mask)
-  `(with-slots (left-open-pos right-open-pos open-chars line-cache-langth) ,buffer
+  `(with-buffer-globals (,buffer)
      (let ((gap (- right-open-pos left-open-pos)))
        (declare (fixnum gap))
        (cond

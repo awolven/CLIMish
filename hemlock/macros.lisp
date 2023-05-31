@@ -18,6 +18,21 @@
 (define-symbol-macro *editor-input*
     (clui::window-parent *echo-area-window*))
 
+(defvar *real-editor-input* ()
+  "Useful when we want to read from the terminal when *editor-input* is
+   rebound.")
+
+;;; This is a public variable.
+;;;
+(defvar *last-key-event-typed* ()
+  "This variable contains the last key-event typed by the user and read as
+   input.")
+
+;;; This is a public variable.  SITE-INIT initializes this.
+;;;
+(defvar *key-event-history* nil
+  "This ring holds the last 60 key-events read by the command interpreter.")
+
 ;;;; Macros used for manipulating Hemlock variables.
 
 (defmacro invoke-hook (place &rest args)
@@ -389,7 +404,7 @@
   (defun command-case-tag (tag key-event char)
     (cond ((and (characterp tag) (standard-char-p tag))
            `(and ,char (char= ,char ,tag)))
-          ((and (typep tag 'clui::input-event-id))
+          ((and (typep tag 'krma.gui::input-event-id))
            `(eq ,key-event ,tag))                
           ((and (symbolp tag) (keywordp tag))
            `(logical-key-event-p ,key-event ,tag))

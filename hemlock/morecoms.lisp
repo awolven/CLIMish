@@ -33,14 +33,14 @@
 (defmacro .filter-words. (p point function)
   (let ((p-sym (gensym "FILTER-WORDS_P"))
         (point-sym (gensym "FILTER-WORDS_POINT"))
-        (function-sym (gensym "FILTER-FUNCTION_FUNCTION")))
+        (function-sym (gensym "FILTER-WORDS_FUNCTION")))
     `(let ((,p-sym ,p)
            (,point-sym ,point)
            (,function-sym ,function))
        (let ((arg (or ,p-sym 1)))
          (with-mark ((mark ,point-sym))
            (if (word-offset (if (minusp arg) mark ,point-sym) arg)
-               (hi::.filter-region. ,function-sym (region mark ,point-sym))
+               (filter-region .buffer. ,function-sym (region mark ,point-sym))
                (editor-error "Not enough words.")))))))
 
 ;;;; Casing commands...
@@ -66,38 +66,37 @@
 ;;; Lisp's notion are too annoying.
 ;;;
 (defcommand "Capitalize Word" (window p)
-  "Lowercase a word capitalizing the first character.  With a prefix
+    "Lowercase a word capitalizing the first character.  With a prefix
   argument, capitalize that many words.  A negative argument capitalizes
   words before the point, but leaves the point where it was."
     "Capitalize p words at the point."
-  (let ((buffer (window-buffer (current-window))))
-    (with-buffer-globals (buffer)
-      (let ((point .point.)
-            (arg (or p 1)))
-        (with-mark ((start point :left-inserting)
-                    (end point))
-          (when (minusp arg)
-            (unless (word-offset start arg) (editor-error "No previous word.")))
-          (do ((region (region start end))
-               (cnt (abs arg) (1- cnt)))
-              ((zerop cnt) (move-mark point end))
-            (unless (find-attribute start :word-delimiter #'zerop)
-              (editor-error "No next word."))
-            (move-mark end start)
-            (find-attribute end :word-delimiter)
-            (loop
-              (when (mark= start end)
-                (move-mark point end)
-                (editor-error "No alphabetic characters in word."))
-              (when (alpha-char-p (next-character start)) (return))
-              (character-offset start 1))
-            (setf (next-character start) (char-upcase (next-character start)))
-            (mark-after start)
-            (hi::.filter-region. #'string-downcase region)))))))
+  (let ((buffer (window-buffer window)))
+    (let ((point (buffer-point buffer))
+          (arg (or p 1)))
+      (with-mark ((start point :left-inserting)
+                  (end point))
+        (when (minusp arg)
+          (unless (word-offset start arg) (editor-error "No previous word.")))
+        (do ((region (region start end))
+             (cnt (abs arg) (1- cnt)))
+            ((zerop cnt) (move-mark point end))
+          (unless (find-attribute start :word-delimiter #'zerop)
+            (editor-error "No next word."))
+          (move-mark end start)
+          (find-attribute end :word-delimiter)
+          (loop
+            (when (mark= start end)
+              (move-mark point end)
+              (editor-error "No alphabetic characters in word."))
+            (when (alpha-char-p (next-character buffer start)) (return))
+            (character-offset start 1))
+          (setf (next-character buffer start) (char-upcase (next-character buffer start)))
+          (mark-after start)
+          (filter-region buffer #'string-downcase region))))))
 
 ;;; TWIDDLE-REGION implements "Uppercase Region" and "Lowercase Region".
 ;;;
-(defmacro .twiddle-region. (current-window region function name)
+(defmacro .twiddle-region. (current-window buffer region function name)
   (let ((region-sym (gensym "TWIDDLE-REGION_REGION"))
         (function-sym (gensym "TWIDDLE-REGION_FUNCTION"))
         (name-sym (gensym "TWIDDLE-REGION_NAME")))
@@ -108,9 +107,9 @@
               (start (copy-mark (region-start ,region-sym) :left-inserting))
               (end (copy-mark (region-end ,region-sym) :left-inserting)))
          (let* ((region (region start end))
-                (undo-region (copy-region region)))
+                (undo-region (copy-region ,buffer region)))
            (check-region-query-size ,current-window region)
-           (hi::.filter-region. ,function-sym region)
+           (filter-region ,buffer ,function-sym region)
            (make-region-undo :twiddle ,name-sym region undo-region))))))
 
 (defcommand "Uppercase Region" (window p)
@@ -118,14 +117,14 @@
   "Uppercase words from point to mark."
   (declare (ignore p))
   (with-buffer-globals ((window-buffer (current-window)))
-    (.twiddle-region. window (current-region .buffer.) #'string-upcase "Uppercase Region")))
+    (.twiddle-region. window .buffer. (current-region .buffer.) #'string-upcase "Uppercase Region")))
 
 (defcommand "Lowercase Region" (window p)
   "Lowercase words from point to mark."
   "Lowercase words from point to mark."
   (declare (ignore p))
   (with-buffer-globals ((window-buffer (current-window)))
-    (.twiddle-region. window (current-region .buffer.) #'string-downcase "Lowercase Region")))
+    (.twiddle-region. window .buffer. (current-region .buffer.) #'string-downcase "Lowercase Region")))
 
 
 
@@ -134,43 +133,44 @@
 ;;;; More stuff.
 
 (defcommand "Delete Previous Character Expanding Tabs" (window p)
-  "Delete the previous character.
+    "Delete the previous character.
   When deleting a tab pretend it is the equivalent number of spaces.
   With prefix argument, do it that many times."
     "Delete the P previous characters, expanding tabs into spaces."
-  (with-buffer-globals ((window-buffer (current-window)))
-    (let ((point .point.)
-          (n (or p 1)))
-      (when (minusp n)
-        (editor-error "Delete Previous Character Expanding Tabs only accepts ~
+  
+  (let* ((buffer (window-buffer window))
+         (point (buffer-point buffer))
+         (n (or p 1)))
+    (when (minusp n)
+      (editor-error "Delete Previous Character Expanding Tabs only accepts ~
                      positive arguments."))
-      ;; Pre-calculate the number of characters that need to be deleted
-      ;; and any remaining white space filling, allowing modification to
-      ;; be avoided if there are not enough characters to delete.
-      (let ((errorp nil)
-            (del 0)
-            (fill 0))
-        (with-mark ((mark point))
-          (dotimes (i n)
-            (if (> fill 0)
-                (decf fill)
-                (let ((prev (previous-character mark)))
-                  (cond ((and prev (char= prev #\tab))
-                         (let ((pos (.mark-column. mark)))
-                           (mark-before mark)
-                           (incf fill (- pos (.mark-column. mark) 1)))
-                         (incf del))
-                        ((mark-before mark)
-                         (incf del))
-                        (t
-                         (setq errorp t)
-                         (return)))))))
-        (cond ((and (not errorp) (.kill-characters. point (- del)))
-               (with-mark ((mark point :left-inserting))
-                 (dotimes (i fill)
-                   (hi::.insert-character. mark #\space))))
-              (t
-               (editor-error "There were not ~D characters before point." n)))))))
+    ;; Pre-calculate the number of characters that need to be deleted
+    ;; and any remaining white space filling, allowing modification to
+    ;; be avoided if there are not enough characters to delete.
+    (let ((errorp nil)
+          (del 0)
+          (fill 0))
+      (with-mark ((mark point))
+        (dotimes (i n)
+          (if (> fill 0)
+              (decf fill)
+              (let ((prev (previous-character buffer mark)))
+                (cond ((and prev (char= prev #\tab))
+                       (let ((pos (mark-column buffer mark)))
+                         (mark-before mark)
+                         (incf fill (- pos (mark-column buffer mark) 1)))
+                       (incf del))
+                      ((mark-before mark)
+                       (incf del))
+                      (t
+                       (setq errorp t)
+                       (return)))))))
+      (cond ((and (not errorp) (kill-characters buffer point (- del)))
+             (with-mark ((mark point :left-inserting))
+               (dotimes (i fill)
+                 (insert-character buffer mark #\space))))
+            (t
+             (editor-error "There were not ~D characters before point." n))))))
 
 
 (defvar *scope-table*
@@ -202,7 +202,7 @@
   The command, key and place to make the binding are prompted for."
   "Prompt for stuff to do a bind-key."
   (declare (ignore p))
-  (multiple-value-call #'bind-key
+  (multiple-value-call #'krma.gui::define-gesture
     (values (prompt-for-keyword
              window
              (list *command-names*)
@@ -215,6 +215,7 @@
     (prompt-for-place window "Kind of binding: "
                       "The kind of binding to make.")))
 
+#+NIL
 (defcommand "Delete Key Binding" (window p)
   "Delete a key binding.
   The key and place to remove the binding are prompted for."
@@ -303,7 +304,7 @@
   "Select last random typeout buffer."
   (declare (ignore p))
   (if *random-typeout-buffers*
-      (change-to-buffer (caar *random-typeout-buffers*))
+      (change-to-buffer (caar *random-typeout-buffers*) window)
       (editor-error "There are no random typeout buffers.")))
 
 
@@ -338,7 +339,7 @@
       (setf (current-window) win)
       (unless (eq (window-buffer win) buf)
         (setf (window-buffer win) buf))
-      (setf (current-buffer (window-buffer (krma.gui::focused-window (krma::main-window krma::*app*)))) buf)
+      (setf (current-buffer (window-buffer (krma.gui::focused-window (clui::window-parent *echo-area-window*)))) buf)
       )))
 
 (defcommand "Exit Recursive Edit" (window p)
@@ -381,14 +382,15 @@
   (declare (ignore p))
   (unless (>= (ring-length (value buffer-mark-ring)) 3)
     (editor-error "Need two marked regions to do Transpose Regions."))
-  (with-buffer-globals ((window-buffer (current-window)))
-    (let* ((region (current-region .buffer.))
+  (let* ((buffer (window-buffer window))
+         (point (buffer-point buffer)))
+    (let* ((region (current-region buffer))
            (end2 (region-end region))
            (start2 (region-start region))
-           (delete1 (pop-buffer-mark .buffer.))
-           (end1 (pop-buffer-mark .buffer.))
+           (delete1 (pop-buffer-mark buffer))
+           (end1 (pop-buffer-mark buffer))
            (delete2 end1)
-           (start1 (pop-buffer-mark .buffer.))
+           (start1 (pop-buffer-mark buffer))
            (delete3 start1))
       ;;get marks in the right order, to simplify the code that follows
       (unless (mark<= start1 end1) (rotatef start1 end1))
@@ -399,19 +401,18 @@
       (unless (mark<= end1 start2)
         (editor-error "Can't transpose overlapping regions."))
       (let* ((adjacent-p (mark= end1 start2))
-             (region1 (hi::.delete-and-save-region. (region start1 end1)))
+             (region1 (delete-and-save-region buffer (region start1 end1)))
              (region2 (unless adjacent-p
-                        (hi::.delete-and-save-region. (region start2 end2))))
-             (point .point.))
+                        (delete-and-save-region buffer (region start2 end2)))))
         (with-mark ((ipoint point :left-inserting))
-          (let ((save-end2-loc (push-buffer-mark .buffer. (copy-mark end2))))
-            (hi::.ninsert-region. (move-mark ipoint end2) region1)
-            (push-buffer-mark .buffer. (copy-mark ipoint))
+          (let ((save-end2-loc (push-buffer-mark buffer (copy-mark end2))))
+            (ninsert-region buffer (move-mark ipoint end2) region1)
+            (push-buffer-mark buffer (copy-mark ipoint))
             (cond (adjacent-p
-                   (push-buffer-mark .buffer. (copy-mark start2))
+                   (push-buffer-mark buffer (copy-mark start2))
                    (move-mark point save-end2-loc))
-                  (t (push-buffer-mark .buffer. (copy-mark end1))
-                     (hi::.ninsert-region. (move-mark ipoint end1) region2)
+                  (t (push-buffer-mark buffer (copy-mark end1))
+                     (ninsert-region buffer (move-mark ipoint end1) region2)
                      (move-mark point ipoint))))))
       (delete-mark delete1)
       (delete-mark delete2)
@@ -423,19 +424,18 @@
    of the buffer with the number one.  If a prefix argument is supplied, that
    is the line numbe; otherwise, the user is prompted."
     "Go to a user perceived line number."
-  (let ((buffer (window-buffer (current-window))))
+  (let ((buffer (window-buffer window)))
     (let ((p (or p (prompt-for-expression
                     window
                     :prompt "Line number: "
                     :help "Enter an absolute line number to goto."))))
       (unless (and (integerp p) (plusp p))
         (editor-error "Must supply a positive integer."))
-      (bt:with-recursive-lock-held ((buffer-lock buffer))
-        (let ((point (buffer-point buffer)))
-          (with-mark ((m point))
-            (unless (line-offset (buffer-start m buffer) (1- p) 0)
-              (editor-error "Not enough lines in buffer."))
-            (move-mark point m)))))))
+      (let ((point (buffer-point buffer)))
+        (with-mark ((m point))
+          (unless (line-offset (buffer-start m buffer) (1- p) 0)
+            (editor-error "Not enough lines in buffer."))
+          (move-mark point m))))))
 
 
 
@@ -493,6 +493,7 @@
   (krma.gui::redraw-buffer window));;);;)
 
 
+#+NOTYET
 (defcommand "Here to Top of Window" (window p)
   "Move the line the mouse is on to the top of the window.
   If in the first two columns then scroll continuously until the button is
@@ -583,11 +584,12 @@
                (m (cursorpos-to-mark x y window)))
           (unless m (editor-error))
           ;;(maybe-change-window window window)
-          (with-buffer-globals ((window-buffer window))
+          (let* ((buffer (window-buffer window))
+                 (point (buffer-point buffer)))
             (let (#+NIL(region (buffer-region .buffer.)))
               
-              (move-mark .point. m)
-              (push-buffer-mark .buffer. m t)
+              (move-mark point m)
+              (push-buffer-mark buffer m t)
 
               #+NIL
               (line-offset .point. (round (* (1- (count-lines region)) x)
@@ -645,12 +647,13 @@
             (move-mark .point. m)
             (activate-region (window-buffer window))
             (update-window-image window))))))
+  (setf (last-command-type) nil)
   (setf *generic-pointer-up-fun* nil)
   (setf *generic-pointer-move-fun* nil))
   
           
 
-
+#+NOTYET
 (defcommand "Insert Kill Buffer" (window p)
     "Move current point to the mouse location and insert the kill buffer."
     "Move current point to the mouse location and insert the kill buffer."
@@ -681,7 +684,7 @@
            (,i-sym ,i))
        (with-mark ((m ,mark-sym))
          (buffer-start m .buffer.)
-         (unless (page-offset m (1- ,i-sym))
+         (unless (page-offset .buffer. m (1- ,i-sym))
            (editor-error "No page numbered ~D." ,i-sym))
          (move-mark ,mark-sym m)))))
 
@@ -697,7 +700,7 @@
   (let* ((buffer (window-buffer window)))
     (with-buffer-globals (buffer)
       (let ((point .point.))
-        (cond ((not p) (page-offset point 1))
+        (cond ((not p) (page-offset buffer point 1))
 
               ((zerop p)
                (let* ((againp (eq (last-command-type) :goto-page-zero))
@@ -705,7 +708,7 @@
                                                :default (if againp
                                                             *goto-page-last-string*
                                                             *parse-default*)))
-                      (dir (page-directory (current-buffer)))
+                      (dir (page-directory buffer))
                       (i 1))
                  (declare (simple-string name))
                  (cond ((not againp)
@@ -726,12 +729,11 @@
                    (incf i)
                    (setf dir (cdr dir)))))
 
-              ((minusp p) (page-offset point p))
+              ((minusp p) (page-offset buffer point p))
 
               (t (.goto-page. point p)))
-        (hi::with-render-thread (*app*)
-          (line-start (move-mark (window-display-start window) point))
-          (hi::update-window-image window))))))
+        (line-start (move-mark (window-display-start window) point))
+        (hi::update-window-image window)))))
 
 (defcommand "View Page Directory" (window p)
   "Print a listing of the first non-blank line after each page mark
@@ -739,7 +741,7 @@
   "Print a listing of the first non-blank line after each page mark
    in a pop-up window."
   (declare (ignore p))
-  (let ((buffer (window-buffer (current-window))))
+  (let ((buffer (window-buffer window)))
     (let ((dir (page-directory buffer)))
       (declare (list dir))
       (with-pop-up-display (s :height (1+ (the fixnum (length dir))) :current-window window)
@@ -761,7 +763,7 @@
         (push-buffer-mark buffer (copy-mark point))
         (display-page-directory (make-hemlock-character-io-stream buffer)
                                 (page-directory buffer)))
-    (setf (last-command-type) :ephemerally-active))))
+      (setf (last-command-type) :ephemerally-active))))
 
 (defun display-page-directory (stream directory)
   "This writes the list of strings, directory, to stream, enumerating them
@@ -785,8 +787,8 @@
     (let ((end-of-buffer (buffer-end-mark buffer)) result)
       (loop ;over pages.
         (loop ;for first non-blank line.
-          (cond ((not (blank-after-p m))
-                 (let* ((str (line-string (mark-line m)))
+          (cond ((not (blank-after-p buffer m))
+                 (let* ((str (line-string buffer (mark-line m)))
                         (len (length str)))
                    (declare (simple-string str))
                    (push (if (and (> len 1)
@@ -796,14 +798,14 @@
                              (subseq str 1)
                              str)
                          result))
-                 (unless (page-offset m 1)
+                 (unless (page-offset buffer m 1)
                    (return-from page-directory (nreverse result)))
                  (when (mark= m end-of-buffer)
                    (return-from page-directory (nreverse result)))
                  (return))
                 ((not (line-offset m 1 0))
                  (return-from page-directory (nreverse result)))
-                ((= (character-attribute :page-delimiter (next-character m))
+                ((= (character-attribute :page-delimiter (next-character buffer m))
                     1)
                  (push "" result)
                  (mark-after m)
@@ -814,54 +816,47 @@
   "Move to the beginning of the current page.
   With prefix argument move that many pages."
   "Move backward P pages."
-  (let* ((window (current-window))
-         (buffer (window-buffer window))
+  (let* ((buffer (window-buffer window))
          (point (buffer-point buffer)))
-    (hi::with-render-thread (*app*)
-      (with-buffer-globals (buffer)
-        (unless (page-offset point (- (or p 1)))
-          (editor-error "No such page.")))
-      (line-start (move-mark (window-display-start window) point))
-      (hi::update-window-image window))))
+    (unless (page-offset buffer point (- (or p 1)))
+      (editor-error "No such page."))
+    (line-start (move-mark (window-display-start window) point))
+    (krma.gui::redraw-buffer window)))
 
 (defcommand "Next Page" (window p)
   "Move to the beginning of the next page.
   With prefix argument move that many pages."
   "Move forward P pages."
-  (let* ((window (current-window))
-         (buffer (window-buffer window))
+  (let* ((buffer (window-buffer window))
          (point (buffer-point buffer)))
-    (hi::with-render-thread (*app*)
-      (with-buffer-globals (buffer)
-        (unless (page-offset point (or p 1))
-          (editor-error "No such page.")))
-      (line-start (move-mark (window-display-start window) point))
-      (hi::update-window-image window))))
+    (unless (page-offset buffer point (or p 1))
+      (editor-error "No such page."))
+    (line-start (move-mark (window-display-start window) point))
+    (krma.gui::redraw-buffer window)))
 
 (defcommand "Mark Page" (window p)
   "Put point at beginning, mark at end of current page.
    With prefix argument, mark the page that many pages after the current one."
   "Mark the P'th page after the current one."
-  (let* ((window (current-window))
-         (buffer (window-buffer window))
+  (let* ((buffer (window-buffer window))
          (point (buffer-point buffer)))
     (if p
-        (unless (page-offset point (1+ p)) (editor-error "No such page."))
-        (page-offset point 1)) ;If this loses, we're at buffer-end.
+        (unless (page-offset buffer point (1+ p)) (editor-error "No such page."))
+        (page-offset buffer point 1)) ;If this loses, we're at buffer-end.
     (with-mark ((m point))
-      (unless (page-offset point -1)
+      (unless (page-offset buffer point -1)
         (editor-error "No such page."))
       (push-buffer-mark (copy-mark m) t)
-      (line-start (move-mark (window-display-start (current-window)) point)))))
+      (line-start (move-mark (window-display-start window) point)))))
 
-(defun page-offset (mark n)
+(defun page-offset (buffer mark n)
   "Move mark past n :page-delimiters that are in the zero'th line position.
    If a :page-delimiter is the immediately next character after mark in the
    appropriate direction, then skip it before starting."
   (cond ((plusp n)
          (find-attribute mark :page-delimiter #'zerop)
          (dotimes (i n mark)
-           (unless (next-character mark) (return nil))
+           (unless (next-character buffer mark) (return nil))
            (loop
              (unless (find-attribute mark :page-delimiter)
                (return-from page-offset nil))
@@ -872,7 +867,7 @@
          (reverse-find-attribute mark :page-delimiter #'zerop)
          (prog1
           (dotimes (i (- n) mark)
-            (unless (previous-character mark) (return nil))
+            (unless (previous-character buffer mark) (return nil))
             (loop
               (unless (reverse-find-attribute mark :page-delimiter)
                 (return-from page-offset nil))
@@ -905,22 +900,23 @@
   "Display number of lines in current page and position within page.
    With prefix argument do on entire buffer."
   "Count some lines, Man."
-  (let ((point (buffer-point (window-buffer (current-window)))))
+  (let* ((buffer (window-buffer window))
+         (point (buffer-point buffer)))
     (if p
-        (let ((r (buffer-region (current-buffer))))
+        (let ((r (buffer-region buffer)))
           (count-lines-function "Buffer" (region-start r) point (region-end r)))
         (with-mark ((m1 point)
                     (m2 point))
           (unless (and (= (character-attribute :page-delimiter
-                                               (previous-character m1))
+                                               (previous-character buffer m1))
                           1)
                        (= (mark-charpos m1) 1))
-            (page-offset m1 -1))
+            (page-offset buffer m1 -1))
           (unless (and (= (character-attribute :page-delimiter
-                                               (next-character m2))
+                                               (next-character buffer m2))
                           1)
                        (= (mark-charpos m2) 0))
-            (page-offset m2 1))
+            (page-offset buffer m2 1))
           (count-lines-function "Page" m1 point m2)))))
 
 (defun count-lines-function (msg start mark end)
@@ -932,7 +928,7 @@
   "Display number of lines in the region."
   "Display number of lines in the region."
   (declare (ignore p))
-  (multiple-value-bind (region activep) (get-count-region (window-buffer (current-window)))
+  (multiple-value-bind (region activep) (get-count-region (window-buffer window))
     (message "~:[After point~;Active region~]: ~A lines"
              activep (count-lines region))))
 
@@ -942,7 +938,7 @@
    argument is ignored."
   "Prints Number of Words in the Region"
   (declare (ignore p))
-  (multiple-value-bind (region activep) (get-count-region (window-buffer (current-window)))
+  (multiple-value-bind (region activep) (get-count-region (window-buffer window))
     (let ((end-mark (region-end region)))
       (with-mark ((beg-mark (region-start region)))
         (let ((word-count 0))
@@ -962,7 +958,8 @@
   "Put the current buffer into \"Fundamental\" mode."
   "Put the current buffer into \"Fundamental\" mode."
   (declare (ignore p))
-  (setf (buffer-major-mode (current-buffer)) "Fundamental"))
+  (let ((buffer (window-buffer window)))
+    (setf (buffer-major-mode buffer buffer) "Fundamental")))
 
 ;;;
 ;;; Text mode.
@@ -974,7 +971,8 @@
   "Put the current buffer into \"Text\" mode."
   "Put the current buffer into \"Text\" mode."
   (declare (ignore p))
-  (setf (buffer-major-mode (current-buffer)) "Text"))
+    (let ((buffer (window-buffer window)))
+      (setf (buffer-major-mode buffer buffer) "Text")))
 
 ;;;
 ;;; Caps-lock mode.
@@ -989,19 +987,23 @@
   "Simulate having a CAPS LOCK key.  Toggle CAPS-LOCK mode.  Zero or a
    negative argument turns it off, while a positive argument turns it
    on."
-  (setf (buffer-minor-mode (current-buffer) "CAPS-LOCK")
-        (if p
-            (plusp p)
-            (not (buffer-minor-mode (current-buffer) "CAPS-LOCK")))))
+  (let ((buffer (window-buffer window)))
+    (setf (buffer-minor-mode buffer "CAPS-LOCK" buffer)
+          (if p
+              (plusp p)
+              (not (buffer-minor-mode buffer "CAPS-LOCK"))))))
 
+
+#+NOTYET
 (defcommand "Self Insert Caps Lock" (window p)
-  "Insert the last character typed, or the argument number of them.
+    "Insert the last character typed, or the argument number of them.
    If the last character was an alphabetic character, then insert its
    capital form."
-  "Insert the last character typed, or the argument number of them.
+    "Insert the last character typed, or the argument number of them.
    If the last character was an alphabetic character, then insert its
    capital form."
-  (let ((char (char-upcase (hemlock-ext:key-event-char *last-key-event-typed*))))
-    (if (and p (> p 1))
-        (insert-string (buffer-point (window-buffer (current-window))) (make-string p :initial-element char))
-        (insert-character (buffer-point (window-buffer (current-window))) char))))
+  (let ((buffer (window-buffer window)))
+    (let ((char (char-upcase (hemlock-ext:key-event-char *last-key-event-typed*))))
+      (if (and p (> p 1))
+          (insert-string buffer (buffer-point buffer) (make-string p :initial-element char))
+          (insert-character buffer (buffer-point buffer) char)))))

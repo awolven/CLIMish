@@ -32,7 +32,15 @@
    (default-initial-window-width-mm 90)
    (default-initial-window-width (* (the default-initial-window-width-mm) (the px-per-mm-width)))
    
-   (current-font (the roboto-font (bmfonts 2.75) bmfont)))
+   (current-font (the roboto-font (bmfonts 2.75) bmfont))
+   (lisp-defines-text-color #(0.545f0 0.980f0 0.439f0 1.0f0))
+   (lisp-names-text-color #(0.888f0 0.814f0 0.310f0 1.0f0))
+   (lisp-strings-color #(0.914f0 0.725f0 0.631f0 1.0f0))
+   (lisp-&keywords-text-color #(0.549 0.769f0 1.0f0 1.0f0))
+   (lisp-error-text-color #(1.0f0 0.278f0 0.255f0 1.0f0))
+   (lisp-keywords-color #(0.878f0 0.565f0 0.843f0 1.0f0))
+   (lisp-quote-color #(0.25f0 0.25f0 0.25f0 1.0f0))
+   (lisp-comment-color #(0.565f0 0.824f0 0.860f0 1.0f0)))
 
   :components
   ((roboto-font :type 'font

@@ -20,6 +20,8 @@
 
 (declaim (special *character-attributes*))
 
+
+
 ;;; %init-line-image  --  Internal
 ;;;
 ;;;    Set up the print-representations for funny chars.  We make the
@@ -295,8 +297,8 @@
             (font-change-mark new-fc) ,mark)
       new-fc)))
 
-(defun sync-dis-line-tag (line dis-line)
-  (let ((tag (line-tag line)))
+(defun sync-dis-line-tag (buffer line dis-line)
+  (let ((tag (line-tag buffer line)))
     (when tag
       (unless (and (eq (dis-line-tag dis-line) tag)
                    (eql (dis-line-tag-ticks dis-line) (tag-ticks tag)))
@@ -340,7 +342,7 @@
   ;; over that, but this should get moved elsewhere.
   ;;
   (with-slots (open-line) buffer
-    (sync-dis-line-tag line dis-line)
+    (sync-dis-line-tag buffer line dis-line)
     ;;
     ;; Release any old font-changes.
     (let ((changes (dis-line-font-changes dis-line)))

@@ -54,8 +54,8 @@
 ;;;
 ;;; buffer.lisp
 (defvar *mode-names* (make-string-table) "A String Table of Mode names.")
-(defvar *buffer-names* (make-string-table)
-  "A String Table of Buffer names and their corresponding objects.")
+(setq *buffer-names* (make-string-table)
+      )
 ;;;
 ;;; interp.lisp
 (defvar *command-names* (make-string-table) "String table of command names.")

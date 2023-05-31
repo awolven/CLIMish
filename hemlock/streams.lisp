@@ -133,17 +133,25 @@
 
 (defun hemlock-output-unbuffered-out (stream character)
   (with-left-inserting-mark (mark (hemlock-output-stream-mark stream))
-    (insert-character mark character)
-    (redisplay-windows-from-mark mark)))
+    (let* ((buffer
+             (line-buffer (mark-line (hemlock-output-stream-mark stream)))))
+      (insert-character buffer mark character)
+      #+NIL
+      (redisplay-windows-from-mark mark))))
 
 (defun hemlock-output-unbuffered-sout (stream string start end)
   (with-left-inserting-mark (mark (hemlock-output-stream-mark stream))
-    (insert-string mark string start end)
-    (redisplay-windows-from-mark mark)))
+    (let* ((buffer
+             (line-buffer (mark-line (hemlock-output-stream-mark stream)))))
+      (insert-string buffer mark string start end)
+    #+NIL
+    (redisplay-windows-from-mark mark))))
 
 (defun hemlock-output-buffered-out (stream character)
   (with-left-inserting-mark (mark (hemlock-output-stream-mark stream))
-    (insert-character mark character)))
+    (let* ((buffer
+             (line-buffer (mark-line (hemlock-output-stream-mark stream)))))
+      (insert-character buffer mark character))))
 
 (defun hemlock-output-buffered-sout (stream string start end)
   (with-left-inserting-mark (mark (hemlock-output-stream-mark stream))
@@ -151,21 +159,29 @@
 
 (defun hemlock-output-line-buffered-out (stream character)
   (with-left-inserting-mark (mark (hemlock-output-stream-mark stream))
-    (insert-character mark character)
-    (when (char= character #\newline)
-      (redisplay-windows-from-mark mark))))
+    (let* ((buffer
+             (line-buffer (mark-line (hemlock-output-stream-mark stream)))))
+      (insert-character buffer mark character)
+      (when (char= character #\newline)
+        #+NIL
+        (redisplay-windows-from-mark mark)))))
 
 (defun hemlock-output-line-buffered-sout (stream string start end)
   (declare (simple-string string))
   (with-left-inserting-mark (mark (hemlock-output-stream-mark stream))
-    (insert-string mark string start end)
-    (when (find #\newline string :start start :end end)
-      (redisplay-windows-from-mark mark))))
+    (let* ((buffer
+             (line-buffer (mark-line (hemlock-output-stream-mark stream)))))
+      (insert-string buffer mark string start end)
+      (when (find #\newline string :start start :end end)
+        #+NIL
+        (redisplay-windows-from-mark mark)))))
 
 (defmethod stream-finish-output ((stream hemlock-output-stream))
+  #+NIL
   (redisplay-windows-from-mark (hemlock-output-stream-mark stream)))
 
 (defmethod stream-force-output ((stream hemlock-output-stream))
+  #+NIL
   (redisplay-windows-from-mark (hemlock-output-stream-mark stream)))
 
 (defmethod close ((stream hemlock-output-stream) &key abort)
@@ -200,7 +216,8 @@
                 (move-mark
                  (variable-value 'hemlock::buffer-input-mark :buffer buffer)
                  (buffer-point buffer))
-                (%command-loop))))
+                #+NIL
+                (krma.gui::command-loop))))
       (check-type input-string string)
       (setf input-pos 0))))
 
@@ -282,7 +299,9 @@
   (let ((mark (hemlock-region-stream-mark stream)))
     (cond ((mark< mark
                   (region-end (hemlock-region-stream-region stream)))
-           (prog1 (next-character mark) (mark-after mark)))
+           (let* ((buffer
+                    (line-buffer (mark-line (hemlock-output-stream-mark stream)))))
+             (prog1 (next-character buffer mark) (mark-after mark))))
           (t :eof))))
 
 (defmethod stream-listen ((stream hemlock-region-stream))
@@ -294,10 +313,12 @@
     (unless (mark> mark
                    (region-start (hemlock-region-stream-region stream)))
       (error "Nothing to unread."))
-    (unless (char= char (previous-character mark))
-      (error "Unreading something not read: ~S" char))
-    (mark-before mark))
-  nil)
+    (let* ((buffer
+             (line-buffer (mark-line (hemlock-output-stream-mark stream)))))
+      (unless (char= char (previous-character buffer mark))
+        (error "Unreading something not read: ~S" char))
+      (mark-before mark))
+    nil))
 
 (defmethod stream-clear-input ((stream hemlock-region-stream))
   (move-mark

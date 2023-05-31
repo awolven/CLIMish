@@ -200,23 +200,23 @@
 ;;; file, and if type is a function that cannot be found, we try to find a
 ;;; command by an appropriate name.
 ;;;
-(defun go-to-definition (file type name)
+(defun go-to-definition (current-buffer file type name)
   (let ((pattern (get-definition-pattern type name)))
     (cond
      (file
-      (setf file (go-to-definition-file file))
+      (setf file (go-to-definition-file current-buffer file))
       (let* ((buffer (find-file-command nil file))
              (point (buffer-point buffer))
              (name-len (length name)))
         (declare (fixnum name-len))
         (with-mark ((def-mark point))
-          (buffer-start def-mark)
-          (unless (find-pattern def-mark pattern)
+          (buffer-start def-mark current-buffer)
+          (unless (find-pattern current-buffer def-mark pattern)
             (if (and (or (eq type :function) (eq type :unknown-function))
                      (> name-len 7)
                      (string= name (symbol-name '#:command) :start1 (- name-len 7)))
                 (let ((prev-search-str *last-go-to-def-string*))
-                  (unless (find-pattern def-mark
+                  (unless (find-pattern current-buffer def-mark
                                         (get-definition-pattern :command name))
                     (editor-error "~A is not defined with ~S or ~S, ~
                                    but this is the defined-in file."
@@ -225,18 +225,18 @@
                 (editor-error "~A is not defined with ~S, ~
                                but this is the defined-in file."
                               name *last-go-to-def-string*)))
-          (if (eq buffer (current-buffer))
-              (push-buffer-mark (copy-mark point)))
+          (if (eq buffer current-buffer)
+              (push-buffer-mark current-buffer (copy-mark point)))
           (move-mark point def-mark))))
      (t
       (when (or (eq type :unknown-function) (eq type :unknown-macro))
-        (with-mark ((m (buffer-start-mark (current-buffer))))
-          (unless (find-pattern m pattern)
+        (with-mark ((m (buffer-start-mark current-buffer)))
+          (unless (find-pattern current-buffer m pattern)
             (editor-error
              "~A is not compiled and not defined in current buffer with ~S"
              name *last-go-to-def-string*))
-          (let ((point (current-point)))
-            (push-buffer-mark (copy-mark point))
+          (let ((point (buffer-point current-buffer)))
+            (push-buffer-mark current-buffer (copy-mark point))
             (move-mark point m))))))))
 
 ;;; GO-TO-DEFINITION-FILE takes a pathname and translates it to another

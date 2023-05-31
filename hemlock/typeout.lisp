@@ -17,6 +17,7 @@
   (hlet ((hemlock::ask-for-new-buffer nil))
     (hemlock::kill-buffer-command nil (buffer-name *current-buffer*))))
 
+#+NIL
 (bind-key "Dismiss Typeout" #k"q" :mode "Typeout")
 
 (defun invoke-with-pop-up-display (current-window cont buffer-name height)

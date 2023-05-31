@@ -257,23 +257,33 @@
   (when (variable-value 'hemlock::bell-style)
     (unix:unix-write 1 *editor-bell* 0 1)))
 
-(declaim (special *current-window*))
+#+NIL(declaim (special *current-window*))
 
 #+clx
 (declaim (special *foreground-background-xor*))
 
+#+windows
+(cffi:defcfun (ff-Beep "Beep") :bool
+  (dwFreq :int)
+  (dwDuration :int))
+
+#+windows
+(defun bell ()
+  (ff-Beep 650 40))
+
+#-windows
+(defun bell ())
+
 (defun hemlock-beep (stream)
   "Using the current window, calls the device's beep function on stream."
-  (let ((device (device-hunk-device (window-hunk (current-window)))))
-    (device-beep device stream)))
+  stream)
 
 
 ;;; *BEEP-FUNCTION* and BEEP are in SYSTEM package in CMUCL.
 ;;;
 (defvar *beep-function* #'(lambda (&optional stream)
                             (declare (ignorable stream))
-                            (print "BEEP!" *trace-output*)
-                            (finish-output *trace-output*)))
+                            (bell)))
 
 (defun beep (&optional (stream *terminal-io*))
   (funcall *beep-function* stream))

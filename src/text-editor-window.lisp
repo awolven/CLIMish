@@ -26,12 +26,13 @@
 	     (the layer))
 	    (the primitive-handles))
 
-      (push (scene-add-text-primitive scene group nil (the superior font) (the fg-color) (the x0) (the y0)
-				      (subseq (hi::window-modeline-buffer (the superior)) 0
-					      (hi::window-modeline-buffer-len (the superior)))
-				      (the object-id)
-				      (1+ (the layer)))
-	    (the primitive-handles))
+      (when (hi::window-modeline-buffer (the superior))
+	(push (scene-add-text-primitive scene group nil (the superior font) (the fg-color) (the x0) (the y0)
+					(subseq (hi::window-modeline-buffer (the superior)) 0
+						(hi::window-modeline-buffer-len (the superior)))
+					(the object-id)
+					(1+ (the layer)))
+	      (the primitive-handles)))
       (values))))
 
 (defobject text-editor-window-mixin (text-editor-view-mixin homemade-window-mixin)

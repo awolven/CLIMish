@@ -229,6 +229,10 @@
        *target-column*
        (setq *target-column* (hi::.mark-column. ,mark))))
 
+(defun set-target-column (buffer mark)
+  (with-buffer-globals (buffer)
+    (.set-target-column. mark)))
+
 #+MOVED
 (defcommand "Next Line" (window p)
     "Moves the point to the next line.

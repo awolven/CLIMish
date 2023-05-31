@@ -141,7 +141,7 @@
          (linedit-redisplay
           device
           :prompt (editor-prompt device)
-          :line (region-to-string (buffer-region buffer))
+          :line (region-to-string buffer (buffer-region buffer))
           :point (let ((mark (buffer-point buffer)))
                    (+ (mark-charpos mark)
                       (let ((line (line-previous (mark-line mark))))
@@ -244,8 +244,8 @@
 
 ;;;; Linedit support
 
-(defun buffer-contains-complete-form-p ()
-  (let ((str (hi:region-to-string (hi:buffer-region (current-buffer)))))
+(defun buffer-contains-complete-form-p (current-buffer)
+  (let ((str (hi:region-to-string current-buffer (hi:buffer-region current-buffer))))
     (or (ppcre:all-matches "^\\s*$" str) ;including empty string
         (ppcre:all-matches "^," str)     ;slime-style repl hack
         (handler-case
@@ -259,15 +259,16 @@
 
 (defcommand "Finish Linedit" (window p) "" ""
   (declare (ignore p))
-  (when (and (find "Lisp" (buffer-modes (current-buffer)) :test #'string=)
-             (not (buffer-contains-complete-form-p)))
-    (editor-error "Not a complete form"))
-  (goto-buffer-end)
-  (redisplay)
-  (newline (current-device))
-  (if *inner-linedit-p*
-      (throw 'inner-linedit-result (get-string (current-device)))
-      (hemlock::exit-hemlock)))
+  (let ((current-buffer (window-buffer window)))
+    (when (and (find "Lisp" (buffer-modes current-buffer) :test #'string=)
+               (not (buffer-contains-complete-form-p current-buffer)))
+      (editor-error "Not a complete form"))
+    (goto-buffer-end current-buffer)
+    (redisplay)
+    (newline (current-device))
+    (if *inner-linedit-p*
+	(throw 'inner-linedit-result (get-string (current-device)))
+	(hemlock::exit-hemlock))))
 
 (defcommand "Illegal Linedit Command" (window p) "" ""
   (declare (ignore p))
@@ -277,16 +278,17 @@
   (hemlock::mark= (hemlock::region-start r) (hemlock::region-end r)))
 
 (defcommand "Linedit Delete Or Eof" (window p) "" ""
-  (if (empty-region-p (hi:buffer-region (current-buffer)))
+  (if (empty-region-p (hi:buffer-region (window-buffer window)))
       (progn
-        (hemlock::save-all-files-command nil)
+        (hemlock::save-all-files-command window nil)
         (throw 'linedit-eof nil))
-      (hemlock::delete-next-character-command p)))
+      (hemlock::delete-next-character-command window p)))
 
 #+NIL
 (defcommand "Linedit Clear Screen" (window p) "" ""
   (tty-write-cmd (hemlock.terminfo:tputs hemlock.terminfo:clear-screen)))
 
+#+FIXME
 (defun install-linedit-mode (buffer)
   (bind-key "Finish Linedit" #k"return" :buffer buffer)
   (bind-key "Finish Linedit" #k"control-m" :buffer buffer)
@@ -404,7 +406,7 @@
       (setf (editor-prompt dev) original-prompt))))
 
 (defmethod get-string ((editor linedit-device))
-  (region-to-string (buffer-region (hbuf editor))))
+  (region-to-string (hbuf editor) (buffer-region (hbuf editor))))
 
 (defmethod (setf get-string) (string (editor linedit-device))
   (let ((r (buffer-region (hbuf editor)))
@@ -1574,12 +1576,12 @@ to the appropriate home directory."
            (%line-isearch string point trailer direction "Failing")))))
 
 (defun line-isearch-find-pattern
-    (direction
+    (buffer direction
      &optional (trailer (current-point))
      (pattern (get-search-pattern hemlock::*last-search-string* direction))
      (string hemlock::*last-search-string*))
   (iter
-    (let ((found-offset (find-pattern trailer pattern)))
+    (let ((found-offset (find-pattern buffer trailer pattern)))
       (when found-offset
         (return found-offset)))
     (let (#+nil (backup (copy-mark point)))

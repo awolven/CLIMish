@@ -69,11 +69,11 @@
 ;;; ----------------------------------------------------------------------
 ;;; Main searching engine
 
-(defun dabbrev-find-expansion (start-mark direction string)
+(defun dabbrev-find-expansion (buffer start-mark direction string)
   "Try to find an expansion of STRING in DIRECTION, starting from
    START-MARK. The expansion suffix is returned if found, otherwise NIL."
   (let ((searchm (copy-mark start-mark :temporary)))
-    (if (find-pattern searchm
+    (if (find-pattern buffer searchm
                       (new-search-pattern :string-sensitive
                                           direction
                                           string))
@@ -87,16 +87,16 @@
           (let ((match-region (region start end)))
             (cond ((and (> (count-characters match-region) 0)
                         (at-beginning-of-word-p searchm)
-                        (not (member (region-to-string match-region)
+                        (not (member (region-to-string buffer match-region)
                                      *seen-dabbrevs*
                                      :test #'string=)))
                    (dabbrev-apply-expansion searchm match-region direction string))
                   ((and (eq direction :forward)
-                        (next-character end))
-                   (dabbrev-find-expansion end direction string))
+                        (next-character buffer end))
+                   (dabbrev-find-expansion buffer end direction string))
                   ((and (eq direction :backward)
-                        (previous-character searchm))
-                   (dabbrev-find-expansion searchm direction string))
+                        (previous-character buffer searchm))
+                   (dabbrev-find-expansion buffer searchm direction string))
                   (t
                    (continue-failed-expansion direction string)))))
         (continue-failed-expansion direction string))))

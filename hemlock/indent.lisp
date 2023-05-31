@@ -26,8 +26,12 @@
            (,column-sym ,column))
        (multiple-value-bind (tabs spaces)
            (floor ,column-sym (hi::value spaces-per-tab))
-         (dotimes (i tabs) (hi::.insert-character. ,mark-sym #\tab))
-         (dotimes (i spaces) (hi::.insert-character. ,mark-sym #\space))))))
+         (dotimes (i tabs) (insert-character .buffer. ,mark-sym #\tab))
+         (dotimes (i spaces) (insert-character .buffer. ,mark-sym #\space))))))
+
+(defun indent-using-tabs (buffer mark column)
+  (with-buffer-globals (buffer)
+    (.indent-using-tabs. mark column)))
 
 (defmacro .indent-using-spaces. (mark column)
   "Inserts some spaces at MARK so that it moves to COLUMN.  This assumes
@@ -36,11 +40,11 @@
         (column-sym (gensym "INDENT-USING-SPACES_COLUMN")))
     `(let ((,mark-sym ,mark)
            (,column-sym ,column))
-       (hi::.insert-string. ,mark-sym (make-string ,column-sym :initial-element #\space)))))
+       (insert-string .buffer. ,mark-sym (make-string ,column-sym :initial-element #\space)))))
 
-
-
-
+(defun indent-using-spaces (buffer mark column)
+  (with-buffer-globals (buffer)
+    (.indent-using-spaces. mark column)))
 
 (defmacro .indent-to-column. (mark column)
   "Insert white space at MARK so that it moves to COLUMN.  This assumes mark is
@@ -52,8 +56,12 @@
     `(let ((,mark-sym ,mark)
            (,column-sym ,column))
        (if (hi::value indent-with-tabs)
-           (.indent-using-tabs. ,mark-sym ,column-sym)
-           (.indent-using-spaces. ,mark-sym ,column-sym)))))
+           (indent-using-tabs .buffer. ,mark-sym ,column-sym)
+           (indent-using-spaces .buffer. ,mark-sym ,column-sym)))))
+
+(defun indent-to-column (buffer mark column)
+  (with-buffer-globals (buffer)
+    (.indent-to-column. mark column)))
 
 (defmacro .indent-to-tab-stop. (mark)
   (let ((mark-sym (gensym "INDENT-TO-TAB-STOP_MARK")))
@@ -86,6 +94,10 @@
                  (funcall indent-function .buffer. start)
                  (line-offset start 1 0)))))))
 
+(defun indent-region (buffer region)
+  (with-buffer-globals (buffer)
+    (.indent-region. region)))
+
 (defmacro .indent-region-for-commands. (region)
   "Indents region undoably with INDENT-REGION."
   (let ((region-sym (gensym "INDENT-REGION_REGION")))
@@ -99,25 +111,30 @@
                                    (line-end (copy-mark end :right-inserting)))
                            undo-region)))))
 
-
-
+(defun indent-region-for-commands (buffer region)
+  (with-buffer-globals (buffer)
+    (.indent-region-for-commands. region)))
 
 (defmacro .generic-indent. (mark)
   (let ((mark-sym (gensym "GENERIC-INDENT_MARK")))
     `(let* ((,mark-sym ,mark)
             (line (mark-line ,mark-sym))
             (prev (do ((line (line-previous line) (line-previous line)))
-                      ((or (null line) (not (.blank-line-p. line))) line))))
+                      ((or (null line) (not (blank-line-p .buffer. line))) line))))
        (unless prev (editor-error))
        (line-start mark prev)
        (find-attribute mark :space #'zerop)
-       (let ((indentation (.mark-column. mark)))
+       (let ((indentation (mark-column .buffer. mark)))
          (line-start mark line)
-         (.delete-horizontal-space. mark)
-         (.indent-to-column. mark indentation)))))
+         (delete-horizontal-space .buffer. mark)
+         (indent-to-column .buffer. mark indentation)))))
+
+(defun generic-indent (buffer mark)
+  (with-buffer-globals (buffer)
+    (.generic-indent. mark)))
 
 
-(defcommand "Indent New Line" (p)
+(defcommand "Indent New Line" (window p)
   "Moves point to a new blank line and indents it.
    Any whitespace before point is deleted.  The value of \"Indent Function\"
    is used for indentation unless there is a Fill Prefix, in which case it is
@@ -126,199 +143,207 @@
    Any whitespace before point is deleted.  The value of \"Indent Function\"
    is used for indentation unless there is a Fill Prefix, in which case it is
    used.  Any argument is passed onto \"New Line\"."
-  (with-buffer-globals ((window-buffer (current-window)))
+  (let* ((buffer (window-buffer window))
+         (point (buffer-point buffer)))
     (let ((prefix (hi::value fill-prefix)))
-      (.delete-horizontal-space. .point.)
-      (new-line-command p)
+      (delete-horizontal-space buffer point)
+      (new-line-command window p)
       (if prefix
-          (hi::.insert-string. .point. prefix)
-          (funcall (hi::value indent-function) .buffer. .point.)))))
+          (insert-string buffer point prefix)
+          (funcall (hi::value indent-function) buffer point)))))
 
 
-(defcommand "Indent" (p)
-  "Invokes function held by the Hemlock variable \"Indent Function\",
+(defcommand "Indent" (window p)
+    "Invokes function held by the Hemlock variable \"Indent Function\",
    moving point past region if called with argument."
-  "Invokes function held by the Hemlock variable \"Indent Function\"
+    "Invokes function held by the Hemlock variable \"Indent Function\"
    moving point past region if called with argument."
-  (with-buffer-globals ((window-buffer (current-window)))
-    (with-mark ((mark .point. :left-inserting))
+  (let* ((buffer (window-buffer window))
+         (point (buffer-point buffer)))
+    (with-mark ((mark point :left-inserting))
       (cond ((or (not p) (zerop p))
-             (funcall (hi::value indent-function) .buffer. mark))
+             (funcall (hi::value indent-function) buffer mark))
             (t
              (if (plusp p)
-                 (unless (line-offset .point. (1- p))
-                   (buffer-end .point.))
+                 (unless (line-offset point (1- p))
+                   (buffer-end point buffer))
                  (unless (line-offset mark (1+ p))
-                   (buffer-start mark)))
-             (.indent-region-for-commands. (region mark .point.))
-             (find-attribute (line-start .point.) :whitespace #'zerop))))))
+                   (buffer-start mark buffer)))
+             (indent-region-for-commands buffer (region mark point))
+             (find-attribute (line-start point) :whitespace #'zerop))))))
 
-(defcommand "Indent Region" (p)
-  "Invokes function held by Hemlock variable \"Indent Function\" on every
+(defcommand "Indent Region" (window p)
+    "Invokes function held by Hemlock variable \"Indent Function\" on every
    line between point and mark, inclusively."
-  "Invokes function held by Hemlock variable \"Indent Function\" on every
+    "Invokes function held by Hemlock variable \"Indent Function\" on every
    line between point and mark, inclusively."
   (declare (ignore p))
-  (let ((window (current-window)))
-    (when window
-      (let ((buffer (window-buffer window)))
-        (when buffer
-          (with-buffer-globals (buffer)
-            (let* ((region (current-region .buffer.)))
-              (with-mark ((start (region-start region) :left-inserting)
-                          (end (region-end region) :left-inserting))
-                (.indent-region-for-commands. (region start end))))))))))
+
+  (when window
+    (let ((buffer (window-buffer window)))
+      (when buffer
+        (let* ((region (current-region buffer)))
+          (with-mark ((start (region-start region) :left-inserting)
+                      (end (region-end region) :left-inserting))
+            (indent-region-for-commands buffer (region start end))))))))
 
 
 
-(defcommand "Center Line" (p)
-  "Centers current line using \"Fill Column\".  If an argument is supplied,
+(defcommand "Center Line" (window p)
+    "Centers current line using \"Fill Column\".  If an argument is supplied,
    it is used instead of the \"Fill Column\"."
     "Centers current line using fill-column."
-  (with-buffer-globals (.buffer.)
-    (let* ((region (if (region-active-p .buffer.)
-                       (current-region .buffer.)
-                       (region .point. .point.)))
-           (end (region-end region)))
-      (with-mark ((temp (region-start region) :left-inserting))
-        (loop
-          (when (mark> temp end) (return))
-          (.delete-horizontal-space. (line-end temp))
-          (.delete-horizontal-space. (line-start temp))
-          (let* ((len (line-length (mark-line temp)))
-                 (spaces (- (or p (hi::value fill-column)) len)))
-            (if (and (plusp spaces)
-                     (not (zerop len)))
-                (.indent-to-column. temp (ceiling spaces 2)))
-            (unless (line-offset temp 1) (return))
-            (line-start temp)))))))
+  (let ((buffer (window-buffer window)))
+    (when buffer
+      (let* ((point (buffer-point buffer))
+             (region (if (region-active-p buffer)
+                         (current-region buffer)
+                         (region point point)))
+             (end (region-end region)))
+        (with-mark ((temp (region-start region) :left-inserting))
+          (loop
+            (when (mark> temp end) (return))
+            (delete-horizontal-space buffer (line-end temp))
+            (delete-horizontal-space buffer (line-start temp))
+            (let* ((len (line-length (mark-line temp)))
+                   (spaces (- (or p (hi::value fill-column)) len)))
+              (if (and (plusp spaces)
+                       (not (zerop len)))
+                  (indent-to-column buffer temp (ceiling spaces 2)))
+              (unless (line-offset temp 1) (return))
+              (line-start temp))))))))
 
 
-(defcommand "Quote Tab" (p)
+(defcommand "Quote Tab" (window p)
   "Insert tab character."
     "Insert tab character."
-  (with-buffer-globals ((window-buffer (current-window)))
+  (let* ((buffer (window-buffer window))
+         (point (buffer-point buffer)))
     (if (and p (> p 1))
-        (hi::.insert-string. .point. (make-string p :initial-element #\tab))
-        (hi::.insert-character. .point. #\tab))))
+        (insert-string buffer point (make-string p :initial-element #\tab))
+        (insert-character buffer point #\tab))))
 
 
-(defcommand "Open Line" (p)
+(defcommand "Open Line" (window p)
   "Inserts a newline into the buffer without moving the point."
   "Inserts a newline into the buffer without moving the point.
   With argument, inserts p newlines."
-  (with-buffer-globals ((window-buffer (current-window)))
-    (let ((point .point.)
+  (let ((buffer (window-buffer window)))
+    (let ((point (buffer-point buffer))
           (count (if p p 1)))
       (if (not (minusp count))
           (dotimes (i count)
-            (hi::.insert-character. point #\newline)
+            (insert-character buffer point #\newline)
             (mark-before point))
           (editor-error)))))
 
 
-(defcommand "New Line" (p)
+(defcommand "New Line" (window p)
   "Moves the point to a new blank line.
   A newline is inserted if the next two lines are not already blank.
   With an argument, repeats p times."
     "Moves the point to a new blank line."
-  (with-buffer-globals ((window-buffer (current-window)))
-    (let ((point .point.)
-          (count (if p p 1)))
+  (let* ((buffer (window-buffer window))
+         (point (buffer-point buffer)))
+    (let ((count (if p p 1)))
       (if (not (minusp count))
           (do* ((next (line-next (mark-line point))
                       (line-next (mark-line point)))
                 (i 1 (1+ i)))
                ((> i count))
-            (cond ((and (blank-after-p point)
-                        next (blank-line-p next)
+            (cond ((and (blank-after-p buffer point)
+                        next (blank-line-p buffer next)
                         (let ((after (line-next next)))
-                          (or (not after) (blank-line-p after))))
+                          (or (not after) (blank-line-p buffer after))))
                    (line-start point next)
                    (let ((len (line-length next)))
                      (unless (zerop len)
-                       (hi::.delete-characters. point len))))
+                       (delete-characters buffer point len))))
                   (t
-                   (hi::.insert-character. point #\newline))))
+                   (insert-character buffer point #\newline))))
           (editor-error)))))
 
+;; look in gui-application for space attributes
 
+(defun delete-horizontal-space (buffer mark)
+  "Deletes all :space characters on either side of mark."
+  (with-mark ((start mark))
+    (reverse-find-attribute start :space #'zerop)
+    (find-attribute mark :space #'zerop)
+    (delete-region buffer (region start mark))))
 
-
-
-
-
-
-(defcommand "Delete Indentation" (p)
-  "Join current line with the previous one, deleting excess whitespace.
+(defcommand "Delete Indentation" (window p)
+    "Join current line with the previous one, deleting excess whitespace.
   All whitespace is replaced with a single space, unless it is at the beginning
   of a line, immmediately following a \"(\", or immediately preceding a \")\",
   in which case the whitespace is merely deleted.  If the preceeding character
   is a sentence terminator, two spaces are left instead of one.  If a prefix
   argument is given, the following line is joined with the current line."
     "Join current line with the previous one, deleting excess whitespace."
-  (with-buffer-globals ((window-buffer (current-window)))
-    (with-mark ((m .point. :right-inserting))
+  (let* ((buffer (window-buffer window))
+         (point (buffer-point buffer)))
+    (with-mark ((m point :right-inserting))
       (when p (line-offset m 1))
       (line-start m)
-      (unless (hi::.delete-characters. m -1) (editor-error "No previous line."))
-      (.delete-horizontal-space. m)
-      (let ((prev (previous-character m)))
+      (unless (delete-characters buffer m -1) (editor-error "No previous line."))
+      (delete-horizontal-space buffer m)
+      (let ((prev (previous-character buffer m)))
         (when (and prev (char/= prev #\newline))
           (cond ((not (zerop (character-attribute :sentence-terminator prev)))
-                 (hi::.insert-string. m "  "))
+                 (insert-string buffer m "  "))
                 ((not (or (eq (character-attribute :lisp-syntax prev) :open-paren)
-                          (eq (character-attribute :lisp-syntax (next-character m))
+                          (eq (character-attribute :lisp-syntax (next-character buffer m))
                               :close-paren)))
-                 (hi::.insert-character. m #\space))))))))
+                 (insert-character buffer m #\space))))))))
 
 
-(defcommand "Delete Horizontal Space" (p)
+(defcommand "Delete Horizontal Space" (window p)
   "Delete spaces and tabs surrounding the point."
   "Delete spaces and tabs surrounding the point."
   (declare (ignore p))
-  (with-buffer-globals ((window-buffer (current-window)))
-    (.delete-horizontal-space. .point.)))
+  (let* ((buffer (window-buffer window))
+         (point (buffer-point buffer)))
+    (delete-horizontal-space buffer point)))
 
-(defcommand "Just One Space" (p)
+(defcommand "Just One Space" (window p)
     "Leave one space.
   Surrounding space is deleted, and then one space is inserted.
   with prefix argument insert that number of spaces."
     "Delete surrounding space and insert P spaces."
-  (with-buffer-globals ((window-buffer (current-window)))
-    (let ((point .point.))
-      (.delete-horizontal-space. .point.)
-      (dotimes (i (or p 1)) (hi::.insert-character. point #\space)))))
+  (let* ((buffer (window-buffer window))
+         (point (buffer-point buffer)))
+    (delete-horizontal-space buffer point)
+    (dotimes (i (or p 1)) (insert-character buffer point #\space))))
 
-(defcommand "Back to Indentation" (p)
+(defcommand "Back to Indentation" (window p)
   "Move point to the first non-whitespace character on the line."
   "Move point to the first non-whitespace character on the line."
   (declare (ignore p))
-  (with-buffer-globals ((window-buffer (current-window)))
-    (let ((point .point.))
-      (line-start point)
-      (find-attribute point :whitespace #'zerop))))
+  (let* ((buffer (window-buffer window))
+         (point (buffer-point buffer)))
+    (line-start point)
+    (find-attribute point :whitespace #'zerop)))
 
-(defcommand "Indent Rigidly" (p)
+(defcommand "Indent Rigidly" (window p)
   "Indent the region rigidly by p spaces.
    Each line in the region is moved p spaces to the right (left if p is
    negative).  When moving a line to the left, tabs are converted to spaces."
     "Indent the region rigidly p spaces to the right (left if p is negative)."
-  (with-buffer-globals ((window-buffer (current-window)))
+  (let* ((buffer (window-buffer window)))
     (let ((p (or p (hi::value spaces-per-tab)))
-          (region (current-region .buffer.)))
+          (region (current-region buffer)))
       (with-mark ((mark1 (region-start region) :left-inserting)
                   (mark2 (region-end region) :left-inserting))
         (line-start mark1)
         (line-start mark2)
         (do ()
             ((mark= mark1 mark2))
-          (cond ((empty-line-p mark1))
-                ((blank-after-p mark1)
-                 (hi::.delete-characters. mark1 (line-length (mark-line mark1))))
+          (cond ((empty-line-p buffer mark1))
+                ((blank-after-p buffer mark1)
+                 (delete-characters buffer mark1 (line-length (mark-line mark1))))
                 (t (find-attribute mark1 :whitespace #'zerop)
-                   (let ((new-column (+ p (.mark-column. mark1))))
-                     (hi::.delete-characters. mark1 (- (mark-charpos mark1)))
+                   (let ((new-column (+ p (mark-column buffer mark1))))
+                     (delete-characters buffer mark1 (- (mark-charpos mark1)))
                      (when (plusp new-column)
-                       (.indent-to-column. mark1 new-column)))))
+                       (indent-to-column buffer mark1 new-column)))))
           (line-offset mark1 1 0))))))

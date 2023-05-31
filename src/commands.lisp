@@ -1,17 +1,30 @@
 (in-package :hemlock)
 
+(defcommand "Editor Error Test" (window p)
+    ""
+    ""
+  window p
+  (editor-error "FOO!!"))
+
+(defcommand "Debugger Test" (window p)
+    ""
+    ""
+  window p
+  (break))
+
 (defcommand "Next Line" (window p)
     "Moves the point to the next line.
    With prefix argument, moves the point that many lines down (or up if
    the prefix is negative)."
     "Moves the down p lines."
   (when (typep window 'krma.gui::text-editor-window)
-    (with-buffer-globals ((window-buffer window))
-      (let* ((target (hemlock::.set-target-column. .point.)))
-	(unless (line-offset .point. (or p 1))
+    (let* ((buffer (window-buffer window))
+	   (point (buffer-point buffer)))
+      (let* ((target (set-target-column buffer point)))
+	(unless (line-offset point (or p 1))
 	  (cond ((not p)
-		 (when (same-line-p .point. (buffer-end-mark .buffer.))
-		   (line-end .point.))
+		 (when (same-line-p point (buffer-end-mark buffer))
+		   (line-end point))
 		 ;;
 		 ;; The insert-character was probably intentional back when
 		 ;; Hemlock was written, but it inserts bogus newlines at
@@ -20,14 +33,16 @@
 		 ;; (insert-character point #\newline)
 		 (editor-error "No next line."))
 		((minusp p)
-		 (buffer-start .point. .buffer.)
+		 (buffer-start point buffer)
 		 (editor-error "No previous line."))
 		(t
-		 (buffer-end .point. .buffer.)
+		 (buffer-end point buffer)
 		 (when p (editor-error "No next line.")))))
-	(unless (.move-to-column. .point. target) (line-end .point.))
+	(unless (move-to-column buffer point target) (line-end point))
 	(setf (last-command-type) :line-motion))
-      (krma.gui::redraw-buffer window))))
+      (unless (displayed-p point window)
+	(hi::center-window-on-mark window point))
+      (krma.gui:redraw-buffer window))))
 
 (defcommand "Previous Line" (window p)
     "Moves the point to the previous line.
@@ -39,29 +54,34 @@
 (defcommand "Insert Newline" (window p)
     ""
     ""
-  (krma.gui::handle-character-input window #\Newline (or p 1)))
+  (let ((buffer (window-buffer window)))
+    (if (region-active-p buffer)
+	(ring-push (hi::current-region buffer) hemlock::*kill-ring*)
+	(krma.gui::handle-character-input window #\Newline (or p 1)))))
 
 (defcommand "Beginning of Line" (window p)
     "Moves the point to the beginning of the current line.
   With prefix argument, moves the point to the beginning of the prefix'th
   next line."
     "Moves the point down p lines and then to the beginning of the line."
-  (with-buffer-globals ((window-buffer window))
-    (unless (line-offset .point. (if p p 0)) (editor-error "No such line."))
-    (line-start .point.)
+  (let* ((buffer (window-buffer window))
+	 (point (buffer-point buffer)))
+    (unless (line-offset point (if p p 0)) (editor-error "No such line."))
+    (line-start point)
     (setf (last-command-type) nil)
-    (krma.gui::redraw-buffer window)))
+    (krma.gui:redraw-buffer window)))
 
 
 (defcommand "End of Line" (window p)
     "Moves the point to the end of the current line.
   With prefix argument, moves the point to the end of the prefix'th next line."
     "Moves the point down p lines and then to the end of the line."
-  (with-buffer-globals ((window-buffer window))
-    (unless (line-offset .point. (if p p 0)) (editor-error "No such line."))
-    (line-end .point.)
+  (let* ((buffer (window-buffer window))
+	 (point (buffer-point buffer)))
+    (unless (line-offset point (if p p 0)) (editor-error "No such line."))
+    (line-end point)
     (setf (last-command-type) nil)
-    (krma.gui::redraw-buffer window)))
+    (krma.gui:redraw-buffer window)))
 
 (defcommand "Forward Character" (view p)
     "Move the point forward one character.
@@ -69,15 +89,16 @@
    go backwards."
     "Move the point of the current buffer forward p characters."
   (let ((p (or p 1)))
-    (with-buffer-globals ((hi::window-buffer view))
-      (cond ((character-offset .point. p))
+    (let* ((buffer (window-buffer view))
+	   (point (buffer-point buffer)))
+      (cond ((character-offset point p))
 	    ((= p 1)
 	     (editor-error "No next character."))
 	    ((= p -1)
 	     (editor-error "No previous character."))
 	    (t (if (plusp p)
-		   (buffer-end .point. .buffer.)
-		   (buffer-start .point. .buffer.))
+		   (buffer-end point buffer)
+		   (buffer-start point buffer))
 	       (editor-error "Not enough characters."))))
     (setf (last-command-type) nil)
     (update-window-image view)))
@@ -93,12 +114,13 @@
    With prefix argument, delete that many characters to the right
   (or left if prefix is negative)."
     "Deletes p characters to the right of the point."
-  (cond ((with-buffer-globals ((hi::view-buffer view))
-	   (hemlock::.kill-characters. .point. (or p 1))))
-	((and p (minusp p))
-	 (editor-error "Not enough previous characters."))
-	(t (editor-error "Not enough next characters.")))
-  (krma.gui::redraw-buffer view))
+  (let* ((buffer (window-buffer view))
+	 (point (buffer-point buffer)))
+    (cond ((kill-characters buffer point (or p 1)))
+	  ((and p (minusp p))
+	   (editor-error "Not enough previous characters."))
+	  (t (editor-error "Not enough next characters.")))
+    (krma.gui:redraw-buffer view)))
 
 (defcommand "Delete Previous Character" (view p)
     "Deletes the character to the left of the point.
@@ -114,24 +136,23 @@
     "Exchanges the characters on either side of the point and moves forward."
   (let ((buffer (hi::view-buffer view)))
     (when buffer
-      (with-buffer-globals (buffer)
-	(let ((arg (or p 1))
-	      (point (buffer-point buffer)))
-	  (dotimes (i (abs arg))
-	    (when (or (minusp arg) (end-line-p point))
-	      (mark-before point))
-	    (let ((prev nil)
-		  (next nil))
-	      (setq prev (hi::.previous-character. point))
-	      (setq next (hi::.next-character. point))
-	      (cond ((not prev) (editor-error "No previous character."))
-		    ((not next) (editor-error "No next character."))
-		    (t
-		     (hi::.set-previous-character. next point)
-		     (hi::.set-next-character. prev point)))
-	      (when (plusp arg) (mark-after point))))))))
-    (setf (last-command-type) nil)
-  (krma.gui::redraw-buffer view))
+      (let ((arg (or p 1))
+	    (point (buffer-point buffer)))
+	(dotimes (i (abs arg))
+	  (when (or (minusp arg) (end-line-p point))
+	    (mark-before point))
+	  (let ((prev nil)
+		(next nil))
+	    (setq prev (previous-character buffer point))
+	    (setq next (next-character buffer point))
+	    (cond ((not prev) (editor-error "No previous character."))
+		  ((not next) (editor-error "No next character."))
+		  (t
+		   (setf (previous-character buffer point) next)
+		   (setf (next-character buffer point) prev)))
+	      (when (plusp arg) (mark-after point)))))))
+  (setf (last-command-type) nil)
+  (krma.gui:redraw-buffer view))
 
 (defcommand "Forward Word" (view p)
     "Moves forward one word.
@@ -155,7 +176,6 @@
   (forward-word-command view (- (or p 1))))
 
 
-
 (defcommand "Find File" (view p &optional pathname)
   "Visit a file in its own buffer.
    If the file is already in some buffer, select that buffer,
@@ -173,8 +193,6 @@
                   :default (hemlock-ext:default-directory))))
          (buffer (find-file-buffer view pn))
 	 (window (krma.gui::find-or-create-text-editor-window-for-buffer buffer)))
-    ;;(change-to-buffer buffer view)
-    (krma.gui::focus-window window)
     buffer))
 
 (defcommand "Mousewheel Scroll" (window p)

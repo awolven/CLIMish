@@ -21,31 +21,39 @@
    (:file "src/metaclasses")
    (:file "src/style")
    (:file "src/views")
-   (:file "src/event-queue")
+   (:file "src/input-event-ids")
+
    
    
    (:file "hemlock/lispdep")
    (:file "hemlock/hemlock-ext")
    (:file "hemlock/decls")
    ;;(:file "hemlock/classes")
+   (:file "hemlock/line")
    (:file "hemlock/struct")
    (:file "hemlock/charmacs")
 
    (:file "hemlock/macros")
 
-   (:file "src/classes")
+   (:file "hemlock/table")
+      (:file "src/classes")
+   (:file "hemlock/vars")
 
+
+   (:file "hemlock/key-event")
    (:file "hemlock/rompsite")
    (:file "hemlock/bit-stuff")
 
-   (:file "hemlock/table")
-   (:file "hemlock/line")
+
+
    (:file "hemlock/ring")
    (:file "hemlock/htext1")
-   
+
+   (:file "hemlock/window")
    (:file "hemlock/buffer")
-   (:file "hemlock/vars")
+
    (:file "hemlock/interp")
+   (:file "src/event-queue")
    (:file "hemlock/syntax")
    (:file "hemlock/htext2")
    (:file "hemlock/htext3")
@@ -54,14 +62,16 @@
    (:file "hemlock/search1")
    (:file "hemlock/search2")
 
-   (:file "hemlock/window")
+
    (:file "hemlock/cursor")
    (:file "hemlock/screen")
+
    (:file "hemlock/linimage")
    (:file "hemlock/winimage")
 
-   (:file "hemlock/display")
-   (:file "hemlock/exp-syntax")
+
+   #+NIL(:file "hemlock/display")
+
 
    (:file "hemlock/kbdmac")
    (:file "hemlock/font")
@@ -75,7 +85,7 @@
    (:file "hemlock/new-undo")
 
 
-   (:file "hemlock/hunk-draw")
+   #+NIL(:file "hemlock/hunk-draw")
 
    (:file "hemlock/echocoms")
    (:file "hemlock/killcoms")
@@ -116,8 +126,10 @@
    (:file "src/gui-application")
    (:file "src/text-editor-view")
    (:file "src/text-editor-window")
+   (:file "hemlock/exp-syntax")
    (:file "src/echo-area-window")
    (:file "src/command-tables")
    (:file "src/commands")
+   (:file "src/debugger")
    (:file "src/gestures")))
 	  

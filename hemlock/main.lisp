@@ -346,16 +346,7 @@
                        :color #(1.0f0 1.0f0 1.0f0 1.0f0)))))
   )
 
-#+windows
-(defcfun (ff-Beep "Beep") :bool
-  (dwFreq :int)
-  (dwDuration :int))
 
-(defun bell ()
-  (ff-Beep 650 40))
-
-(defun hi::beep ()
-  (bell))
 
 (defmethod main-loop-one-iteration (app)
 

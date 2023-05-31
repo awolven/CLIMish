@@ -108,17 +108,18 @@
 
 (defvar *kbdmac-text* (make-array 100 :fill-pointer 0 :adjustable t))
 
-(defun insert-string-at-point (string)
-  (insert-string (buffer-point (current-buffer)) string))
-(defun insert-character-at-point (character)
-  (insert-character (buffer-point (current-buffer)) character))
+(defun insert-string-at-point (buffer string)
+  (insert-string (buffer-point buffer) string))
+
+(defun insert-character-at-point (buffer character)
+  (insert-character (buffer-point buffer) character))
 
 (defun key-vector-to-string (key-vector)
   (let ((string (make-array (length key-vector) :element-type 'character)))
     (dotimes (i (length key-vector) string)
       (setf (aref string i) (hemlock-ext:key-event-char (aref key-vector i))))))
 
-(defun self-insert-kbdmac-transform (command key)
+(defun self-insert-kbdmac-transform (buffer command key)
   (case key
     (:start
      (setf (fill-pointer *kbdmac-text*) 0))
@@ -130,8 +131,10 @@
     (:finish
      (if (> (length *kbdmac-text*) 1)
          (kbdmac-emit `(insert-string-at-point
+                        ,buffer
                         ,(key-vector-to-string *kbdmac-text*)))
          (kbdmac-emit `(insert-character-at-point
+                        ,buffer
                         ,(hemlock-ext:key-event-char (aref *kbdmac-text* 0))))))))
 ;;;
 (define-kbdmac-transform "Self Insert" #'self-insert-kbdmac-transform)
@@ -250,7 +253,7 @@
 
 
 (defvar *defining-a-keyboard-macro* ())
-#+NOTYET(defvar *kbdmac-stream* (make-kbdmac-stream))
+(defvar *kbdmac-stream* #+NOTYET(make-kbdmac-stream))
 (defvar *in-a-keyboard-macro* ()
   "True if we are currently executing a keyboard macro.")
 
@@ -332,26 +335,27 @@
   :value t)
 
 (defcommand "Define Keyboard Macro Key" (window p)
-  "Prompts for a key before going into a mode for defining keyboard macros.
+    "Prompts for a key before going into a mode for defining keyboard macros.
    The macro definition is bound to the key.  IF the key is already bound,
    this asks for confirmation before clobbering the binding."
-  "Prompts for a key before going into a mode for defining keyboard macros.
+    "Prompts for a key before going into a mode for defining keyboard macros.
    The macro definition is bound to the key.  IF the key is already bound,
    this asks for confirmation before clobbering the binding."
   (declare (ignore p))
-  (when *defining-a-keyboard-macro*
-    (editor-error "Already defining a keyboard macro."))
-  (multiple-value-bind (key kind where)
-                       (get-keyboard-macro-key)
-    (when key
-      (setf (buffer-minor-mode (current-buffer) "Def") t)
-      (let ((name (format nil "Keyboard Macro ~S" (gensym))))
-        (make-command name "This is a user-defined keyboard macro."
-                      (define-keyboard-macro))
-        (bind-key name key kind where)
-        (message "~A bound to ~A."
-                 (with-output-to-string (s) (hemlock-ext:print-pretty-key key s))
-                 name)))))
+  (let ((buffer (window-buffer window)))
+    (when *defining-a-keyboard-macro*
+      (editor-error "Already defining a keyboard macro."))
+    (multiple-value-bind (key kind where)
+        (get-keyboard-macro-key window)
+      (when key
+        (setf (buffer-minor-mode buffer "Def" buffer) t)
+        (let ((name (format nil "Keyboard Macro ~S" (gensym))))
+          (make-command name "This is a user-defined keyboard macro."
+                        (define-keyboard-macro))
+          (bind-key name key kind where)
+          (message "~A bound to ~A."
+                   (with-output-to-string (s) (hemlock-ext:print-pretty-key key s))
+                   name))))))
 
 ;;; GET-KEYBOARD-MACRO-KEY gets a key from the user and confirms clobbering it
 ;;; if it is already bound to a command, or it is a :prefix.  This returns nil
@@ -390,8 +394,8 @@
 ;;; DEFINE-KEYBOARD-MACRO gets input from the user and clobbers the function
 ;;; for the "Last Keyboard Macro" command.  This returns the new function.
 ;;;
-(defun define-keyboard-macro ()
-  (setf (buffer-minor-mode (current-buffer) "Def") t)
+(defun define-keyboard-macro (buffer)
+  (setf (buffer-minor-mode buffer "Def" buffer) t)
   (unwind-protect
     (let* ((in *kbdmac-transcript*)
            (*input-transcript* in)
@@ -403,7 +407,7 @@
         (kbdmac-command-loop))
       (setf (command-function (getstring "Last Keyboard Macro" *command-names*))
             (make-kbdmac)))
-    (setf (buffer-minor-mode (current-buffer) "Def") nil)))
+    (setf (buffer-minor-mode buffer "Def" buffer) nil)))
 
 
 (defcommand "End Keyboard Macro" (window p)

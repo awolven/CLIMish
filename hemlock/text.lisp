@@ -20,29 +20,31 @@
 
 
 ;;; The standard paragraph delimiting function is DEFAULT-PARA-DELIM-FUNCTION
-(defun default-para-delim-function (mark)
+(defun default-para-delim-function (buffer mark)
   "Return whether or not to break on this line."
-  (paragraph-delimiter-attribute-p (next-character mark)))
+  (paragraph-delimiter-attribute-p (next-character buffer mark)))
 
 ;;;; -- Paragraph Commands --
 
-(defcommand "Forward Paragraph" (p)
+(defcommand "Forward Paragraph" (window p)
   "moves point to the end of the current (next) paragraph."
   "moves point to the end of the current (next) paragraph."
-  (let ((point (current-point)))
-    (unless (paragraph-offset point (or p 1))
-      (buffer-end point .buffer.)
+  (let* ((buffer (window-buffer window))
+         (point (buffer-point buffer)))
+    (unless (paragraph-offset buffer point (or p 1))
+      (buffer-end point buffer)
       (editor-error))))
 
-(defcommand "Backward Paragraph" (p)
+(defcommand "Backward Paragraph" (window p)
   "moves point to the start of the current (previous) paragraph."
   "moves point to the start of the current (previous) paragraph."
-  (let ((point (current-point)))
-    (unless (paragraph-offset point (- (or p 1)))
-      (buffer-start point .buffer.)
+  (let* ((buffer (window-buffer window))
+         (point (buffer-point buffer)))
+    (unless (paragraph-offset buffer point (- (or p 1)))
+      (buffer-start point buffer)
       (editor-error))))
 
-(defcommand "Mark Paragraph" (p)
+(defcommand "Mark Paragraph" (window p)
   "Put mark and point around current or next paragraph.
    A paragraph is delimited by a blank line, a line beginning with a
    special character (@,\,-,',and .), or it is begun with a line with at
@@ -51,13 +53,14 @@
    paragraph."
   "Put mark and point around current or next paragraph."
   (declare (ignore p))
-  (let* ((point (current-point))
+  (let* ((buffer (window-buffer window))
+         (point (buffer-point buffer))
          (mark (copy-mark point :temporary)))
-    (if (mark-paragraph point mark)
+    (if (mark-paragraph buffer point mark)
         (push-buffer-mark mark t)
         (editor-error))))
 
-(defun mark-paragraph (mark1 mark2)
+(defun mark-paragraph (buffer mark1 mark2)
   "Mark the next or current paragraph, setting mark1 to the beginning and mark2
    to the end.  This uses \"Fill Prefix\", and mark1 is always on the first
    line of the paragraph.  If no paragraph is found, then the marks are not
@@ -66,11 +69,11 @@
               (tmark2 mark2))
     (let* ((prefix (value fill-prefix))
            (prefix-len (length prefix))
-           (paragraphp (paragraph-offset tmark2 1)))
+           (paragraphp (paragraph-offset buffer tmark2 1)))
       (when (or paragraphp
                 (and (last-line-p tmark2)
                      (end-line-p tmark2)
-                     (not (blank-line-p (mark-line tmark2)))))
+                     (not (blank-line-p buffer (mark-line tmark2)))))
         (mark-before (move-mark tmark1 tmark2))
         (%fill-paragraph-start tmark1 prefix prefix-len)
         (move-mark mark1 tmark1)
@@ -85,7 +88,7 @@
 ;;; paragraph is found.  NOTE: the order of the arguments to OR within the
 ;;; first branch of the COND must be as it is, and mark must be at the
 ;;; beginning of the line it is on.
-(defmacro %mark-to-paragraph (mark prefix prefix-length
+(defmacro %mark-to-paragraph (buffer mark prefix prefix-length
                                    &optional (direction :forward))
   `(do ((skip-prefix-p)
         (paragraph-delim-function (value paragraph-delimiter-function)))
@@ -93,8 +96,8 @@
      (setf skip-prefix-p
            (and ,prefix (%line-has-prefix-p ,mark ,prefix ,prefix-length)))
      (if skip-prefix-p (character-offset ,mark ,prefix-length))
-     (let ((next-char (next-character ,mark)))
-       (cond ((and (not (blank-after-p ,mark))
+     (let ((next-char (next-character ,buffer ,mark)))
+       (cond ((and (not (blank-after-p ,buffer ,mark))
                    (or (whitespace-attribute-p next-char)
                        (not (funcall paragraph-delim-function ,mark))))
               (return (if skip-prefix-p (line-start ,mark) ,mark)))
@@ -110,7 +113,7 @@
 ;;; moves over a paragraph to find the beginning or end depending on
 ;;; direction.  Prefixes on a line are ignored or skipped over before it
 ;;; is determined if the line is a paragraph boundary.
-(defmacro %paragraph-offset-aux (mark prefix prefix-length
+(defmacro %paragraph-offset-aux (buffer mark prefix prefix-length
                                        &optional (direction :forward))
   `(do ((paragraph-delim-function (value paragraph-delimiter-function))
         (skip-prefix-p))
@@ -118,7 +121,7 @@
      (setf skip-prefix-p
            (and ,prefix (%line-has-prefix-p ,mark ,prefix ,prefix-length)))
      (if skip-prefix-p (character-offset ,mark ,prefix-length))
-     (cond ((or (blank-after-p ,mark)
+     (cond ((or (blank-after-p ,buffer ,mark)
                 (funcall paragraph-delim-function ,mark))
             (return (line-start ,mark)))
            (,(if (eq direction :forward)
@@ -138,14 +141,14 @@
 ;;; the direction indicated by the sign of number, then nil is
 ;;; returned, otherwise the mark is returned.
 
-(defun paragraph-offset (mark number &optional (prefix (value fill-prefix)))
+(defun paragraph-offset (buffer mark number &optional (prefix (value fill-prefix)))
   "moves mark past the specified number of paragraph, forward if the number
    is positive and vice versa.  If the specified number of paragraphs do
    not exist in the direction indicated by the sign of the number, then nil
    is returned, otherwise the mark is returned."
   (if (plusp number)
-      (%paragraph-offset-forward mark number prefix)
-      (%paragraph-offset-backward mark number prefix)))
+      (%paragraph-offset-forward buffer mark number prefix)
+      (%paragraph-offset-backward buffer mark number prefix)))
 
 
 
@@ -156,24 +159,25 @@
 ;;; moved mark past a paragraph, so we make sure tmark is inside the
 ;;; paragraph or after it.
 
-(defun %paragraph-offset-forward (mark number prefix)
+(defun %paragraph-offset-forward (buffer mark number prefix)
   (do* ((n number (1- n))
         (tmark (line-start (copy-mark mark :temporary)))
         (prefix-length (length prefix))
-        (paragraphp (%mark-to-paragraph tmark prefix prefix-length)
+        (paragraphp (%mark-to-paragraph buffer tmark prefix prefix-length)
                     (if (plusp n)
-                        (%mark-to-paragraph tmark prefix prefix-length))))
+                        (%mark-to-paragraph buffer tmark prefix prefix-length))))
        ((zerop n) (move-mark mark tmark))
     (cond ((and paragraphp (not (line-offset tmark 1))) ;
            (if (or (> n 1) (and (last-line-p mark) (end-line-p mark)))
                (return nil))
            (return (line-end (move-mark mark tmark))))
-          (paragraphp (%paragraph-offset-aux tmark prefix prefix-length))
+          (paragraphp (%paragraph-offset-aux buffer tmark prefix prefix-length))
           (t (return nil)))))
 
 
 
-(defun %paragraph-offset-backward (mark number prefix)
+(defun %paragraph-offset-backward (buffer mark number prefix)
+  (declare (ignorable buffer))
   (with-mark ((tmark1 mark)
               (tmark2 mark))
     (do* ((n (abs number) (1- n))
@@ -190,7 +194,7 @@
                  (if (> n 1) (return nil))))
             (paragraphp
              (%paragraph-offset-aux tmark1 prefix prefix-length :backward)
-             (%para-offset-back-place-mark tmark1 prefix prefix-length))
+             (%para-offset-back-place-mark buffer tmark1 prefix prefix-length))
             (t (return nil))))))
 
 
@@ -204,13 +208,13 @@
 ;;; constraints are equivalent; that is, neither changes what the other
 ;;; would dictate.
 
-(defun %para-offset-back-place-mark (mark prefix prefix-length)
+(defun %para-offset-back-place-mark (buffer mark prefix prefix-length)
   (skip-prefix-if-here mark prefix prefix-length)
-  (cond ((text-blank-line-p mark) (line-start mark))
+  (cond ((text-blank-line-p buffer mark) (line-start mark))
         ((not (first-line-p mark))
          (line-offset mark -1 0)
          (skip-prefix-if-here mark prefix prefix-length)
-         (if (text-blank-line-p mark)
+         (if (text-blank-line-p buffer mark)
              (line-start mark)
              (line-offset mark 1 0)))))
 
@@ -233,65 +237,65 @@
 
 ;;;; -- Sentence Commands --
 
-(defcommand "Forward Sentence" (p)
-  "Moves forward one sentence or the specified number.
+(defcommand "Forward Sentence" (window p)
+    "Moves forward one sentence or the specified number.
    A sentence terminates with a .,?, or ! followed by any number of closing
    delimiters (such as \",',),],>,|) which are followed by either two
    spaces or a newline."
-  "Moves forward one sentence or the specified number."
-  (unless (sentence-offset (current-point) (or p 1))
-    (editor-error)))
+    "Moves forward one sentence or the specified number."
+  (let ((buffer (window-buffer window)))
+    (unless (sentence-offset buffer (buffer-point buffer) (or p 1))
+      (editor-error))))
 
 
 
-(defcommand "Backward Sentence" (p)
+(defcommand "Backward Sentence" (window p)
   "Moves backward one sentence or the specified number.
    A sentence terminates with a .,?, or ! followed by any number of closing
    delimiters (such as \",',),],>,|) which are followed by either two
    spaces or a newline."
-  "Moves backward one sentence or the specified number."
-   (unless (sentence-offset (current-point) (- (or p 1)))
-    (editor-error)))
+    "Moves backward one sentence or the specified number."
+    (let ((buffer (window-buffer window)))
+      (unless (sentence-offset buffer (buffer-point buffer) (- (or p 1)))
+        (editor-error))))
 
 
 
-(defcommand "Mark Sentence" (p)
+(defcommand "Mark Sentence" (window p)
   "Put mark and point around current or next sentence.
    A sentence terminates with a .,?, or ! followed by any number of closing
    delimiters (such as \",',),],>,|) which are followed by either two
    spaces or a newline."
   "Put mark and point around current or next sentence."
   (declare (ignore p))
-  (let* ((point (current-point))
+  (let* ((buffer (window-buffer window))
+         (point (buffer-point buffer))
          (end (copy-mark point :temporary)))
-    (unless (sentence-offset end 1) (editor-error))
+    (unless (sentence-offset buffer end 1) (editor-error))
     (move-mark point end)
-    (sentence-offset point -1)
+    (sentence-offset buffer point -1)
     (push-buffer-mark end t)))
 
 
-(defcommand "Forward Kill Sentence" (p)
-  "Kill forward to end of sentence."
+(defcommand "Forward Kill Sentence" (window p)
     "Kill forward to end of sentence."
-  (let ((window (current-window)))
-    (when window
-      (let ((buffer (window-buffer window)))
-        (when buffer
-          (let ((point (buffer-point buffer))
-                (offset (or p 1)))
-            (with-mark ((mark point))
-              (if (sentence-offset mark offset)
-                  (if (plusp offset)
-                      (with-buffer-globals (buffer)
-                        (hi::.kill-region. (region point mark) :kill-forward))
-                      (with-buffer-globals (buffer)
-                        (hi::.kill-region. (region mark point) :kill-backward)))
-          (editor-error)))))))))
+    "Kill forward to end of sentence."
+  (when window
+    (let ((buffer (window-buffer window)))
+      (when buffer
+        (let ((offset (or p 1))
+              (point (buffer-point buffer)))
+          (with-mark ((mark point))
+            (if (sentence-offset buffer mark offset)
+                (if (plusp offset)
+                    (kill-region buffer (region point mark) :kill-forward)
+                    (kill-region buffer (region mark point) :kill-backward))
+                (editor-error))))))))
 
-(defcommand "Backward Kill Sentence" (p)
+(defcommand "Backward Kill Sentence" (window p)
   "Kill backward to beginning of sentence."
   "Kill backward to beginning of sentence."
-  (forward-kill-sentence-command (- (or p 1))))
+  (forward-kill-sentence-command window (- (or p 1))))
 
 ;;;      SENTENCE-OFFSET-END-P returns true if mark is at the end of a
 ;;; sentence.  If that the end of a sentence, it leaves mark at an
@@ -300,17 +304,17 @@
 ;;; "Forward Sentence" and "Backward Sentence" for a definition of a sentence.
 
 (eval-when (:compile-toplevel :execute)
-(defmacro sentence-offset-end-p (mark &optional (direction :forward))
+(defmacro sentence-offset-end-p (buffer mark &optional (direction :forward))
   `(let ((start (mark-charpos ,mark)))
      (do ()
-         ((not (sentence-closing-char-attribute-p (next-character ,mark))))
+         ((not (sentence-closing-char-attribute-p (next-character ,buffer ,mark))))
        (mark-after ,mark))
-     (let ((next (next-character ,mark)))
+     (let ((next (next-character ,buffer ,mark)))
        (cond ((or (not next)
                   (char= next #\newline))
               ,(if (eq direction :forward) mark `(mark-after ,mark)))
              ((and (char= next #\space)
-                   (member (next-character (mark-after ,mark))
+                   (member (next-character ,buffer (mark-after ,mark))
                            '(nil #\space #\newline)))
               ,(if (eq direction :forward)
                    `(mark-before ,mark)
@@ -330,7 +334,7 @@
 ;;; and end up right where we started.
 
 (eval-when (:compile-toplevel :execute)
-(defmacro sentence-offset-find-end (mark &optional (direction :forward))
+(defmacro sentence-offset-find-end (buffer mark &optional (direction :forward))
   `(progn
     ,@(if (eq direction :backward)
           `((reverse-find-attribute ,mark :whitespace #'zerop)
@@ -343,8 +347,8 @@
                         `(reverse-find-attribute ,mark :sentence-terminator)))
       (setf endp ,(if (eq direction :forward)
                       `(if foundp (progn (mark-after ,mark)
-                                         (sentence-offset-end-p ,mark)))
-                      `(if foundp (sentence-offset-end-p ,mark :backward))))
+                                         (sentence-offset-end-p ,buffer ,mark)))
+                      `(if foundp (sentence-offset-end-p ,buffer ,mark :backward))))
       (if endp (return ,mark))
       ,(if (eq direction :forward)
            `(unless foundp (return nil))
@@ -358,10 +362,10 @@
 ;;; the direction indicated by the sign of the number, then nil is returned,
 ;;; otherwise the mark is returned.
 
-(defun sentence-offset (mark number)
+(defun sentence-offset (buffer mark number)
   (if (plusp number)
-      (sentence-offset-forward mark number)
-      (sentence-offset-backward mark (abs number))))
+      (sentence-offset-forward buffer mark number)
+      (sentence-offset-backward buffer mark (abs number))))
 
 
 
@@ -373,27 +377,28 @@
 ;;; detect if tmark1 is at the end of the paragraph, in which case tmark2
 ;;; wants to be moved over another paragraph.
 
-(defun sentence-offset-forward (mark number)
+(defun sentence-offset-forward (buffer mark number)
   (with-mark ((tmark1 mark)
               (tmark2 mark))
     (do ((n number (1- n))
          (found-paragraph-p))
         ((zerop n) (move-mark mark tmark1))
       (when (and (mark<= tmark2 tmark1)
-                 (setf found-paragraph-p (paragraph-offset tmark2 1)))
+                 (setf found-paragraph-p (paragraph-offset buffer tmark2 1)))
         (reverse-find-attribute tmark2 :whitespace #'zerop)
         (when (mark>= tmark1 tmark2)
           (line-offset tmark2 1 0)
-          (setf found-paragraph-p (paragraph-offset tmark2 1))
+          (setf found-paragraph-p (paragraph-offset buffer tmark2 1))
           (reverse-find-attribute tmark2 :whitespace #'zerop)))
-      (cond ((sentence-offset-find-end tmark1)
+      (cond ((sentence-offset-find-end buffer tmark1)
              (if (mark> tmark1 tmark2) (move-mark tmark1 tmark2)))
             (found-paragraph-p (move-mark tmark1 tmark2))
             (t (return nil))))))
 
 
 
-(defun sentence-offset-backward (mark number)
+(defun sentence-offset-backward (buffer mark number)
+  (declare (ignorable buffer))
   (with-mark ((tmark1 mark)
               (tmark2 mark)
               (tmark3 mark))
@@ -401,16 +406,16 @@
           (prefix (value fill-prefix))
           (prefix-length (length prefix))
           (found-paragraph-p
-           (cond ((paragraph-offset tmark2 -1)
-                  (sent-back-place-para-start tmark2 prefix prefix-length)
+           (cond ((paragraph-offset buffer tmark2 -1)
+                  (sent-back-place-para-start buffer tmark2 prefix prefix-length)
                   t))))
          ((zerop n) (move-mark mark tmark1))
       (move-mark tmark3 tmark1)
-      (when (and (sent-back-para-start-p tmark1 tmark3 prefix prefix-length)
+      (when (and (sent-back-para-start-p buffer tmark1 tmark3 prefix prefix-length)
                  (setf found-paragraph-p
-                       (paragraph-offset (move-mark tmark2 tmark3) -1)))
-        (paragraph-offset (move-mark tmark1 tmark2) 1)
-        (sent-back-place-para-start tmark2 prefix prefix-length))
+                       (paragraph-offset buffer (move-mark tmark2 tmark3) -1)))
+        (paragraph-offset buffer (move-mark tmark1 tmark2) 1)
+        (sent-back-place-para-start buffer tmark2 prefix prefix-length))
       (cond ((sentence-offset-find-end tmark1 :backward)
              (if (mark< tmark1 tmark2) (move-mark tmark1 tmark2)))
             (found-paragraph-p (move-mark tmark1 tmark2))
@@ -418,23 +423,23 @@
 
 
 
-(defun sent-back-para-start-p (mark1 mark2 prefix prefix-length)
+(defun sent-back-para-start-p (buffer mark1 mark2 prefix prefix-length)
   (skip-prefix-if-here (line-start mark2) prefix prefix-length)
-  (cond ((text-blank-line-p mark2)
+  (cond ((text-blank-line-p buffer mark2)
          (line-start mark2))
-        ((whitespace-attribute-p (next-character mark2))
+        ((whitespace-attribute-p (next-character buffer mark2))
          (find-attribute mark2 :whitespace #'zerop)
          (if (mark= mark1 mark2) (line-offset mark2 -1 0)))
         ((and (mark= mark2 mark1) (line-offset mark2 -1 0))
          (skip-prefix-if-here mark2 prefix prefix-length)
-         (if (text-blank-line-p mark2)
+         (if (text-blank-line-p buffer mark2)
              (line-start mark2)))))
 
 
 
-(defun sent-back-place-para-start (mark2 prefix prefix-length)
+(defun sent-back-place-para-start (buffer mark2 prefix prefix-length)
   (skip-prefix-if-here mark2 prefix prefix-length)
-  (when (text-blank-line-p mark2)
+  (when (text-blank-line-p buffer mark2)
     (line-offset mark2 1 0)
     (skip-prefix-if-here mark2 prefix prefix-length))
   (find-attribute mark2 :whitespace #'zerop))
@@ -443,7 +448,7 @@
 
 ;;;; -- Transposing Stuff --
 
-(defcommand "Transpose Words" (p)
+(defcommand "Transpose Words" (window p)
   "Transpose the words before and after the cursor.
    With a positive argument it transposes the words before and after the
    cursor, moves right, and repeats the specified number of times,
@@ -453,7 +458,6 @@
    the positive argument form."
   "Transpose the words before and after the cursor."
   (let* ((num (or p 1))
-         (window (current-window))
          (buffer (when window (window-buffer window)))
          (point (when buffer (buffer-point buffer))))
     (when buffer
@@ -462,8 +466,8 @@
         (let ((mark-prev nil)
               (mark-next nil))
           (with-buffer-globals (buffer)
-            (setq mark-prev (hi::.previous-character. mark))
-            (setq mark-next (hi::.next-character. mark)))
+            (setq mark-prev (previous-character buffer mark))
+            (setq mark-next (next-character buffer mark)))
           (cond ((plusp num)
                  (let ((forwardp (word-offset point num))
                        (backwardp (if (or (word-delimiter-attribute-p mark-next)
@@ -482,7 +486,7 @@
                        (transpose-words-backward buffer point mark start)
                        (editor-error))))
                 (t (editor-error)))))
-      (hi::update-all-buffer-windows buffer))))
+      (mapcar #'krma.gui::redraw-buffer (buffer-windows buffer)))))
 
 
 (defun transpose-words-forward (buffer mark1 end mark2)
@@ -490,11 +494,11 @@
     (with-mark ((tmark1 mark1 :left-inserting)
                 (tmark2 mark2 :left-inserting))
       (find-attribute tmark1 :word-delimiter)
-      (do ((region1 (delete-and-save-region (region mark1 tmark1))))
-          ((mark= tmark2 end) (hi::.ninsert-region. end region1))
+      (do ((region1 (delete-and-save-region buffer (region mark1 tmark1))))
+          ((mark= tmark2 end) (ninsert-region buffer end region1))
         (word-offset tmark2 1)
         (reverse-find-attribute (move-mark tmark1 tmark2) :word-delimiter)
-        (hi::.ninsert-region. mark1 (delete-and-save-region (region tmark1 tmark2)))
+        (ninsert-region buffer mark1 (delete-and-save-region buffer (region tmark1 tmark2)))
         (move-mark mark1 tmark1)))))
 
 
@@ -504,14 +508,14 @@
                 (tmark2 mark2 :left-inserting))
       (reverse-find-attribute tmark1 :word-delimiter)
       (move-mark mark2 mark1)
-      (do ((region1 (delete-and-save-region (region tmark1 mark1))))
-          ((mark= tmark1 start) (hi::.ninsert-region. start region1))
+      (do ((region1 (delete-and-save-region buffer (region tmark1 mark1))))
+          ((mark= tmark1 start) (ninsert-region buffer start region1))
         (word-offset tmark1 -1)
         (find-attribute (move-mark tmark2 tmark1) :word-delimiter)
-        (hi::.ninsert-region. mark1 (delete-and-save-region (region tmark1 tmark2)))
+        (ninsert-region buffer mark1 (delete-and-save-region buffer (region tmark1 tmark2)))
         (move-mark mark1 tmark1)))))
 
-(defcommand "Transpose Lines" (p)
+(defcommand "Transpose Lines" (window p)
   "Transpose the current line with the line before the cursor.
    With a positive argument it transposes the current line with the one
    before, moves down a line, and repeats the specified number of times,
@@ -521,30 +525,31 @@
    argument form.  With a zero argument, it transposes the lines at point
    and mark."
   "Transpose the current line with the line before the cursor."
-  (let ((num (or p 1))
-         (point (current-point)))
+  (let* ((num (or p 1))
+         (buffer (window-buffer window))
+         (point (buffer-point buffer)))
     (with-mark ((mark point :left-inserting))
       (cond ((plusp num)
              (if (and (line-offset mark -1 0)
                       (line-offset point num 0))
-                 (transpose-lines mark point)
+                 (transpose-lines buffer mark point)
                  (editor-error)))
             ((minusp num)
              (cond ((and (line-offset mark (1- num) 0)
                          (line-offset point -1 0))
-                    (transpose-lines point mark)
+                    (transpose-lines buffer point mark)
                     (move-mark point mark))
                    (t (editor-error))))
             (t
-             (rotatef (line-string (mark-line point))
-                      (line-string (mark-line (current-mark))))
+             (rotatef (line-string buffer (mark-line point))
+                      (line-string buffer (mark-line (current-mark buffer))))
              (line-start point))))))
 
 
-(defun transpose-lines (mark1 mark2)
+(defun transpose-lines (buffer mark1 mark2)
   (with-mark ((tmark1 mark1))
     (line-offset tmark1 1)
-    (ninsert-region mark2 (delete-and-save-region (region mark1 tmark1)))))
+    (ninsert-region buffer mark2 (delete-and-save-region buffer (region mark1 tmark1)))))
 
 
 
@@ -556,9 +561,9 @@
 
 
 
-(defun text-blank-line-p (mark)
-  (let ((next-char (next-character mark)))
-    (or (blank-after-p mark)
+(defun text-blank-line-p (buffer mark)
+  (let ((next-char (next-character buffer mark)))
+    (or (blank-after-p buffer mark)
         (and (funcall (value paragraph-delimiter-function) mark)
              (not (whitespace-attribute-p next-char))))))
 

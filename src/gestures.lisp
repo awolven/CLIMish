@@ -2,7 +2,7 @@
 
 (defun print-pretty-gesture (gesture stream)
   (loop for keys on gesture
-	do (clui::print-pretty-input-event-id (car keys) stream)
+	do (print-pretty-input-event-id (car keys) stream)
 	   (when (cdr keys)
 	     (princ " " stream)))
   gesture)
@@ -98,6 +98,16 @@
 (define-gesture "Kill Previous Word" 'echo-area-window-mixin #k"Meta-Backspace")
 
 (define-gesture "Forward Kill Form" "Lisp" #k"Ctrl-Meta-k")
+(define-gesture "Backward Kill Form" "Lisp" #k"Ctrl-Meta-Backspace")
+(define-gesture "Beginning of Defun" "Lisp" #k"Ctrl-Meta-a")
+(define-gesture "End of Defun" "Lisp" #k"Ctrl-Meta-e")
+(define-gesture "Forward List" "lisp" #k"Ctrl-Meta-n")
+(define-gesture "Backward List" "Lisp" #k"Ctrl-Meta-p")
+(define-gesture "Forward Form" "Lisp" #k"Ctrl-Meta-f")
+(define-gesture "Backward Form" "Lisp" #k"Ctrl-Meta-b")
+(define-gesture "Mark Form" "Lisp" #k"Ctrl-Meta-Spacebar")
+(define-gesture "Mark Defun" "Lisp" #k"Ctrl-Meta-h")
+(define-gesture "Extract List" "Lisp " #k"Ctrl-Meta-x")
 
 (define-gesture "Yank" 'text-editor-window-mixin #k"Ctrl-y")
 (define-gesture "Yank" 'echo-area-window-mixin #k"Ctrl-y")
@@ -121,18 +131,20 @@
 (define-gesture "Describe Key" 'text-editor-window-mixin #k"Shift-Meta-/")
 (define-gesture "Describe Key" 'echo-area-window-mixin #k"Shift-Meta-/")
 
-(define-gesture "Top Line to Here" 'text-editor-window-mixin #k"RightMouseDown")
+(define-gesture "Top Line to Here" 'text-editor-window-mixin #k"RightMouse")
 
-(define-gesture "Generic Pointer Up" :global #k"LeftMouseUp")
-(define-gesture "Generic Pointer Up" :global #k"RightMouseUp")
-(define-gesture "Generic Pointer Up" :global #k"MiddleMouseUp")
+
+(define-gesture "Generic Pointer Up" :global #k"LeftMouse_Up")
+(define-gesture "Generic Pointer Up" :global #k"RightMouse_Up")
+(define-gesture "Generic Pointer Up" :global #k"MiddleMouse_Up")
+
 
 (define-gesture "Generic Pointer Move" :global #k"MouseMove")
 
-(define-gesture "Point to Here" 'text-editor-window-mixin #k"LeftMouseDown")
-(define-gesture "Point to Here" 'echo-area-window-mixin #k"LeftMouseDown")
+(define-gesture "Point to Here" 'text-editor-window-mixin #k"LeftMouse")
+(define-gesture "Point to Here" 'echo-area-window-mixin #k"LeftMouse")
 
-(define-gesture "Insert Kill Buffer" 'text-editor-window-mixin #k"Super-RightMouseDown")
+#+NOTYET(define-gesture "Insert Kill Buffer" 'text-editor-window-mixin #k"Super-RightMouse")
 
 (define-gesture "Insert File" 'text-editor-window-mixin #k"Ctrl-x" #k"Ctrl-r")
 (define-gesture "Visit File" 'text-editor-window-mixin #k"Ctrl-x" #k"Ctrl-v")
@@ -172,6 +184,13 @@
 (define-gesture "Iconify Window" 'homemade-window-mixin #k"Ctrl-x" #k"0")
 (define-gesture "Iconify Window" 'text-editor-window-mixin #k"Ctrl-x" #k"0")
 
+(define-gesture "Set/Pop Mark" 'text-editor-window-mixin #k"Ctrl-Spacebar")
+(define-gesture "Save Region" 'text-editor-window-mixin #k"Meta-w")
+(define-gesture "Set/Pop Mark" 'echo-area-window-mixin #k"Ctrl-Spacebar")
+(define-gesture "Save Region" 'echo-area-window-mixin #k"Meta-w")
+
+(define-gesture "Editor Error Test" :global #k"Ctrl-x" #k"Ctrl-e")
+(define-gesture "Debugger Test" :global #k"Pause")
 
 (when (boundp 'krma::*app*)
   (mapcar #'rebuild-command-table

@@ -27,4 +27,5 @@
         (when line
           (line-offset point (1- (parse-integer line))))))))
 
+#+NIL
 (bind-key "Grep Goto" #k"return" :mode "Grep")

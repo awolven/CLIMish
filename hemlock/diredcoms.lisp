@@ -194,13 +194,14 @@
   (dired-frob-deletion window p nil))
 
 (defcommand "Dired Delete File and Down Line" (window p)
-  "Marks file for deletion and moves down a line.
+    "Marks file for deletion and moves down a line.
    See \"Dired Delete File\"."
-  "Marks file for deletion and moves down a line.
+    "Marks file for deletion and moves down a line.
    See \"Dired Delete File\"."
   (declare (ignore p))
   (dired-frob-deletion window nil t)
-  (dired-down-line (buffer-point (window-buffer window))))
+  (let ((buffer (window-buffer window)))
+    (dired-down-line buffer (buffer-point buffer))))
 
 (defcommand "Dired Undelete File and Down Line" (window p)
   "Marks file undeleted and moves down a line.
@@ -209,7 +210,8 @@
    See \"Dired Delete File\"."
   (declare (ignore p))
   (dired-frob-deletion window nil nil)
-  (dired-down-line (buffer-point (window-buffer window))))
+  (let ((buffer (window-buffer window)))
+    (dired-down-line buffer (buffer-point buffer))))
 
 (defcommand "Dired Delete File with Pattern" (window p)
   "Prompts for a pattern and marks matching files for deletion.
@@ -218,16 +220,18 @@
    See \"Dired Delete File\"."
   (declare (ignore p))
   (dired-frob-deletion window t t)
-  (dired-down-line (buffer-point (window-buffer window))))
+  (let ((buffer (window-buffer window)))
+    (dired-down-line buffer (buffer-point buffer))))
 
 (defcommand "Dired Undelete File with Pattern" (window p)
-  "Prompts for a pattern and marks matching files undeleted.
+    "Prompts for a pattern and marks matching files undeleted.
    See \"Dired Delete File\"."
-  "Prompts for a pattern and marks matching files undeleted.
+    "Prompts for a pattern and marks matching files undeleted.
    See \"Dired Delete File\"."
   (declare (ignore p))
   (dired-frob-deletion window t nil)
-  (dired-down-line (buffer-point (window-buffer window))))
+  (let ((buffer (window-buffer window)))
+    (dired-down-line buffer (buffer-point buffer))))
 
 ;;; DIRED-FROB-DELETION takes arguments indicating whether to prompt for a
 ;;; pattern and whether to mark the file deleted or undeleted.  This uses
@@ -237,38 +241,39 @@
 (defun dired-frob-deletion (current-window patternp deletep)
   (unless (hemlock-bound-p 'dired-information)
     (editor-error "Not in Dired buffer."))
-  (with-mark ((mark (current-point) :left-inserting))
-    (let* ((dir-info (value dired-information))
-           (files (dired-info-files dir-info))
-           (del-files
-            (if patternp
-                (dired:pathnames-from-pattern
-                 (prompt-for-string
-                  current-window
-                  :prompt "Filename pattern: "
-                  :help "Type a filename with a single asterisk."
-                  :trim t)
-                 (dired-info-file-list dir-info))
-                (list (dired-file-pathname
-                       (array-element-from-mark mark files)))))
-           (note-char (if deletep #\D #\space)))
-      (with-writable-buffer ((window-buffer current-window))
-        (dolist (f del-files)
-          (let* ((pos (position f files :test #'equal
-                                :key #'dired-file-pathname))
-                 (dired-file (svref files pos)))
-            (buffer-start mark)
-            (line-offset mark pos 0)
-            (setf (dired-file-deleted-p dired-file) deletep)
-            (if deletep
-                (setf (dired-file-write-date dired-file)
-                      (file-write-date (dired-file-pathname dired-file)))
-                (setf (dired-file-write-date dired-file) nil))
-            (setf (next-character mark) note-char)))))))
+  (let ((current-buffer (window-buffer current-window)))
+    (with-mark ((mark (buffer-point current-buffer) :left-inserting))
+      (let* ((dir-info (value dired-information))
+             (files (dired-info-files dir-info))
+             (del-files
+               (if patternp
+                   (dired:pathnames-from-pattern
+                    (prompt-for-string
+                     current-window
+                     :prompt "Filename pattern: "
+                     :help "Type a filename with a single asterisk."
+                     :trim t)
+                    (dired-info-file-list dir-info))
+                   (list (dired-file-pathname
+                          (array-element-from-mark current-buffer mark files)))))
+             (note-char (if deletep #\D #\space)))
+        (with-writable-buffer (current-buffer)
+          (dolist (f del-files)
+            (let* ((pos (position f files :test #'equal
+                                          :key #'dired-file-pathname))
+                   (dired-file (svref files pos)))
+              (buffer-start mark)
+              (line-offset mark pos 0)
+              (setf (dired-file-deleted-p dired-file) deletep)
+              (if deletep
+                  (setf (dired-file-write-date dired-file)
+                        (file-write-date (dired-file-pathname dired-file)))
+                  (setf (dired-file-write-date dired-file) nil))
+              (setf (next-character mark current-buffer) note-char))))))))
 
-(defun dired-down-line (point)
+(defun dired-down-line (buffer point)
   (line-offset point 1)
-  (when (blank-line-p (mark-line point))
+  (when (blank-line-p buffer (mark-line point))
     (line-offset point -1)))
 
 
@@ -279,10 +284,12 @@
   "Read in file or recursively \"Dired\" a directory."
   "Read in file or recursively \"Dired\" a directory."
   (declare (ignore p))
-  (let ((point (buffer-point (window-buffer window))))
-    (when (blank-line-p (mark-line point)) (editor-error "Not on a file line."))
+  (let* ((buffer (window-buffer window))
+         (point (buffer-point buffer)))
+    (when (blank-line-p buffer (mark-line point)) (editor-error "Not on a file line."))
     (let ((pathname (dired-file-pathname
                      (array-element-from-mark
+                      buffer
                       point (dired-info-files (value dired-information))))))
       (if (directoryp pathname)
           (dired-command window nil (directory-namestring pathname))
@@ -294,10 +301,12 @@
   "Read in file as if by \"View File\".
    This associates the file's buffer with the dired buffer."
   (declare (ignore p))
-  (let ((point (buffer-point (window-buffer window))))
-    (when (blank-line-p (mark-line point)) (editor-error "Not on a file line."))
+  (let* ((buffer (window-buffer window))
+         (point (buffer-point buffer)))
+    (when (blank-line-p buffer (mark-line point)) (editor-error "Not on a file line."))
     (let ((pathname (dired-file-pathname
                      (array-element-from-mark
+                      buffer
                       point (dired-info-files (value dired-information))))))
       (if (directoryp pathname)
           (dired-command window nil (directory-namestring pathname))
@@ -318,7 +327,8 @@
    With an argument, also prompt for a file pattern within that directory."
   "Invokes \"Dired\" on the directory part of the current buffer's pathname.
    With an argument, also prompt for a file pattern within that directory."
-  (let ((pathname (buffer-pathname (current-buffer))))
+  (let* ((buffer (window-buffer window))
+         (pathname (buffer-pathname buffer)))
     (if pathname
         (dired-command window p (directory-namestring pathname))
         (editor-error "No pathname associated with buffer."))))
@@ -349,7 +359,7 @@
   (declare (ignore p))
   (unless (hemlock-bound-p 'dired-information)
     (editor-error "Not in Dired buffer."))
-  (let ((buffer (current-buffer))
+  (let ((buffer (window-buffer window))
         (dir-info (value dired-information)))
     (update-dired-buffer (dired-info-pathname dir-info)
                          (dired-info-pattern dir-info)
@@ -363,7 +373,7 @@
 ;;;
 (defun update-dired-buffer (directory pattern buffer)
   (with-writable-buffer (buffer)
-    (delete-region (buffer-region buffer))
+    (delete-region buffer (buffer-region buffer))
     (let ((dir-info (variable-value 'dired-information :buffer buffer)))
       (multiple-value-bind (pathnames new-dired-files)
                            (dired-in-buffer directory pattern
@@ -386,7 +396,8 @@
                         (setf (dired-file-deleted-p new-file) t)
                         (setf (dired-file-write-date new-file) write-date)
                         (setf (next-character
-                               (line-offset (buffer-start point) pos 0))
+                               (line-offset (buffer-start point) pos 0)
+                               buffer)
                               #\D))))))))
           (setf (dired-info-files dir-info) new-dired-files)
           (setf (dired-info-file-list dir-info) pathnames)
@@ -415,12 +426,12 @@
              (dired-files (make-array (length pathnames))))
         (declare (list pathnames) (simple-vector dired-files))
         (with-buffer-globals (buffer)
-          (hi::.filter-region. #'(lambda (str)
+          (filter-region buffer #'(lambda (str)
                                    (concatenate 'simple-string "  " str))
                                (buffer-region buffer))
-          (hi::.delete-characters. point -2)
-          (hi::.delete-region. (line-to-region (mark-line (buffer-start point buffer))))
-          (hi::.delete-characters. point))
+          (delete-characters buffer point -2)
+          (delete-region buffer (line-to-region (mark-line (buffer-start point buffer))))
+          (delete-characters buffer point))
         (do ((p pathnames (cdr p))
              (i 0 (1+ i)))
             ((null p))
@@ -436,29 +447,31 @@
 
 (defcommand "Dired Next File" (window p)
   "Moves to next undeleted file."
-  "Moves to next undeleted file."
-  (unless (dired-line-offset (current-point) (or p 1))
-    (editor-error "Not enough lines.")))
+    "Moves to next undeleted file."
+  (let ((buffer (window-buffer window)))
+    (unless (dired-line-offset buffer (buffer-point buffer) (or p 1))
+      (editor-error "Not enough lines."))))
 
 (defcommand "Dired Previous File" (window p)
   "Moves to previous undeleted file."
-  "Moves to next undeleted file."
-  (unless (dired-line-offset (current-point) (or p -1))
-    (editor-error "Not enough lines.")))
+    "Moves to next undeleted file."
+  (let ((buffer (window-buffer window)))
+    (unless (dired-line-offset buffer (buffer-point buffer) (or p -1))
+      (editor-error "Not enough lines."))))
 
 ;;; DIRED-LINE-OFFSET moves mark n undeleted file lines, returning mark.  If
 ;;; there are not enough lines, mark remains unmoved, this returns nil.
 ;;;
-(defun dired-line-offset (mark n)
+(defun dired-line-offset (buffer mark n)
   (with-mark ((m mark))
     (let ((step (if (plusp n) 1 -1)))
       (dotimes (i (abs n) (move-mark mark m))
         (loop
           (unless (line-offset m step 0)
             (return-from dired-line-offset nil))
-          (when (blank-line-p (mark-line m))
+          (when (blank-line-p buffer (mark-line m))
             (return-from dired-line-offset nil))
-          (when (char= (next-character m) #\space)
+          (when (char= (next-character buffer m) #\space)
             (return)))))))
 
 
@@ -497,8 +510,8 @@
   "Expunges the files in a dired buffer and then exits."
   "Expunges the files in a dired buffer and then exits."
   (declare (ignore p))
-  (expunge-dired-files)
-  (delete-buffer-if-possible (current-buffer)))
+  (expunge-dired-files window)
+  (delete-buffer-if-possible (window-buffer window)))
 
 
 
@@ -551,10 +564,12 @@
   "Copy the file under the point"
   "Copy the file under the point"
   (declare (ignore p))
-  (let* ((point (current-point))
+  (let* ((buffer (window-buffer window))
+         (point (buffer-point buffer))
          (confirm (value dired-copy-file-confirm))
          (source (dired-file-pathname
                   (array-element-from-mark
+                   buffer
                    point (dired-info-files (value dired-information)))))
          (dest (prompt-for-file
                 window
@@ -575,9 +590,11 @@
   "Rename the file or directory under the point"
   "Rename the file or directory under the point"
   (declare (ignore p))
-  (let* ((point (current-point))
+  (let* ((buffer (window-buffer window))
+         (point (buffer-point buffer))
          (source (dired-namify (dired-file-pathname
                                 (array-element-from-mark
+                                 buffer
                                  point
                                  (dired-info-files (value dired-information))))))
          (dest (prompt-for-file
@@ -765,9 +782,9 @@
 ;;; starting with the zero'th element (lines are numbered starting at 1).
 ;;; This must use AREF since some modes use this with extendable vectors.
 ;;;
-(defun array-element-from-mark (mark vector
+(defun array-element-from-mark (buffer mark vector
                                 &optional (error-msg "Invalid line."))
-  (when (blank-line-p (mark-line mark)) (editor-error error-msg))
+  (when (blank-line-p buffer (mark-line mark)) (editor-error error-msg))
   (aref vector
          (1- (count-lines (region
                            (buffer-start-mark (line-buffer (mark-line mark)))
@@ -803,15 +820,16 @@
   "Reads a file in as if by \"Find File\", but read-only.  Commands exist
    for scrolling convenience."
   (declare (ignore p))
-  (let* ((pn (or pathname
+  (let* ((buffer (window-buffer window))
+         (pn (or pathname
                  (prompt-for-file
                   window
                   :prompt "View File: " :must-exist t
                   :help "Name of existing file to read into its own buffer."
-                  :default (buffer-default-pathname (current-buffer)))))
+                  :default (buffer-default-pathname buffer))))
          (buffer (make-instance 'buffer :name (format nil "View File ~A" (gensym)))))
     (visit-file-command nil pn buffer)
-    (setf (buffer-minor-mode buffer "View") t)
+    (setf (buffer-minor-mode buffer "View" buffer) t)
     (change-to-buffer buffer window)
     buffer))
 
@@ -827,7 +845,7 @@
   "Delete a buffer in view mode, invoking VIEW-RETURN-FUNCTION if it exists for
    this buffer."
   (declare (ignore p))
-  (let* ((buf (current-buffer))
+  (let* ((buf (window-buffer window))
          (funp (call-view-return-fun)))
     (delete-buffer-if-possible buf)
     (unless funp (editor-error "No View return method for this buffer."))))
@@ -854,11 +872,11 @@
    Deleting Buffer\" is set.  If the buffer is associated with a dired buffer,
    this returns there instead of to the previous buffer."
   (if (and (not p)
-           (displayed-p (buffer-end-mark (current-buffer))
-                        (current-window))
+           (displayed-p (buffer-end-mark (window-buffer window))
+                        window)
            (value view-scroll-deleting-buffer))
       (view-quit-command window nil)
-      (scroll-window-down-command p)))
+      (scroll-window-down-command window p)))
 
 (defcommand "View Edit File" (window p)
   "Turn off \"View\" mode in this buffer."

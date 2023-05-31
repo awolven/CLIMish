@@ -14,18 +14,6 @@
 (in-package :hemlock-internals)
 
 
-(defvar *echo-area-buffer* nil
-  "Buffer used to hack text for the echo area.")
-(defvar *echo-area-region* nil
-  "Internal thing that's the *echo-area-buffer*'s region.")
-(defvar *echo-area-stream* nil
-  "Buffered stream that prints into the echo area.")
-(defvar *echo-area-window* ()
-  "Window used to display stuff in the echo area.")
-(defvar *parse-starting-mark* nil
-  "Mark that points to the beginning of the text that'll be parsed.")
-(defvar *parse-input-region* nil
-  "Region that contains the text typed in.")
 
 
 
@@ -92,7 +80,7 @@
 (defun clear-echo-area ()
   "You guessed it."
   (clear-output *echo-area-stream*)
-  (delete-region *echo-area-region*)
+  (delete-region *echo-area-buffer* *echo-area-region*)
   (setf (buffer-modified *echo-area-buffer*) nil)
   (krma.gui::redraw-buffer *echo-area-window*)
   nil)
@@ -122,8 +110,7 @@
            (cond ((buffer-modified *echo-area-buffer*)
                   (clear-echo-area))
                  ((not (zerop (mark-charpos mark)))
-                  (with-buffer-globals (*echo-area-buffer*)
-                    (.insert-character. mark #\newline))
+                  (insert-character *echo-area-buffer* mark #\newline)
                   (unless (displayed-p mark *echo-area-window*)
                     (clear-echo-area))))
            (apply #'format *echo-area-stream* string args)
@@ -158,7 +145,7 @@
            (apply #'format *echo-area-stream* prompt)
            (finish-output *echo-area-stream*))
           (t
-           (insert-string point prompt)))
+           (insert-string *echo-area-buffer* point prompt)))
     (krma.gui::redraw-buffer *echo-area-window*)
 
     #+(or)                              ;we insert the default directly now
@@ -173,13 +160,14 @@
   (let* ((start-buffer (window-buffer start-window))
          (point (buffer-point *echo-area-buffer*)))
     (move-mark *parse-starting-mark* point)
-    (insert-string point (or *parse-default-string* *parse-default*))
-    (clui::focus-window *echo-area-window*)
+    (insert-string *echo-area-buffer* point (or *parse-default-string* *parse-default*))
+    (unless (eq *echo-area-window* start-window)
+      (clui::focus-window *echo-area-window*))
     (unwind-protect
          (progn
            (recursive-edit nil))
-      (clui::focus-window start-window)
       (unless (eq *echo-area-window* start-window)
+        (clui::focus-window start-window)
         (change-to-buffer start-buffer start-window)))))
 
 
@@ -236,12 +224,12 @@
              ((:unique :complete)
               (list value))
              (:ambiguous
-              (delete-region *parse-input-region*)
-              (insert-string (region-start *parse-input-region*) prefix)
-              (let ((point (current-point)))
+              (delete-region *echo-area-buffer* *parse-input-region*)
+              (insert-string *echo-area-buffer* (region-start *parse-input-region*) prefix)
+              (let ((point (buffer-point *echo-area-buffer*)))
                 (move-mark point (region-start *parse-input-region*))
                 (unless (character-offset point ambig)
-                  (buffer-end point)))
+                  (buffer-end point *echo-area-buffer*)))
               nil))))
         (t
          (list (or (getstring string *buffer-names*) string)))))
@@ -344,8 +332,8 @@
              ((:unique :complete)
               (list prefix value))
              (:ambiguous
-              (delete-region *parse-input-region*)
-              (insert-string (region-start *parse-input-region*) prefix)
+              (delete-region *echo-area-buffer* *parse-input-region*)
+              (insert-string *echo-area-buffer* (region-start *parse-input-region*) prefix)
               (let ((point (buffer-point *echo-area-buffer*)))
                 (move-mark point (region-start *parse-input-region*))
                 (unless (character-offset point ambig)
@@ -504,7 +492,7 @@
                          (return default)
                          (beep)))
                     ((logical-key-event-p key-event :help)
-                     (hemlock::help-on-parse-command ()))
+                     (hemlock::help-on-parse-command current-window ()))
                     (t
                      (unless must-exist (return key-event))
                      (beep))))))

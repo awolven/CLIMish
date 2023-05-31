@@ -510,7 +510,7 @@
 
 ;;;; Making and Deleting buffers.
 
-(defvar *buffer-list* () "A list of all the buffer objects.")
+
 
 ;;(defvar *current-buffer* ()
 ;;"Internal variable which might contain the current buffer." )
@@ -619,3 +619,45 @@
     initial-buffer))
 
 
+(defmethod initialize-instance :after ((buffer buffer)
+				       &rest args
+				       &key
+					 (name "*scratch*")
+					 current-buffer 
+					 (modes (value hemlock::default-modes))
+				       (modeline-fields
+					(value hemlock::default-modeline-fields))
+				       delete-hook
+				       &allow-other-keys)
+  (declare (ignore args))
+  (unless (listp delete-hook)
+    (error ":delete-hook is a list of functions -- ~S." delete-hook))
+
+  (let* ((region (make-empty-region))
+	 (object (getstring "Fundamental" *mode-names*)))
+
+    (setf (buffer-%name buffer) name)
+    (setf (buffer-%region buffer) region)
+    (setf (buffer-modes buffer) (list (mode-object-name object)))
+    (setf (buffer-mode-objects buffer) (list object))
+    (setf (buffer-point buffer) (copy-mark (region-end region)))
+    (setf (buffer-display-start buffer) (copy-mark (region-start region)))
+    (setf (buffer-delete-hook buffer) delete-hook)
+    (setf (buffer-variables buffer) (make-string-table))
+
+    (sub-set-buffer-modeline-fields buffer modeline-fields)
+
+    (setf (line-%buffer (mark-line (region-start region))) buffer)
+
+    (push buffer *buffer-list*)
+
+    (setf (getstring name *buffer-names*) buffer)
+
+    (unless (equalp modes '("Fundamental"))
+      (setf (buffer-major-mode buffer current-buffer) (car modes))
+      (dolist (m (cdr modes))
+	(setf (buffer-minor-mode buffer current-buffer m) t)))
+
+    (invoke-hook hemlock::make-buffer-hook buffer)
+
+    (values)))

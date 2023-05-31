@@ -349,20 +349,19 @@
   argument inserts the prefix'th most recent item."
     "Inserts the item with index p in the kill ring at the point, leaving
   the mark before and the point after."
-  (let ((buffer (window-buffer window)))
-    (with-buffer-globals (buffer)
-      (let ((idx (1- (or p 1))))
-        (cond ((> (ring-length *kill-ring*) idx -1)
-               (let* ((string (ring-ref *kill-ring* idx))
-                      (point (buffer-point buffer))
-                      (mark (copy-mark point)))
-                 (push-buffer-mark buffer mark)
-                 (hi::.insert-string. point string)
-                 (make-region-undo :delete "Yank"
-                                   (region (copy-mark mark) (copy-mark point))))
-               (setf (last-command-type) :unkill))
-              (t (editor-error)))))
-    (krma.gui::redraw-buffer window)))
+  (with-buffer-globals ((window-buffer window))
+    (let ((idx (1- (or p 1))))
+      (cond ((> (ring-length *kill-ring*) idx -1)
+             (let* ((string (ring-ref *kill-ring* idx))
+                    (mark (copy-mark .point.)))
+               (push-buffer-mark .buffer. mark)
+               (insert-string .buffer. .point. string)
+               (make-region-undo :delete "Yank"
+                                 (region (copy-mark mark) (copy-mark .point.))))
+             (setf (last-command-type) :unkill))
+            (t (editor-error)))
+      (deactivate-region .buffer.)))
+  (krma.gui::redraw-buffer window))
 ;;;
 (push :unkill *ephemerally-active-command-types*)
 

@@ -45,12 +45,7 @@
 	      (cons (hi::make-window-dis-line (make-string (hi::window-width view))) res)))
 	((= i (hi::window-height view)) (setf (hi::window-spare-lines view) res)))))
 
-(defmethod destroy-window :after ((view text-editor-view-mixin))
-  (let ((buffer (hi::window-buffer view)))
-    (setf (hi::buffer-windows buffer) (remove view (hi::buffer-windows buffer)))
-    (unless (hi::buffer-windows buffer)
-      (hi::delete-buffer buffer *echo-area-buffer*)))
-  (values))	
+	
 
 (defmethod initialize-instance :after ((view text-editor-view-mixin) &rest initargs
 				       &key (font-family (send view style current-font))
@@ -175,7 +170,7 @@
 			   (font-data (font-data font))
 			   (space-width (slot-value font-data '3b-bmfont-common::space-size)))
 		      (multiple-value-bind (ox oy) (global-window-position (the buffer-view text))
-			(let* ((active-region (current-region buffer t nil))
+			(let* ((active-region (current-region buffer nil nil))
 			       (m0 (hi::region-start active-region))
 			       (m1 (hi::region-end active-region)))
 			  (unless (hi::mark= m0 m1)
@@ -271,7 +266,31 @@
 
 
 (defun lookup-text-color (key)
-  (canonicalize-color (send *style* text-color))
+  (declare (ignorable key))
+  (elt
+   (vector (canonicalize-color (send *style* text-color))
+	   (canonicalize-color (send *style* lisp-comment-color))
+	   #x000099ff
+	   #x00999ff
+	   
+	   (canonicalize-color (send *style* lisp-strings-color))
+	   (canonicalize-color (send *style* lisp-quote-color))
+	   (canonicalize-color (send *style* lisp-keywords-color))
+	   (canonicalize-color (send *style* lisp-comment-color))
+	   
+
+	   (canonicalize-color (send *style* lisp-defines-text-color))
+	   (canonicalize-color (send *style* lisp-names-text-color))
+	   (canonicalize-color (send *style* lisp-error-text-color))
+	   #xcc00ccff
+	   
+	   #xffff
+	   #xff00ff
+	   #xff0000ff
+	   #xffffffff
+	   #xff)
+   (mod key 17))
+   
   #+NIL
   (elt (vector;;;fg
          (send *style* text-color)
@@ -310,7 +329,7 @@
 	    (font-data (font-data font))
 	    (space-width (slot-value font-data '3b-bmfont-common::space-size))
 	    (gm (send text global-matrix)))
-	(update-window-image window)
+	(update-window-image window)	
 	(krma:rm-dispatch-to-render-thread (scene draw-data)
 	  (krma::delete-groups-1 draw-data (list group) nil)
 	  (when (slot-boundp window 'hi::the-sentinel)
@@ -349,7 +368,7 @@
 
 (defmethod handle-character-input ((window text-editor-view-mixin) char p)
   (dotimes (n p)
-    (hi::insert-character (hi::buffer-point (hi::window-buffer window)) char))
+    (hi::insert-character (hi::window-buffer window) (hi::buffer-point (hi::window-buffer window)) char))
   (redraw-buffer window)
   (values))
 

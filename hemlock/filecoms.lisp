@@ -51,7 +51,7 @@
    \"Mode\" mode option is specified, then this tries to invoke the appropriate
    file type hook."
   (let* ((string
-          (line-string (mark-line (buffer-start-mark buffer))))
+          (line-string buffer (mark-line (buffer-start-mark buffer))))
          (found (search "-*-" string))
          (no-major-mode t)
          (type (if pathname (pathname-type pathname))))
@@ -209,7 +209,7 @@
          (end (copy-mark point :left-inserting))
          (region (region start end)))
     (setv pathname-defaults pn)
-    (push-buffer-mark (copy-mark end))
+    (push-buffer-mark buffer (copy-mark end))
     (read-file pn end)
     (make-region-undo :delete "Insert File" region)))
 
@@ -326,7 +326,7 @@
 
 ;;;; Find file.
 
-#+NOTNOW
+#+MOVED
 (defcommand "Find File" (window p &optional pathname)
   "Visit a file in its own buffer.
    If the file is already in some buffer, select that buffer,
@@ -460,25 +460,25 @@
    file exists, set the buffer's pathname to the probed pathname; else, set it
    to pathname merged with DEFAULT-DIRECTORY.  Set \"Pathname Defaults\" to the
    same thing.  Process the file options, and then invoke \"Read File Hook\"."
-  (with-buffer-globals (buffer)
-    (setf (buffer-writable buffer) t)
-    (hi::.delete-region. (buffer-region buffer))
-    (let* ((pathname (pathname pathname))
-           (probed-pathname (probe-file pathname)))
-      (cond (probed-pathname
-             (read-file probed-pathname .point.)
-             (setf (buffer-write-date buffer) (file-write-date probed-pathname)))
-            (t
-             (message "(New File)")
-             (setf (buffer-write-date buffer) nil)))
-      (buffer-start .point. buffer)
-      (setf (buffer-modified buffer) nil)
-      (let ((stored-pathname (or probed-pathname
-                                 (merge-pathnames pathname (hemlock-ext:default-directory)))))
-        (setf (buffer-pathname buffer) stored-pathname)
-        (setf (value pathname-defaults) stored-pathname)
-        (process-file-options buffer stored-pathname)
-        (invoke-hook read-file-hook buffer probed-pathname)))))
+  (setf (buffer-writable buffer) t)
+  (delete-region buffer (buffer-region buffer))
+  (let* ((point (buffer-point buffer))
+         (pathname (pathname pathname))
+         (probed-pathname (probe-file pathname)))
+    (cond (probed-pathname
+           (read-file probed-pathname point)
+           (setf (buffer-write-date buffer) (file-write-date probed-pathname)))
+          (t
+           (message "(New File)")
+           (setf (buffer-write-date buffer) nil)))
+    (buffer-start point buffer)
+    (setf (buffer-modified buffer) nil)
+    (let ((stored-pathname (or probed-pathname
+                               (merge-pathnames pathname (hemlock-ext:default-directory)))))
+      (setf (buffer-pathname buffer) stored-pathname)
+      (setf (value pathname-defaults) stored-pathname)
+      (process-file-options buffer stored-pathname)
+      (invoke-hook read-file-hook buffer probed-pathname))))
 
 
 
@@ -521,7 +521,7 @@
                              (buffer-name buffer))
                        :default t)
                       t)
-              (insert-character end #\newline)
+              (insert-character buffer end #\newline)
               (message "Added newline at EOF."))))))
     (setv pathname-defaults pathname)
     (write-file (buffer-region buffer) pathname)
@@ -658,7 +658,7 @@
 
 
 
-(defun delete-buffer-if-possible (buffer)
+(defun delete-buffer-if-possible (buffer current-buffer)
   "Deletes a buffer if at all possible.  If buffer is the only buffer, other
    than the echo area, signals an error.  Otherwise, find some recently current
    buffer, and make all of buffer's windows display this recent buffer.  If
@@ -672,9 +672,9 @@
       (error "Cannot delete only buffer ~S." buffer))
     (dolist (w (buffer-windows buffer))
       (setf (window-buffer w) new-buf))
-    (when (eq buffer (current-buffer))
+    (when (eq buffer current-buffer)
       (setf (current-buffer (window-buffer (krma.gui::focused-window (krma::main-window krma::*app*)))) new-buf)))
-  (delete-buffer buffer))
+  (delete-buffer buffer current-buffer))
 
 
 (defvar *create-buffer-count* 0)
@@ -864,22 +864,23 @@
   The name of the buffer to insert is prompted for."
   "Prompt for a buffer to insert at the point."
   (declare (ignore p))
-  (let ((buffer (window-buffer window))
-        (region (buffer-region (prompt-for-buffer
+  (let* ((buffer (window-buffer window))
+         (point (buffer-point buffer))
+         (region (buffer-region (prompt-for-buffer
                                 window
                                 ;; previous buffer needs to kinda be some global thing
                                 :default (previous-buffer window)
                                 :help
                                 "Type the name of a buffer to insert."))))
-    (with-buffer-globals (buffer)
+
       ;;
       ;; start and end will be deleted by undo stuff
-      (let ((save (region (copy-mark .point. :right-inserting)
-                          (copy-mark .point. :left-inserting))))
+      (let ((save (region (copy-mark point :right-inserting)
+                          (copy-mark point :left-inserting))))
 
-        (push-buffer-mark buffer (copy-mark .point.))
-        (hi::.insert-region. .point. region)
-        (make-region-undo :delete "Insert Buffer" save)))))
+        (push-buffer-mark buffer (copy-mark point))
+        (insert-region buffer point region)
+        (make-region-undo :delete "Insert Buffer" save))))
 
 
 
@@ -910,13 +911,13 @@
         (print-directory-formatted pathname all return-list))))
 
 (defun pathname-as-directory (pathname)
-  (let* ((namestring (namestring pathname))
-         (size (length namestring)))
+  (let* ((namestring (namestring pathname)))
     (pathname (concatenate 'string namestring "/"))))
 
 
 #-(or cmu scl)
 (defun %directory (directory &optional all)
+  (declare (ignorable all))
   (setf directory (namestring (pathname-as-directory directory)))
   ;; TODO: handle patterns in the file, type, and version.
   (let ((list ()))
@@ -1050,7 +1051,7 @@
                        FILE_ATTRIBUTE_NORMAL
                        0))
 
-    (when (eq handle INVALID_HANDLE_VALUE)
+    #+NIL(when (eq handle INVALID_HANDLE_VALUE)
       (error "CreateFile Error = ~S" (GetLastError)))
 
     (unwind-protect
@@ -1313,7 +1314,7 @@
   (declare (ignore p))
   (unless (hemlock-bound-p 'log-file-name)
     (editor-error "No log file defined."))
-  (let* ((buffer (current-buffer))
+  (let* ((buffer (window-buffer window))
          (pathname (buffer-pathname buffer)))
     (when (or (buffer-modified buffer) (null pathname))
       (save-file-command window ()))
@@ -1322,7 +1323,7 @@
           (find-file-command nil (merge-pathnames
                                   (value log-file-name)
                                   (buffer-default-pathname buffer)))
-          (let ((point (current-point)))
+          (let ((point (buffer-point buffer)))
             (buffer-start point)
             (with-output-to-mark (s point :full)
               (format s (value log-entry-template)
@@ -1331,10 +1332,10 @@
                        (or (file-write-date pathname)
                            (get-universal-time)))
                       (file-author pathname)))
-            (when (find-pattern point *back-to-@-pattern*)
-              (delete-characters point 1)))
+            (when (find-pattern buffer point *back-to-@-pattern*)
+              (delete-characters buffer point 1)))
           (do-recursive-edit)
-          (when (buffer-modified (window-buffer window)) (save-file-command window ())))
+          (when (buffer-modified buffer) (save-file-command window ())))
       (if (member buffer *buffer-list* :test #'eq)
           (change-to-buffer buffer window)
           (editor-error "Old buffer has been deleted.")))))
@@ -1349,7 +1350,7 @@
   "Go to the next window.
   If the next window is the bottom window then wrap around to the top window."
   (declare (ignore p))
-  (let* ((next (next-window window)))
+  (let* ((next (krma.gui::next window)))
     (setf (current-buffer (window-buffer (krma.gui::focused-window (krma::main-window krma::*app*)))) (window-buffer next))
     (krma.gui::focus-window next)))
 
@@ -1359,7 +1360,7 @@
   "Go to the previous window.
   If the Previous window is the top window then wrap around to the bottom."
   (declare (ignore p))
-  (let* ((previous (previous-window window)))
+  (let* ((previous (krma.gui::prev window)))
     (setf (current-buffer (window-buffer (krma.gui::focused-window (krma::main-window krma::*app*)))) (window-buffer previous))
     (krma.gui::focus-window previous)))
 
@@ -1370,12 +1371,14 @@
   "Create a new window which displays starting at the same place
    as the current window."
   (declare (ignore p))
-  (let ((new (make-window (window-display-start window))))
+  (let ((new (make-instance 'krma.gui::text-editor-window :display-start (window-display-start window))))
     (unless new (editor-error "Could not make a new window."))
     (krma.gui::focus-window new)))
 
 (defun hi::enlarge-window (window offset)
   "offset in lines.  Can be negative."
+  (declare (ignorable window offset))
+  #+NIL
   (hi::device-enlarge-window (device-hunk-device (window-hunk window))
                              window
                              offset))
@@ -1390,7 +1393,7 @@
   "Create a new window which displays starting at the same place
    as the current window."
   (declare (ignore p))
-  (let ((new (make-window (window-display-start window)
+  (let ((new (make-instance 'krma.gui::text-editor-window :display-start (window-display-start window)
                           :ask-user t)))
     (unless new (editor-error "Could not make a new window."))
     (krma.gui::focus-window new)))
@@ -1419,7 +1422,7 @@
   (declare (ignore p))
   (if (<= (length *window-list*) 2)
       (editor-error "Cannot delete only window")
-      (delete-window (next-window window))))
+      (delete-window (krma.gui::next window))))
 
 (defcommand "Go to One Window" (window p)
   "Deletes all windows leaving one with the \"Default Initial Window X\",
@@ -1429,7 +1432,8 @@
    \"Default Initial Window Y\", \"Default Initial Window Width\", and
    \"Default Initial Window Height\"."
   (declare (ignore p))
-  (let ((win (make-window (window-display-start window)
+  (let ((win (make-instance 'krma.gui::text-editor-window
+                            :display-start (window-display-start window)
                           :ask-user t
                           :x (value default-initial-window-x)
                           :y (value default-initial-window-y)
@@ -1447,8 +1451,7 @@
   (declare (ignore p))
   (let* ((buffer (window-buffer window))
          (point (buffer-point buffer)))
-    (hi::with-render-thread (*app*)
-      (hi::center-window-on-mark window point))))
+    (hi::center-window-on-mark window point)))
 
 #+NOTNOW
 (defun quickselect-slave-repl (&optional *)
@@ -1475,7 +1478,7 @@
   (funcall (let ((old-window window))
              (unwind-protect
                   (progn
-                    (setf (krma::focused-window (clui::window-parent *echo-area-window*)) *echo-area-window*)
+                    (setf (krma.gui::focused-window (clui::window-parent *echo-area-window*)) *echo-area-window*)
                     (hi::display-prompt-nicely "Quickselect? [?hrCcSb]")
                     (hi::key-event-case
                      ((#k"r") 'quickselect-slave-repl)
@@ -1486,6 +1489,5 @@
                      ((#k"b") 'bufed-command)
                      (t (lambda ()))))
                (krma.gui::focus-window old-window)
-               #+NIL
-               (setf (current-window) old-window)))
+               (setf (krma.gui::focused-window (clui::window-parent *echo-area-window*)) old-window)))
            nil))

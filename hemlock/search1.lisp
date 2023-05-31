@@ -612,12 +612,12 @@
 (def-sensitive-newline-search-method
   sensitive-find-newline-once-backward-method nil)
 
-(defun find-pattern (mark search-pattern)
+(defun find-pattern (buffer mark search-pattern)
   "Find a match of Search-Pattern starting at Mark.  Mark is moved to
   point before the match and the number of characters matched is returned.
   If there is no match for the pattern then Mark is not modified and NIL
   is returned."
-  (with-buffer-globals ((line-%buffer (mark-line mark)))
+  (with-buffer-globals (buffer)
     (.close-line.)
   (multiple-value-bind (line start matched)
                        (funcall (search-pattern-search-function search-pattern)
@@ -630,13 +630,12 @@
 ;;; replace-pattern  --  Public
 ;;;
 ;;;
-(defun replace-pattern (mark search-pattern replacement &optional n)
+(defun replace-pattern (buffer mark search-pattern replacement &optional n)
   "Replaces N occurrences of the Search-Pattern with the Replacement string
   in the text starting at the given Mark.  If N is Nil, all occurrences
   following the Mark are replaced."
-  (let ((buffer (line-%buffer (mark-line mark))))
-    (with-buffer-globals (buffer)
-      (.close-line.)
+  (with-buffer-globals (buffer)
+    (.close-line.)
     (do* ((replacement (coerce replacement 'simple-string))
           (new (length (the simple-string replacement)))
           (fun (search-pattern-search-function search-pattern))
@@ -649,8 +648,8 @@
       (unless matched (return m))
       (setf (mark-line m) line  (mark-charpos m) start)
       (delete-characters m matched)
-      (insert-string m replacement)
+      (insert-string buffer m replacement)
       (when forward-p (character-offset m new))
       (when (zerop n) (return m))
 
-      (.close-line.)))))
+      (.close-line.))))

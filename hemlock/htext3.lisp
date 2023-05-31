@@ -27,7 +27,7 @@
        (let* ((line (mark-line ,mark-sym))
               (buffer (line-%buffer line)))
          (modifying-buffer buffer
-           (.modifying-line. line ,mark-sym)
+           (modifying-line .buffer. line ,mark-sym)
            (cond ((char= ,character-sym #\newline)
                   (let* ((next (line-next line))
                          (new-chars (subseq (the simple-string open-chars)
@@ -45,7 +45,7 @@
                     (setq open-line new-line  left-open-pos 0)))
                  (t
                   (if (= right-open-pos left-open-pos)
-                      (.grow-open-chars.))
+                      (grow-open-chars .buffer.))
 
                   (maybe-move-some-marks (charpos line) left-open-pos
                     (1+ charpos))
@@ -60,13 +60,11 @@
                            ,character-sym)
                      (incf left-open-pos))))))))))
 
-(defun insert-character-1 (buffer mark character)
+(defmethod insert-character (buffer mark character)
   (with-buffer-globals (buffer)
     (.insert-character. mark character)))
 
-(defmethod insert-character (mark character)
-  (let ((mark-line-buffer (line-%buffer (mark-line mark))))
-    (insert-character-1 mark-line-buffer mark character)))
+
 
 
 (defmacro .insert-string. (mark string &optional (start 0) (end nil))
@@ -84,7 +82,7 @@
        (declare (simple-string ,string-sym))
        (unless (zerop (- ,end-sym ,start-sym))
          (modifying-buffer .buffer.
-           (.modifying-line. line ,mark-sym)
+           (modifying-line .buffer. line ,mark-sym)
            (if (position #\newline ,string-sym :start ,start-sym :end ,end-sym)
                (with-mark ((mark ,mark-sym :left-inserting))
                  (do ((left-index ,start-sym (1+ right-index))
@@ -93,17 +91,12 @@
                        (position #\newline ,string-sym :start (1+ right-index) :end ,end-sym)))
                      ((null right-index)
                       (if (/= left-index ,end-sym)
-                          ;; can't have recursive macros
-                          (insert-string-1 .buffer. mark ,string-sym left-index ,end-sym)))
-                   ;; i wonder how new-undo is supposed to work
-                   ;; does it only record top-level inserts and such or recursive ones too
-                   ;; this may need to be insert-string-1 an internal function or something
-                   ;; so it doesn't trigger the around method
-                   (insert-string-1 .buffer. mark ,string-sym left-index right-index)
-                   (insert-character-1 .buffer. mark #\newline)))
+                          (insert-string .buffer. mark ,string-sym left-index ,end-sym)))
+                   (insert-string .buffer. mark ,string-sym left-index right-index)
+                   (insert-character .buffer. mark #\newline)))
                (let ((length (- ,end-sym ,start-sym)))
                  (if (<= right-open-pos (+ left-open-pos ,end-sym))
-                     (.grow-open-chars. (* (+ line-cache-length ,end-sym) 2)))
+                     (grow-open-chars .buffer. (* (+ line-cache-length ,end-sym) 2)))
 
                  (maybe-move-some-marks (charpos line) left-open-pos
                    (+ charpos length))
@@ -117,14 +110,11 @@
                       (%sp-byte-blt ,string-sym ,start-sym open-chars left-open-pos new)
                       (setq left-open-pos new)))))))))))
 
-(defun insert-string-1 (buffer mark string &optional (start 0) (end (length string)))
+(defmethod insert-string (buffer mark string &optional (start 0) (end (length string)))
   (with-buffer-globals (buffer)
     (.insert-string. mark string start end)))
 
-(defmethod insert-string (mark string &optional (start 0) (end (length string)))
-  ;; sanity checks
-  (let ((mark-line-buffer (line-%buffer (mark-line mark))))
-    (insert-string-1 mark-line-buffer mark string start end)))
+
 
 (defconstant line-number-interval-guess 8
   "Our first guess at how we should number an inserted region's lines.")
@@ -145,7 +135,7 @@
          ((eq first-line last-line)
           ;; simple case -- just BLT the characters in with insert-string
           (if (eq first-line open-line) (.close-line.))
-          (insert-string-1 .buffer. ,mark-sym (line-chars first-line) first-charpos last-charpos))
+          (insert-string .buffer. ,mark-sym (line-chars first-line) first-charpos last-charpos))
          (t
           (.close-line.)
           (let* ((line (mark-line ,mark-sym))
@@ -200,20 +190,11 @@
                         (+ last-charpos (- this-charpos charpos)))))
                 (setf (line-next previous) new-line  previous new-line)))))))))
 
-(defun insert-region-1 (buffer mark region)
+(defmethod insert-region (buffer mark region)
   (with-buffer-globals (buffer)
     (.insert-region. mark region)))
 
-(defmethod insert-region (mark region)
-  (let ((mark-line-buffer (line-%buffer (mark-line mark)))
-        (region-start-mark-line-buffer (line-%buffer (region-start region)))
-        (region-end-mark-line-buffer (line-%buffer (region-end region))))
-    (if (and (eq mark-line-buffer region-start-mark-line-buffer)
-             (eq mark-line-buffer region-end-mark-line-buffer))
-        (insert-region-1 mark-line-buffer mark region)
-        (progn
-          (warn "buffers do not match.")
-          (insert-region-1 mark-line-buffer mark region)))))
+
 
 (defmacro .ninsert-region. (mark region)
   "Inserts the given Region at the Mark, possibly destroying the Region.
@@ -232,7 +213,7 @@
          ((eq first-line last-line)
           ;; Simple case -- just BLT the characters in with insert-string.
           (if (eq first-line open-line) (.close-line.))
-          (insert-string-1 .buffer. ,mark-sym (line-chars first-line) first-charpos last-charpos))
+          (insert-string .buffer. ,mark-sym (line-chars first-line) first-charpos last-charpos))
          (t
           (when (bufferp (line-%buffer first-line))
             (error "Region is linked into Buffer ~S." (line-%buffer first-line)))
@@ -292,17 +273,8 @@
             (maybe-move-some-marks (this-charpos line last-line) charpos
               (+ last-charpos (- this-charpos charpos)))))))))
 
-(defun ninsert-region-1 (buffer mark region)
+(defmethod ninsert-region (buffer mark region)
   (with-buffer-globals (buffer)
     (.ninsert-region. mark region)))
 
-(defmethod ninsert-region (mark region)
-  (let ((mark-line-buffer (line-%buffer (mark-line mark)))
-        (region-start-mark-line-buffer (line-%buffer (region-start region)))
-        (region-end-mark-line-buffer (line-%buffer (region-end region))))
-    (if (and (eq mark-line-buffer region-start-mark-line-buffer)
-             (eq mark-line-buffer region-end-mark-line-buffer))
-        (ninsert-region-1 mark-line-buffer mark region)
-        (progn
-          (warn "buffers do not match.")
-          (ninsert-region-1 mark-line-buffer mark region)))))
+

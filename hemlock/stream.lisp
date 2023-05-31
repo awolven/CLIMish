@@ -2,17 +2,19 @@
 
 
 
-(defcommand "Character-Stream Mode" (p)
+(defcommand "Character-Stream Mode" (window p)
     "Put buffer in Character-Stream Mode"
     "Put buffer in Character-Stream Mode"
   (declare (ignore p))
-  (setf (buffer-minor-mode (current-buffer) "Character-Stream") t))
+  (let ((buffer (window-buffer window)))
+    (setf (buffer-minor-mode buffer "Character-Stream" buffer) t)))
 
-(defcommand "Interactive-Character-Stream Mode" (p)
+(defcommand "Interactive-Character-Stream Mode" (window p)
     "Put buffer in Interactive-Character-Stream Mode"
     "Put buffer in Interactive-Character-Stream Mode"
   (declare (ignore p))
-  (setf (buffer-minor-mode (current-buffer) "Interactive-Character-Stream") t))
+  (let ((buffer (window-buffer window)))
+    (setf (buffer-minor-mode buffer "Interactive-Character-Stream" buffer) t)))
 
 (defclass hemlock-character-io-stream (fundamental-character-output-stream
                                        fundamental-character-input-stream)
@@ -58,7 +60,7 @@
   ;; maybe this stuff needs to be protected by without-interrupts.
   (let ((buffer (hemlock-character-io-stream-buffer stream)))
     (bt:with-recursive-lock-held ((buffer-lock buffer))
-      (insert-character (buffer-end-mark buffer) character) ;;only seems to work this way
+      (insert-character buffer (buffer-end-mark buffer) character) ;;only seems to work this way
       (move-mark (hemlock-character-io-stream-mark stream) (buffer-end-mark buffer)))
     (when (> (get-internal-real-time)
              (+ (stream-timestamp stream) (/ internal-time-units-per-second 20.0)))
@@ -67,7 +69,8 @@
   (values))
 
 (defmethod stream-listen ((stream hemlock-character-io-stream))
-  (and (next-character (hemlock-character-io-stream-mark stream))
+  (and (next-character (hemlock-character-io-stream-buffer stream)
+		       (hemlock-character-io-stream-mark stream))
        t))
 
 (defmethod stream-listen ((stream hemlock-interactive-character-io-stream))
@@ -80,8 +83,9 @@
 (defmethod stream-read-char ((stream hemlock-character-io-stream))
   (let ((maybe-character nil))
     (tagbody
-     maybe-get-char
-       (setq maybe-character (next-character (hemlock-character-io-stream-mark stream)))
+     maybe-get-char 
+       (setq maybe-character (next-character (hemlock-character-io-stream-buffer stream)
+					     (hemlock-character-io-stream-mark stream)))
      check
        (unless maybe-character
          (sleep 0.1) ;; for in-process maybe some kind of (%command-loop) thingy?
@@ -100,11 +104,13 @@
                                (prog1 (char input-line input-line-position)
                                  (incf input-line-position)))))
           do (sleep 0.1)  ;; why this only works with sleep is a connundrum.
+
              )
     char))
 
 (defmethod stream-read-char-no-hang ((stream hemlock-character-io-stream))
-  (let ((maybe-character (next-character (hemlock-character-io-stream-mark stream))))
+  (let ((maybe-character (next-character (hemlock-character-io-stream-buffer stream)
+					 (hemlock-character-io-stream-mark stream))))
     (when maybe-character
       (character-offset (hemlock-character-io-stream-mark stream) 1))
     maybe-character))
@@ -149,7 +155,7 @@
 
 (defmethod stream-peek-char ((stream hemlock-character-io-stream))
   (when (stream-listen stream)
-    (next-character (hemlock-character-io-stream-mark stream)) :eof))
+    (next-character (hemlock-character-io-stream-buffer stream) (hemlock-character-io-stream-mark stream)) :eof))
 
 (defmethod stream-peek-char ((stream hemlock-interactive-character-io-stream))
   ;; once again, a candidate for without-interrupts, all these gray stream methods are.
@@ -159,9 +165,10 @@
 
 (defmethod stream-clear-input ((stream hemlock-character-io-stream))
   (let ((buffer (hemlock-character-io-stream-buffer stream)))
-    (delete-region (region (hemlock-character-io-stream-mark stream)
+    (delete-region (hemlock-character-io-stream-buffer stream)
+		   (region (hemlock-character-io-stream-mark stream)
                            (buffer-end-mark (hemlock-character-io-stream-buffer stream))))
-    (mapcar #'hi::update-window (buffer-windows buffer))
+    (mapcar #'krma.gui::redraw-buffer (buffer-windows buffer))
     (values)))
 
 (defmethod stream-clear-input ((stream hemlock-character-io-stream))
@@ -175,7 +182,8 @@
   (let ((buffer (hemlock-character-io-stream-buffer stream)))
     (or (eql (hi::mark-position (hemlock-character-io-stream-mark stream))
              (hi::mark-position (buffer-start-mark buffer)))
-        (eq (previous-character (hemlock-character-io-stream-mark stream)) #\Newline))))
+        (eq (previous-character (hemlock-character-io-stream-buffer stream)
+				(hemlock-character-io-stream-mark stream)) #\Newline))))
 
 (defmethod stream-line-column ((stream hemlock-character-io-stream))
   (mark-charpos (hemlock-character-io-stream-mark stream)))
@@ -193,7 +201,7 @@
                                         &optional (start 0) (end (length string)))
   (let ((buffer (hemlock-character-io-stream-buffer stream)))
     (bt:with-recursive-lock-held ((buffer-lock buffer))
-      (insert-string (buffer-end-mark buffer) string start end)
+      (insert-string buffer (buffer-end-mark buffer) string start end)
       ;; could only get this move-mark to work both here and in stream-write-char
       ;; without the buffer lock around these two forms,
       ;; the mark< type functions were finding that the line-%buffers of
@@ -213,19 +221,23 @@
   (declare (ignore p))
   (let* ((cw window)
          (buffer (window-buffer cw))
-         (stream (variable-value 'hemlock::buffer-stream :buffer buffer)))
+         (stream (variable-value 'buffer-stream :buffer buffer))
+	 (point (buffer-point buffer)))
+    (insert-character buffer point #\Newline)
     (with-buffer-globals (buffer)
-      (hi::.insert-character. .point. #\Newline)
-      (let* ((mark (hemlock-character-io-stream-mark stream))
-             (input-region (region mark (buffer-end-mark buffer)))
-             (string (hi::.region-to-string. input-region)))
+    (let* ((mark (hemlock-character-io-stream-mark stream))
+	   (input-region (region mark (buffer-end-mark buffer)))
+	   (string (region-to-string buffer input-region)))
 
-        (move-mark
-         (hemlock-character-io-stream-mark stream)
-         (buffer-end-mark buffer))
-
-        (with-slots (input-line input-line-position) stream
-          (setf input-line-position 0
-                input-line (copy-seq string))))
-      (buffer-end .point. .buffer.))
+      (move-mark
+       (hemlock-character-io-stream-mark stream)
+       (buffer-end-mark buffer))
+      
+      (with-slots (input-line input-line-position) stream
+	(setf input-line-position 0
+	      input-line (copy-seq string))))
+    (buffer-end point buffer))
     (f-o stream)))
+
+
+

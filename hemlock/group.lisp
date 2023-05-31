@@ -171,32 +171,34 @@
 ;;;; Searching and Replacing commands.
 
 (defcommand "Group Search" (window p)
-  "Searches the active group for a specified string, which is prompted for."
-  "Searches the active group for a specified string."
+    "Searches the active group for a specified string, which is prompted for."
+    "Searches the active group for a specified string."
   (declare (ignore p))
-  (let ((string (prompt-for-string window :prompt "Group Search: "
-                                   :help "String to search for in active file group"
-                                   :default *last-search-string*)))
-    (get-search-pattern string :forward)
-    (do-active-group
+  (let ((buffer (window-buffer window)))
+    (let ((string (prompt-for-string window :prompt "Group Search: "
+                                            :help "String to search for in active file group"
+                                            :default *last-search-string*)))
+      (get-search-pattern string :forward)
+      (do-active-group
         window
-     (do ((won (find-pattern (buffer-point (window-buffer window)) *last-search-pattern*)
-               (find-pattern (buffer-point (window-buffer window)) *last-search-pattern*)))
-         ((not won))
-       (character-offset (current-point) won)
-       (command-case
-           (:prompt "Group Search: "
-                    :help "Type a character indicating the action to perform."
-                    :change-window nil)
-         (:no "Search for the next occurrence.")
-         (:do-all "Go on to the next file in the group."
-          (return nil))
-         ((:exit :yes) "Exit the search."
-          (return-from group-search-command))
-         (:recursive-edit "Enter a recursive edit."
-          (do-recursive-edit)
-          (get-search-pattern string :forward)))))
-    (message "All files in group ~S searched." *active-file-group-name*)))
+        (do ((won (find-pattern buffer (buffer-point buffer) *last-search-pattern*)
+                  (find-pattern buffer (buffer-point buffer) *last-search-pattern*)))
+            ((not won))
+          (character-offset (buffer-point buffer) won)
+          (command-case
+              (:prompt "Group Search: "
+               :help "Type a character indicating the action to perform."
+               :change-window nil
+               :current-window window)
+            (:no "Search for the next occurrence.")
+            (:do-all "Go on to the next file in the group."
+              (return nil))
+            ((:exit :yes) "Exit the search."
+             (return-from group-search-command))
+            (:recursive-edit "Enter a recursive edit."
+                             (do-recursive-edit)
+                             (get-search-pattern string :forward)))))
+      (message "All files in group ~S searched." *active-file-group-name*))))
 
 (defcommand "Group Replace" (window p)
   "Replaces one string with another in the active file group."

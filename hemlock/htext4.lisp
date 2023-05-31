@@ -99,17 +99,9 @@
                       (setf (line-next first-line) next)
                       (when next (setf (line-previous next) first-line)))))))))))
 
-(defmethod delete-region-1 (buffer region)
+(defmethod delete-region (buffer region)
   (with-buffer-globals (buffer)
     (.delete-region. region)))
-
-(defmethod delete-region (region)
-  (let ((start-buffer (line-%buffer (mark-line (region-start region))))
-        (end-buffer (line-%buffer (mark-line (region-end region)))))
-    (when (neq start-buffer end-buffer)
-      (warn "buffers do not agree"))
-    (delete-region-1 start-buffer region)))
-
 
 (defmacro .delete-characters. (mark &optional (n 1))
   "Deletes N characters after the mark (or -N before if N is negative)."
@@ -155,16 +147,14 @@
                              (region-end *internal-temp-region*) ,mark-sym)
                        (setf (region-start *internal-temp-region*) ,mark-sym
                              (region-end *internal-temp-region*) other-mark))
-                   (delete-region-1 .buffer. *internal-temp-region*)
+                   (delete-region .buffer. *internal-temp-region*)
                    t)
                   (t nil))))))))
 
-(defmethod delete-characters-1 (buffer mark &optional (n 1))
+(defmethod delete-characters (buffer mark &optional (n 1))
   (with-buffer-globals (buffer)
     (.delete-characters. mark n)))
 
-(defmethod delete-characters (mark &optional (n 1))
-  (delete-characters-1 (line-%buffer (mark-line mark)) mark n))
 
 
 ;;;; DELETE-AND-SAVE-REGION.
@@ -279,16 +269,9 @@
                        (mark last-line last-charpos :left-inserting))))))))))))
 
 
-(defmethod delete-and-save-region-1 (buffer region)
+(defmethod delete-and-save-region (buffer region)
   (with-buffer-globals (buffer)
     (.delete-and-save-region. region)))
-
-(defmethod delete-and-save-region (region)
-  (let ((start-buffer (line-%buffer (mark-line (region-start region))))
-        (end-buffer (line-%buffer (mark-line (region-end region)))))
-    (when (neq start-buffer end-buffer)
-      (warn "buffers do not agree"))
-    (delete-and-save-region-1 start-buffer region)))
 
 
 ;;;; COPY-REGION.
@@ -349,27 +332,19 @@
                   (setf (line-next previous) new-line)
                   (setq previous new-line))))))))))
 
-(defmethod copy-region-1 (buffer region)
+(defmethod copy-region (buffer region)
   (with-buffer-globals (buffer)
     (.copy-region. region)))
-
-(defmethod copy-region (region)
-  (let ((start-buffer (line-%buffer (mark-line (region-start region))))
-        (end-buffer (line-%buffer (mark-line (region-end region)))))
-    (when (neq start-buffer end-buffer)
-      (warn "buffers do not agree"))
-    (copy-region-1 start-buffer region)))
-
 
 
 ;;;; FILTER-REGION.
 
-;;(eval-when (:compile-toplevel :execute)
+(eval-when (:compile-toplevel :execute)
 (defmacro fcs (fun str)
   `(let ((rs (funcall ,fun ,str)))
      (if (simple-string-p rs) rs
          (coerce rs 'simple-string))))
-;;); eval-when
+); eval-when
 
 ;;; FILTER-REGION  --  Public
 ;;;
@@ -485,16 +460,9 @@
                            (push m (line-marks start-line)))))))))
        ,region-sym)))
 
-(defmethod filter-region-1 (buffer function (region region))
+(defmethod filter-region (buffer function (region region))
   (with-buffer-globals (buffer)
     (.filter-region. function region)))
-
-(defmethod filter-region (function region)
-  (let ((start-buffer (line-%buffer (mark-line (region-start region))))
-        (end-buffer (line-%buffer (mark-line (region-start region)))))
-    (when (neq start-buffer end-buffer)
-      (warn "buffers do not agree in filter region"))
-    (filter-region-1 start-buffer function region)))
 
 (in-package :hemlock)
 
@@ -511,9 +479,9 @@
         (current-type-sym (gensym "CURRENT-TYPE")))
     `(let ((,region-sym ,region)
            (,current-type-sym ,current-type))
-       (let ((deleted-region (hi::.delete-and-save-region. ,region-sym)))
+       (let ((deleted-region (hi::delete-and-save-region .buffer. ,region-sym)))
          (cond ((< *delete-char-count* (value hemlock::character-deletion-threshold))
-                (hi::.ninsert-region. (if (eq ,current-type-sym :char-kill-forward)
+                (hi::ninsert-region .buffer. (if (eq ,current-type-sym :char-kill-forward)
                                       (region-end *delete-char-region*)
                                       (region-start *delete-char-region*))
                                   deleted-region)
@@ -523,11 +491,15 @@
                   (ring-push *delete-char-region* hemlock::*kill-ring*)
                   (setf *delete-char-region* nil))
                 (let ((string (ring-ref hemlock::*kill-ring* 0)))
-                  (hi::.insert-string. (region-start deleted-region) string))
+                  (hi::insert-string .buffer. (region-start deleted-region) string))
                 (setf (last-command-type)
                       (if (eq ,current-type-sym :char-kill-forward)
                           :kill-forward
                           :kill-backward))))))))
+
+(defun kill-char-region (buffer region current-type)
+  (with-buffer-globals (buffer)
+    (.kill-char-region. region current-type)))
 
 ;;; KILL-CHARACTERS makes sure there are count characters with CHARACTER-OFFSET.
 ;;; If the last command type was a region kill, we just use the top region
@@ -571,19 +543,29 @@
                          (t
                           (setf *delete-char-region* (make-empty-region))
                           (setf *delete-char-count* (abs ,count-sym))))
-                   (.kill-char-region. del-region current-type)
+                   (kill-char-region .buffer. del-region current-type)
                    ,mark-sym)
                  nil))))))
+
+(defun kill-characters (buffer mark count)
+  (with-buffer-globals (buffer)
+    (.kill-characters. mark count)))
+      
 
 (defmacro .kill-region-top-of-ring. (region current-type)
   (let ((region-sym (gensym "KILL-REGION-TOP-OF-RING_REGION"))
         (current-type-sym (gensym "KILL-REGION-TOP-OF-RING_CURRENT-TYPE")))
     `(let ((,region-sym ,region)
            (,current-type-sym ,current-type))
+       (declare (ignorable ,current-type-sym))
        (let ((string (ring-ref hemlock::*kill-ring* 0))
-             (region (hi::.delete-and-save-region. ,region-sym)))
-         (hi::.insert-string. (region-start region) string)
+             (region (hi::delete-and-save-region .buffer. ,region-sym)))
+         (hi::insert-string .buffer. (region-start region) string)
          region))))
+
+(defun kill-region-top-of-ring (buffer region current-type)
+  (with-buffer-globals (buffer)
+    (.kill-region-top-of-ring. region current-type)))
 
 
 
@@ -601,10 +583,8 @@
    The killing of the region is undo-able with \"Undo\".  LAST-COMMAND-TYPE
    is set to current-type.  This interacts with KILL-CHARACTERS."
   (let ((region-sym (gensym "KILL-REGION_REGION"))
-        (current-type-sym (gensym "KILL-REGION_CURRENT-TYPE"))
-        (string-sym (gensym "KILL-REGION_STRING")))
+        (current-type-sym (gensym "KILL-REGION_CURRENT-TYPE")))
     `(let* ((,region-sym ,region)
-            (,string-sym)
             (,current-type-sym ,current-type)
             (last-type (last-command-type))
             (insert-mark (copy-mark (region-start ,region-sym) :left-inserting)))
@@ -613,14 +593,18 @@
               (when *delete-char-region*
                 (ring-push *delete-char-region* hemlock::*kill-ring*)
                 (setf *delete-char-region* nil))
-              (setf ,region-sym (.kill-region-top-of-ring. ,region-sym ,current-type-sym)))
+              (setf ,region-sym (kill-region-top-of-ring .buffer. ,region-sym ,current-type-sym)))
              ((zerop (ring-length hemlock::*kill-ring*))
-              (setf ,region-sym (hi::.delete-and-save-region. ,region-sym))
+              (setf ,region-sym (hi::delete-and-save-region .buffer. ,region-sym))
               (ring-push ,region-sym hemlock::*kill-ring*))
              ((or (eq last-type :kill-forward) (eq last-type :kill-backward))
-              (setf ,region-sym (.kill-region-top-of-ring. ,region-sym ,current-type-sym)))
+              (setf ,region-sym (kill-region-top-of-ring .buffer. ,region-sym ,current-type-sym)))
              (t
-              (setf ,region-sym (hi::.delete-and-save-region. ,region-sym))
+              (setf ,region-sym (hi::delete-and-save-region .buffer. ,region-sym))
               (ring-push ,region-sym hemlock::*kill-ring*)))
-       (make-region-undo :insert "kill" (hi::.copy-region. ,region-sym) insert-mark)
+       (make-region-undo :insert "kill" (hi::copy-region .buffer. ,region-sym) insert-mark)
        (setf (last-command-type) ,current-type-sym))))
+
+(defmethod kill-region (buffer region current-type)
+  (with-buffer-globals (buffer)
+    (.kill-region. region current-type)))

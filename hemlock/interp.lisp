@@ -33,6 +33,7 @@
 ;;; GET-TABLE-ENTRY returns the value at the end of a series of hashings.  For
 ;;; our purposes it is presently used to look up commands and key-translations.
 ;;;
+#+NIL
 (defun get-table-entry (table key)
   (let ((foo nil))
     (dotimes (i (length key) foo)
@@ -45,6 +46,7 @@
 ;;; tables as needed.  If val is nil, then use REMHASH to remove this element
 ;;; from the hash-table.
 ;;;
+#+NIL
 (defun set-table-entry (table key val)
   (dotimes (i (1- (length key)))
     (let* ((key-event (aref key i))
@@ -64,9 +66,12 @@
 ;;; integer, then it is prefix bits to be OR'ed with the next character.  If it
 ;;; is a key, then we translate to that key.
 
+#+NIL
 (defvar *key-translations* (make-hash-table))
+#+NIL
 (defvar *translate-key-temp* (make-array 10 :fill-pointer 0 :adjustable t))
 
+#+NIL
 (defun translate-key (key &optional (result (make-array (length key)
                                                         :fill-pointer 0
                                                         :adjustable t)))
@@ -109,6 +114,7 @@
 
 ;;; KEY-TRANSLATION -- Public.
 ;;;
+#+NIL
 (defun key-translation (key)
   "Return the key translation for Key, or NIL if there is none.  If Key is a
    prefix of a translation, then :Prefix is returned.  Whenever Key appears as a
@@ -125,6 +131,7 @@
 
 ;;; (SETF KEY-TRANSLATION)  --  Internal
 ;;;
+#+NIL
 (defun (setf key-translation) (new-value key)
   "Set the key translation for a key.  If set to null, deletes any
    translation."
@@ -137,6 +144,7 @@
 
 ;;;; Interface Utility Functions:
 
+
 (defvar *global-command-table* (make-hash-table)
   "The command table for global key bindings.")
 
@@ -144,6 +152,7 @@
 ;;;
 ;;;    Return a hash-table depending on "kind" and checking for errors.
 ;;;
+#+NIL
 (defun get-right-table (kind where)
   (case kind
      (:global
@@ -165,6 +174,7 @@
 ;;; Take a key in one of the various specifications and turn it into the
 ;;; standard one: a simple-vector of characters.
 ;;;
+#+NIL
 (defun crunch-key (key)
   (typecase key
     (hemlock-ext:key-event (vector key))
@@ -185,6 +195,7 @@
 
 ;;; BIND-KEY  --  Public.
 ;;;
+#+NIL
 (defun bind-key (name key &optional (kind :global) where)
   "Bind a Hemlock command to some key somewhere.  Name is the string name
    of a Hemlock command, Key is either a key-event or a vector of key-events.
@@ -212,6 +223,7 @@
 ;;;
 ;;;    Stick NIL in the key table specified.
 ;;;
+#+NIL
 (defun delete-key-binding (key &optional (kind :global) where)
   "Remove a Hemlock key binding somewhere.  Key is either a key-event or a
    vector of key-events.  Kind is one of :Global, :Mode or :Buffer, andl where
@@ -224,6 +236,7 @@
 ;;;
 ;;;    Look up a key in the current environment.
 ;;;
+#+NIL
 (defun get-current-binding (key)
   (let ((res (get-table-entry (buffer-bindings (current-buffer)) key)))
     (cond
@@ -243,6 +256,7 @@
 
 ;;; GET-COMMAND -- Public.
 ;;;
+#+NIL
 (defun get-command (key &optional (kind :global) where)
   "Return the command object for the command bound to key somewhere.
    If key is not bound, return nil.  Key is either a key-event or a vector of
@@ -262,6 +276,7 @@
 
 ;;; MAP-BINDINGS -- Public.
 ;;;
+#+NIL
 (defun map-bindings (function kind &optional where)
   "Map function over the bindings in some place.  The function is passed the
    key and the command to which it is bound."
@@ -316,6 +331,7 @@
 ;;; out bogus bindings here than to catch all the cases that can make a
 ;;; binding go away.
 ;;;
+#+NIL
 (defun command-bindings (command)
   "Return a list of lists of the form (key kind where) describing
    all the places where Command is bound."
@@ -384,7 +400,9 @@
 
 ;;; Buffers we use to read and translate keys.
 ;;;
+#+NIL
 (defvar *current-command* (make-array 10 :fill-pointer 0 :adjustable t))
+#+NIL
 (defvar *current-translation* (make-array 10 :fill-pointer 0 :adjustable t))
 
 (defvar *invoke-hook* #'(lambda (command window p)
@@ -398,6 +416,7 @@
 ;;;
 ;;;    Read commands from the terminal and execute them, forever.
 ;;;
+#+NIL
 (defun %command-loop ()
   (let  ((cmd *current-command*)
          (trans *current-translation*)

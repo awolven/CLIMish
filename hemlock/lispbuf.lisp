@@ -22,7 +22,7 @@
         (package (gensym)))
     `(handle-lisp-errors
       (let* ((,current-package-name (value current-package))
-             (,package-at-point-name (package-at-point (buffer-point ,buffer)))
+             (,package-at-point-name (package-at-point ,buffer (buffer-point ,buffer)))
              (,package (or (and ,current-package-name
                                 (find-package ,current-package-name))
                            (and ,package-at-point-name
@@ -402,7 +402,7 @@
               (setf base 0)
               (return nil)))
         (with-mark ((m (region-start (ring-ref ring base))))
-          (when (find-pattern m *previous-input-search-pattern*)
+          (when (find-pattern buffer m *previous-input-search-pattern*)
             (return base)))
         (incf base))))
 

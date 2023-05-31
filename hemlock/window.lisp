@@ -16,12 +16,24 @@
 
 (in-package :hemlock-internals)
 
+(defconstant unaltered-bits #b000
+  "This is the value of the dis-line-flags when a line is neither moved nor
+  changed nor new.")
+(defconstant changed-bit #b001
+  "This bit is set in the dis-line-flags when a line is found to be changed.")
+(defconstant moved-bit #b010
+  "This bit is set in the dis-line-flags when a line is found to be moved.")
+(defconstant new-bit #b100
+  "This bit is set in the dis-line-flags when a line is found to be new.")
+(defconstant retag-bit #b1000
+  "This bit is set in the dis-line-flags when a line has an updated tag.")
+
 #+NIL
 (defun current-point ()
   (buffer-point (current-buffer))) ;; temp kludge
 
-(defun hemlock::package-at-point (point)
-  (let ((tag (hi::line-tag (mark-line point))))
+(defun hemlock::package-at-point (buffer point)
+  (let ((tag (hi::line-tag buffer (mark-line point))))
     (if tag (hi::tag-package tag) "C_LUSER")))
 
 #+NIL
@@ -34,6 +46,7 @@
 (declaim (special *echo-area-buffer* ; defined in echo.lisp --amb
                   *things-to-do-once*)) ; defined in display.lisp --amb
 
+#+NIL
 (defmacro with-render-thread ((app) &body body)
   ;; maybe should make new sem
   ;; but then it has an extra sem to gc
@@ -421,7 +434,7 @@
                "Returns the value of buffer's \"Current Package\" followed
                 by a colon and two spaces, or a string with one space."
                (declare (ignore window))
-               (let ((package (hemlock::package-at-point (buffer-point buffer))))
+               (let ((package (hemlock::package-at-point buffer (buffer-point buffer))))
                  (if package
                      (format nil "~A:  " package)
                      " "))))
@@ -533,9 +546,8 @@
 
 (defun update-modelines-for-buffer (buffer)
   (unless (eq buffer *echo-area-buffer*)
-    (hi::with-render-thread (*app*)
-      (dolist (w (buffer-windows buffer))
-        (%rt-update-modeline-fields buffer w)))))
+    (dolist (w (buffer-windows buffer))
+      (update-modeline-fields buffer w))))
 
 
 ;;; QUEUE-WINDOW-CHANGE is used for the "Window Buffer Hook".  We ignore the
@@ -551,9 +563,9 @@
 
 ;;;; Bitmap setting up new windows and modifying old.
 
-(defvar dummy-line (make-window-dis-line "")
-  "Dummy dis-line that we put at the head of window's dis-lines")
+(setq dummy-line (make-window-dis-line ""))
 (setf (dis-line-position dummy-line) -1)
+
 
 (defparameter *modeline-font* '(:fg 7 :bg 4 :bold t))
 
@@ -577,6 +589,7 @@
 ;;; system.
 ;;;
 (defun editor-finish-output (window)
+  (declare (ignorable window))
   #+NIL
   (device-finish-output (device-hunk-device (window-hunk window)) window))
 

@@ -44,7 +44,7 @@
                       (apply #'format nil *parse-help*))
                 (string *parse-help*)
                 (t (error "Parse help is not a string or list: ~S" *parse-help*))))
-        (input (region-to-string *parse-input-region*)))
+        (input (region-to-string *echo-area-buffer* *parse-input-region*)))
     (cond
      ((eq *parse-type* :keyword)
       (let ((strings (find-all-completions input *parse-string-tables*)))
@@ -59,7 +59,7 @@
                  (write-line
  "There are no possible completions of what you have typed." s))))))
      ((and (eq *parse-type* :file) (not (zerop (length input))))
-      (let ((pns (ambiguous-files (region-to-string *parse-input-region*)
+      (let ((pns (ambiguous-files (region-to-string *echo-area-buffer* *parse-input-region*)
                                   *parse-default*)))
         (declare (list pns))
         (with-pop-up-display(s :height (+ (length pns) 2) :current-window window)
@@ -86,7 +86,7 @@
      (t
       (with-mark ((m (buffer-start-mark *echo-area-buffer*) :left-inserting))
         (insert-string *echo-area-buffer* m help)
-        (insert-character m #\newline))))))
+        (insert-character *echo-area-buffer* m #\newline))))))
 
 (defun file-completion-action (typein)
   (declare (simple-string typein))
@@ -97,8 +97,8 @@
                                  :defaults (directory-namestring *parse-default*)
                                  :ignore-types (value ignore-file-types))
     (when result
-      (delete-region *parse-input-region*)
-      (insert-string (region-start *parse-input-region*)
+      (delete-region *echo-area-buffer* *parse-input-region*)
+      (insert-string *echo-area-buffer* (region-start *parse-input-region*)
                      (namestring result)))
     (when (and (not win) (value beep-on-ambiguity))
       (editor-error))))
@@ -109,7 +109,7 @@
   "Complete the keyword being parsed as far as possible.
   If it is ambiguous and ``Beep On Ambiguity'' true beep."
   (declare (ignore p))
-  (let ((typein (region-to-string *parse-input-region*)))
+  (let ((typein (region-to-string *echo-area-buffer* *parse-input-region*)))
     (declare (simple-string typein))
     (case *parse-type*
       (:keyword
@@ -118,10 +118,10 @@
            (complete-string typein *parse-string-tables*)
          (declare (ignore value field))
          (when prefix
-           (delete-region *parse-input-region*)
-           (insert-string (region-start *parse-input-region*) prefix)
+           (delete-region *echo-area-buffer* *parse-input-region*)
+           (insert-string *echo-area-buffer* (region-start *parse-input-region*) prefix)
            (when (eq key :ambiguous)
-             (let ((point (current-point)))
+             (let ((point (buffer-point *echo-area-buffer*)))
                (move-mark point (region-start *parse-input-region*))
                (unless (character-offset point ambig)
                  (buffer-end point)))))
@@ -144,7 +144,7 @@
   If it is ambiguous and ``Beep On Ambiguity'' true beep.  Fields are
   separated by characters having a non-zero :parse-field-separator attribute,
   and this command should only be bound to characters having that attribute."
-  (let ((typein (region-to-string *parse-input-region*)))
+  (let ((typein (region-to-string *echo-area-buffer* *parse-input-region*)))
     (declare (simple-string typein))
     (case *parse-type*
       (:string
@@ -159,21 +159,21 @@
               (eql (hemlock-ext:key-event-char *last-key-event-typed*)
                    #\space)))
          (when spacep
-           (let ((point (current-point)))
-             (unless (blank-after-p point)
-               (insert-character point #\space))))
+           (let ((point (buffer-point *echo-area-buffer*)))
+             (unless (blank-after-p *echo-area-buffer* point)
+               (insert-character *echo-area-buffer* point #\space))))
          (multiple-value-bind
                (prefix key value field ambig)
              (complete-string typein *parse-string-tables*)
            (declare (ignore value ambig))
            (when (eq key :none) (editor-error "No possible completion."))
-           (delete-region *parse-input-region*)
+           (delete-region *echo-area-buffer* *parse-input-region*)
            (let ((new-typein (if (and spacep (or field (not (eq key :unique))))
                                  (concatenate 'string
                                               (subseq prefix 0 field)
                                               " ")
                                  (subseq prefix 0 field))))
-             (insert-string (region-start *parse-input-region*) new-typein)))))
+             (insert-string *echo-area-buffer* (region-start *parse-input-region*) new-typein)))))
       (t
        (editor-error "Cannot complete input for this prompt.")))))
 
@@ -191,7 +191,7 @@
   "If no input has been given, exits the recursive edit with the default,
   otherwise calls the verification function."
   (declare (ignore p))
-  (let* ((string (region-to-string *parse-input-region*))
+  (let* ((string (region-to-string *echo-area-buffer* *parse-input-region*))
          (empty (zerop (length string))))
     (declare (simple-string string))
     (if empty
@@ -215,15 +215,15 @@
     (cond
      ((eq (last-command-type) :echo-history)
       (let ((base (mod (+ *echo-history-pointer* p) length)))
-        (delete-region *parse-input-region*)
-        (insert-string (region-end *parse-input-region*)
+        (delete-region *echo-area-buffer* *parse-input-region*)
+        (insert-string *echo-area-buffer* (region-end *parse-input-region*)
                        (ring-ref *echo-area-history* base))
         (setq *echo-history-pointer* base)))
      (t
-      (let ((current (region-to-string *parse-input-region*))
+      (let ((current (region-to-string *echo-area-buffer* *parse-input-region*))
             (base (mod (if (minusp p) p (1- p)) length)))
-        (delete-region *parse-input-region*)
-        (insert-string (region-end *parse-input-region*)
+        (delete-region *echo-area-buffer* *parse-input-region*)
+        (insert-string *echo-area-buffer* (region-end *parse-input-region*)
                        (ring-ref *echo-area-history* base))
         (when (and (plusp (length current))
                    (string/= (ring-ref *echo-area-history* 0) current))
@@ -280,9 +280,9 @@
   "Kills any input so far."
   "Kills *parse-input-region*."
   (declare (ignore p))
-  (if (end-line-p (current-point))
-      (kill-region *parse-input-region* :kill-backward)
-      (ring-push (delete-and-save-region *parse-input-region*)
+  (if (end-line-p (buffer-point *echo-area-buffer*))
+      (kill-region *echo-area-buffer* *parse-input-region* :kill-backward)
+      (ring-push (delete-and-save-region *echo-area-buffer* *parse-input-region*)
                  *kill-ring*)))
 
 (defcommand "Insert Parse Default" (window p)
@@ -292,7 +292,7 @@
   If there is no default an editor-error is signalled."
   (declare (ignore p))
   (unless *parse-default* (editor-error))
-  (insert-string (buffer-point *echo-area-buffer*) *parse-default*))
+  (insert-string *echo-area-buffer* (buffer-point *echo-area-buffer*) *parse-default*))
 
 (defcommand "Echo Area Backward Character" (window p)
   "Go back one character.

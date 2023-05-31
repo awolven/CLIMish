@@ -47,15 +47,18 @@
 
 (declaim (inline name-keysym keysym-names keysym-preferred-name))
 
+#+NOTNOW
 (defun name-keysym (name)
   "This returns the keysym named name.  If name is unknown, this returns nil."
   (gethash (get-name-case-right name) *names-to-keysyms*))
 
+#+NOTNOW
 (defun keysym-names (keysym)
   "This returns the list of all names for keysym.  If keysym is undefined,
    this returns nil."
   (gethash keysym *keysyms-to-names*))
 
+#+NOTNOW
 (defun keysym-preferred-name (keysym)
   "This returns the preferred name for keysym, how it is typically printed.
    If keysym is undefined, this returns nil."
@@ -70,11 +73,13 @@
 ;;; This returns the canonical string for a keysym name for use with
 ;;; hash tables.
 ;;;
+#+NOTNOW
 (defun get-name-case-right (string)
   (if (= (length string) 1) string (string-downcase string)))
 
 ;;; DEFINE-KEYSYM -- Public.
 ;;;
+#+NOTNOW
 (defun define-keysym (keysym preferred-name &rest other-names)
   "This establishes a mapping from preferred-name to keysym for purposes of
    specifying key-events in #k syntax.  Other-names also map to keysym, but the
@@ -134,6 +139,7 @@
 ;;; for the button cross event-key.  If the information is undefined, this
 ;;; signals an error.
 ;;;
+#+NOTNOW
 (defun mouse-translation-info (button event-key info)
   (let ((event-dispatch (svref *mouse-translation-info* button)))
     (unless event-dispatch
@@ -155,6 +161,7 @@
 ;;; does, filling in the data structure on an as-needed basis, and stores
 ;;; the value for the indicated info.
 ;;;
+#+NOTNOW
 (defun (setf mouse-translation-info) (value button event-key info)
   (let ((event-dispatch (svref *mouse-translation-info* button)))
     (unless event-dispatch
@@ -178,6 +185,7 @@
 
 ;;; DEFINE-MOUSE-KEYSYM -- Public.
 ;;;
+#+NOTNOW
 (defun define-mouse-keysym (button keysym name shifted-bit event-key)
   "This defines keysym named name for the X button cross the X event-key.
    Shifted-bit is a defined modifier name that TRANSLATE-MOUSE-KEY-EVENT sets
@@ -192,6 +200,7 @@
 
 ;;; TRANSLATE-MOUSE-KEY-EVENT -- Public.
 ;;;
+#+NOTNOW
 (defun translate-mouse-key-event (scan-code bits event-key)
   "This translates the X button code, scan-code, and modifier bits, bits, for
    the X event-key into a key-event.  See DEFINE-MOUSE-KEYSYM."
@@ -212,7 +221,7 @@
 
 
 ;;;; Stuff for parsing #k syntax.
-
+#+NOTNOW
 (defstruct (key-event (:print-function %print-key-event)
                       (:constructor %make-key-event (keysym bits)))
   (bits nil :type fixnum)
@@ -227,6 +236,7 @@
 ;;; This maps Common Lisp CHAR-CODE's to character classes for parsing #k
 ;;; syntax.
 ;;;
+#+NOTNOW
 (defvar *key-character-classes* (make-array char-code-limit
                                             :initial-element :other))
 
@@ -242,17 +252,20 @@
 ;;;
 ;;; Every other character has class :other.
 ;;;
+#+NOTNOW
 (hi::do-alpha-chars (char :both)
-  (setf (svref *key-character-classes* (char-code char)) :letter))
+                    (setf (svref *key-character-classes* (char-code char)) :letter))
+#+NOTNOW(
 (setf (svref *key-character-classes* (char-code #\<)) :ISO-start)
 (setf (svref *key-character-classes* (char-code #\>)) :ISO-end)
 (setf (svref *key-character-classes* (char-code #\-)) :modifier-terminator)
 (setf (svref *key-character-classes* (char-code #\space)) :event-terminator)
 (setf (svref *key-character-classes* (char-code #\")) :EOF)
-
+)
 ;;; This holds the characters built up while lexing a potential keysym or
 ;;; modifier identifier.
 ;;;
+#+NOTNOW
 (defvar *id-namestring*
   (make-array 30 :adjustable t :fill-pointer 0 :element-type 'character))
 
@@ -265,6 +278,7 @@
 ;;; there's a for that at loadtime or runtime will return the unique key-event
 ;;; or vector of unique key-events.
 ;;;
+#+NOTNOW
 (defun parse-key-fun (stream sub-char count)
   (declare (ignore sub-char count))
   (setf (fill-pointer *id-namestring*) 0)
@@ -338,9 +352,10 @@
                     `(vector ,@(nreverse key-event-list))
                     `,(car key-event-list)))))
 
+#+notnow
 (set-dispatch-macro-character #\# #\k #'parse-key-fun)
 
-
+#+NOTNOW
 (defconstant key-event-escape-char #\\
   "The escape character that #k uses.")
 
@@ -348,6 +363,7 @@
 ;;;
 ;;; This is used by PARSE-KEY-FUN.
 ;;;
+#+NOTNOW
 (defun get-key-char (stream)
   (let ((char (read-char stream t nil t)))
     (cond ((char= char key-event-escape-char)
@@ -359,11 +375,14 @@
 
 ;;;; Code to deal with modifiers.
 
+#+NOTNOW
 (defvar *modifier-count* 0
   "The number of modifiers that is currently defined.")
 
+#+NOTNOW
 (eval-when (:compile-toplevel :execute :load-toplevel)
 
+  
 (defconstant modifier-count-limit 6
   "The maximum number of modifiers supported.")
 
@@ -371,6 +390,7 @@
 
 ;;; This is purely a list for users.
 ;;;
+#+NOTNOW
 (defvar *all-modifier-names* ()
   "A list of all the names of defined modifiers.")
 
@@ -380,6 +400,7 @@
 ;;; long-name.  PRINT-PRETTY-KEY-EVENT and KEY-EVENT-BITS-MODIFIERS rely on
 ;;; this feature.
 ;;;
+#+NOTNOW
 (defun define-key-event-modifier (long-name short-name)
   "This establishes long-name and short-name as modifier names for purposes
    of specifying key-events in #k syntax.  The names are case-insensitive and
@@ -414,6 +435,7 @@
 
 ;;; DEFINE-CLX-MODIFIER -- Public.
 ;;;
+#+NOTNOW
 (defun define-clx-modifier (clx-mask modifier-name)
   "This establishes a mapping from clx-mask to a define key-event modifier-name.
    TRANSLATE-KEY-EVENT and TRANSLATE-MOUSE-KEY-EVENT can only return key-events
@@ -431,6 +453,7 @@
 
 ;;; MAKE-KEY-EVENT-BITS -- Public.
 ;;;
+#+NOTNOW
 (defun make-key-event-bits (&rest modifier-names)
   "This returns bits suitable for MAKE-KEY-EVENT from the supplied modifier
    names.  If any name is undefined, this signals an error."
@@ -443,6 +466,7 @@
 
 ;;; KEY-EVENT-BITS-MODIFIERS -- Public.
 ;;;
+#+NOTNOW
 (defun key-event-bits-modifiers (bits)
   "This returns a list of key-event modifier names, one for each modifier
    set in bits."
@@ -454,6 +478,7 @@
 
 ;;; KEY-EVENT-MODIFIER-MASK -- Public.
 ;;;
+#+NOTNOW
 (defun key-event-modifier-mask (modifier-name)
   "This function returns a mask for modifier-name.  This mask is suitable
    for use with KEY-EVENT-BITS.  If modifier-name is undefined, this signals
@@ -466,9 +491,10 @@
 
 
 ;;;; Key event lookup -- GET-KEY-EVENT and MAKE-KEY-EVENT.
-
+#+NOTNOW
 (defvar *keysym-high-bytes*)
 
+#+NOTNOW
 (defconstant modifier-bits-limit (ash 1 modifier-count-limit))
 
 ;;; GET-KEY-EVENT -- Internal.
@@ -478,6 +504,7 @@
 ;;; and if it isn't, this will make a key-event anyway that will cause an
 ;;; error when the system tries to print it.
 ;;;
+#+NOTNOW
 (defun get-key-event* (keysym bits)
   (let* ((high-byte (ash keysym -8))
          (low-byte-vector (svref *keysym-high-bytes* high-byte)))
@@ -499,6 +526,7 @@
 
 ;;; MAKE-KEY-EVENT --  Public.
 ;;;
+#+NOTNOW
 (defun make-key-event (object &optional (bits 0))
   "This returns a key-event described by object with bits.  Object is one of
    keysym, string, or key-event.  When object is a key-event, this uses
@@ -525,6 +553,7 @@
 
 ;;; KEY-EVENT-BIT-P -- Public.
 ;;;
+#+NOTNOW
 (defun key-event-bit-p (key-event bit-name)
   "This returns whether key-event has the bit set named by bit-name.  This
    signals an error if bit-name is undefined."
@@ -541,13 +570,16 @@
 ;;; This maps key-events to characters.  Users modify this by SETF'ing
 ;;; KEY-EVENT-CHAR.
 ;;;
+#+NOTNOW
 (defvar *key-event-characters*)
 
+#+NOTNOW
 (defun key-event-char (key-event)
   "Returns the character associated with key-event. This is SETF'able."
   (check-type key-event key-event)
   (gethash key-event *key-event-characters*))
 
+#+NOTNOW
 (defun (setf key-event-char) (character key-event)
   (check-type character character)
   (check-type key-event key-event)
@@ -556,13 +588,16 @@
 ;;; This maps characters to key-events.  Users modify this by SETF'ing
 ;;; CHAR-KEY-EVENT.
 ;;;
+#+NOTNOW
 (defvar *character-key-events*)
 
+#+NOTNOW
 (defun char-key-event (char)
   "Returns the key-event associated with char.  This is SETF'able."
   (check-type char character)
   (svref *character-key-events* (char-code char)))
 
+#+NOTNOW
 (defun (setf char-key-event) (key-event char)
   (check-type char character)
   (check-type key-event key-event)
@@ -570,7 +605,7 @@
 
 
 ;;;; DO-ALPHA-KEY-EVENTS.
-
+#+NOTNOW
 (defmacro alpha-key-events-loop (var start-keysym end-keysym result body)
   (let ((n (gensym)))
     `(do ((,n ,start-keysym (1+ ,n)))
@@ -579,6 +614,7 @@
          (when (alpha-char-p (key-event-char ,var))
            ,@body)))))
 
+#+NOTNOW
 (defmacro do-alpha-key-events ((var kind &optional result) &rest forms)
   "(DO-ALPHA-KEY-EVENTS (var kind [result]) {form}*)
    This macro evaluates each form with var bound to a key-event representing an
@@ -624,10 +660,13 @@
 ;;; *modifiers-to-internal-masks* by CDDR'ing down it by starting on a short
 ;;; name or a long name.
 ;;;
+
 (defun print-pretty-key-event (key-event &optional (stream *standard-output*)
                                          long-names-p)
   "This prints key-event to stream.  Long-names-p indicates whether modifier
    names should appear using the long name or short name."
+  (clui::print-pretty-input-event-id key-event stream long-names-p)
+  #+NIL
   (do ((map (if long-names-p
                 (cdr *modifiers-to-internal-masks*)
                 *modifiers-to-internal-masks*)
@@ -648,6 +687,7 @@
 
 ;;; RE-INITIALIZE-KEY-EVENTS -- Internal.
 ;;;
+#+NOTNOW
 (defun re-initialize-key-events ()
   "This blows away all data associated with keysyms, modifiers, mouse
    translations, and key-event/characters mapping.  Then it re-establishes
@@ -678,6 +718,7 @@
 
 ;;; Initialize stuff if not already initialized.
 ;;;
+#+NOTNOW
 (unless (boundp '*keysyms-to-names*)
   (re-initialize-key-events))
 

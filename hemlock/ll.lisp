@@ -86,6 +86,7 @@
 	  (setf (buffer-minor-mode buffer current-buffer "Interactive-Character-Stream") t)
 	  (setf (buffer-minor-mode buffer current-buffer "Lisp Listener") t)
 	  (setf (buffer-major-mode buffer current-buffer) "LISP")
+	  (krma.gui::find-or-create-text-editor-window-for-buffer buffer)
 	  (let* ((stream (variable-value 'hemlock::buffer-stream :buffer buffer))
 		 (thread (bt:make-thread #'(lambda ()
 					     (repl stream))
@@ -95,7 +96,7 @@
 	    (add-hook hemlock::delete-buffer-hook #'(lambda (buffer)
 						      (when (buffer-minor-mode buffer "Lisp Listener")
 							(bt:destroy-thread (hemlock::variable-value 'hemlock::lisp-listener-thread :buffer buffer)))))
-	    (krma.gui::focus-window (krma.gui::find-or-create-text-editor-window-for-buffer buffer))
+	    
 	    (values))))))
 
 (defmethod find-window-named ((w clui::os-window-mixin) name)

@@ -14,9 +14,9 @@
 (defmethod handle-event :after ((window krma-gui-window-mixin) (event clui::window-resize-event-mixin))
   ;; if window-framebuffer-size is already correct for krma-gui-window
   ;; then bashing this attribute will cause the echo area size and position to recompute
-  (when *echo-area-window*
-    (setf (send *echo-area-window* parent) window)
-    (rm-redraw-node-recursively *echo-area-window*))
+  (when hi::*echo-area-window*
+    (setf (send hi::*echo-area-window* parent) window)
+    (rm-redraw-node-recursively hi::*echo-area-window*))
   (values))
 
 #+win32
@@ -121,7 +121,7 @@
   (let ((vec4 (m* (vec4 (- (vx vec) (the x)) (- (vy vec) (the y)) (vz vec) 1) (the inverse-matrix))))
     (safe-euclid vec4)))
 
-(defmethod untransform-global-coordinate ((vec vec3) (self node-mixin))
+(defmethod untransform-global-coordinate ((vec vec3) (self view-mixin))
   (let ((vec4 (m* (vec4 (- (vx vec) (the x)) (- (vy vec) (the y)) (vz vec) 1) (the inverse-global-matrix))))
     (safe-euclid vec4)))
 		
@@ -276,6 +276,10 @@
   :attributes
   ((cross-extent (1- (* (the size) 0.5 0.7071)))))
 
+(defobject transparency-button (title-bar-button-mixin)
+  :inputs
+  ((opaque? t)))
+
 
 (defobject menu-bar (selectable-mixin group-mixin view-mixin))
 
@@ -315,6 +319,18 @@
 					    (* 2 (the button-size))
 					    (the button-size))
 					4
+					(* 2 (the style frame-padding-x))))))
+   (transparency-button :type 'transparency-button
+			group (the group)
+			size (the button-size)
+			x (ecase (the style window-menu-button-position)
+			     (:left 0)
+			     (:right (- (the x1)
+					(if (the close-button?)
+					    (* 3 (the button-size))
+					    (* 2 (the button-size)))
+					(if (the close-button?)
+					    8 4)				
 					(* 2 (the style frame-padding-x))))))))
 
 (defmethod rm-draw-node ((self title-bar))
@@ -547,12 +563,21 @@
       (setf (krma::immediate-mode-work-function-1 (clui::window-display (window-parent homemade-window))) nil))
     #+ccl(ccl:gc)
     #+sbcl(sb-sys::gc :full t)
-    (focus-window (next homemade-window))
+    #+NOTNOW
+    (unless (eq (next homemade-window) *echo-area-window*)
+      (focus-window (next homemade-window)))
     (values)))
 
 (defmethod clui:handle-event ((button close-button) (event clui::pointer-button-press-event-mixin))
   (let ((homemade-window (send button window)))
     (destroy-window homemade-window)))
+
+(defmethod clui:handle-event ((self transparency-button) (event clui::pointer-button-press-event-mixin))
+  (if (the opaque?)
+      (setf (the opaque?) nil)
+      (setf (the opaque?) t))
+  (rm-redraw-node-recursively (the window))
+  (values))
 
 (defmethod clui:handle-event ((button iconify-button) (event clui::pointer-button-press-event-mixin))
   (let ((homemade-window (send button window)))
@@ -590,17 +615,25 @@
 	  (values)))))
 
 (defmethod %unfocus-window ((self homemade-window-mixin))
+  (do ((next (next self) (next next)))
+	((eq next self))
+    (unless (send next iconified?)
+      (setf (send next focused?) t)
+      (return)))
+  #+NIL
   (let ((scene (the scene)))
     (let ((siblings (remove self (krma::node-children scene))))
       (setq siblings (sort siblings #'> :key #'(lambda (self) (the z-index))))
       (loop for window in siblings
 	    unless (send window iconified?)
-	      do (setf (send window focused?) t)
+	      do ;; focus the first window 
+		 (setf (send window focused?) t)
 		 (return)))
     (values)))
 
 (defmethod clui:focus-window ((self homemade-window-mixin))
-  (setf (the focused?) t)
+  (unless (eq self (focused-window (clui::window-parent (the root))))
+    (setf (the focused?) t))
   (values))
 
 (defmethod clui::unfocus-window ((self homemade-window-mixin))
@@ -673,9 +706,15 @@
 	
 	(ring-link-new-element-at-start self (focused-window os-window))
 
-	(ring-initialize self))
-    
-    (setf (focused-window os-window) self))
+	(ring-initialize self)))
+
+  (unless (eq self (first (krma::node-children (the scene)))) ;; echo area window
+    (let ((next (next self)))
+      (if (eq next *echo-area-window*)
+	  (set-window-position self 40 30)
+	  (multiple-value-bind (x y) (window-position next)
+	    (set-window-position self (+ x 40) (+ y 30))))))
+			     
 
   (values))
 
@@ -684,12 +723,16 @@
 (defmethod rm-draw-node ((self homemade-window-mixin))
   
   (unless (the iconified?)
-    (let ((style (the style))
-	  (scene (the scene))
-	  (group (the group)))
+    (let* ((style (the style))
+	   (scene (the scene))
+	   (group (the group))
+	   (color (copy-seq (send style window-bg-color))))
+      (when (the title-bar?)
+	(when (the title-bar transparency-button opaque?)
+	  (setf (aref color 3) 1.0f0)))
       ;; draw window background
       (scene-add-filled-2d-rectangle-list-primitive
-       scene group nil (send style window-bg-color)
+       scene group nil color
        (list (the x0) (if (the title-bar?) (the title-bar y1) (the y0)) (the x1) (the y1))
        (the object-id)
        (the layer)))))
@@ -797,6 +840,58 @@
 					 (- (the center-y) cross-extent)
 					 (- (the center-x) cross-extent)
 					 (+ (the center-y) cross-extent)
+					 object-id
+					 (1+ layer))
+	    (the primitive-handles)))
+
+    (values)))
+
+(defmethod rm-draw-node ((self transparency-button))
+  (let* ((scene (the scene))
+	 (style (the style))
+	 (font-size (font-size (send style current-font)))
+	 (cross-color (send style text-color))
+	 (object-id (the object-id))
+	 (group (the group))
+	 (layer (the layer))
+	 (hovered? (the hovered?)))
+
+    (push (scene-add-filled-2d-circle-primitive scene group nil (if hovered? (send style button-hovered-color) 0)
+						(the center-x) (the center-y) (max 2.0f0 (1+ (* 0.5f0 font-size)))
+						12
+						object-id
+						layer)
+	  (the primitive-handles))
+
+    (let ((side-extent (max 2.0f0 (1+ (* 0.33f0 font-size))))
+	  (side-extent2 (max 2.0f0 (1+ (* 0.22f0 font-size)))))
+      (push (scene-add-2d-rectangle-primitive scene group nil 2.0f0 cross-color
+					 (- (the center-x) side-extent)
+					 (- (the center-y) side-extent)
+					 (+ (the center-x) side-extent)
+					 (+ (the center-y) side-extent)
+					 object-id
+					 (1+ layer))
+	    (the primitive-handles))
+
+      (when (the opaque?)
+	(push (scene-add-filled-2d-rectangle-list-primitive
+	       scene group nil cross-color
+	       (list (- (the center-x) side-extent2)
+		     (- (the center-y) side-extent2)
+		     (+ (the center-x) side-extent2)
+		     (+ (the center-y) side-extent2))
+	       object-id
+	       (1+ layer))
+	    (the primitive-handles)))
+
+      
+      #+NIL
+      (push (scene-add-2d-line-primitive scene group nil 2.0f0 cross-color
+					 (- (the center-x) (max 2.0f0 (1+ (* 0.5f0 font-size))))
+					 (- (the center-y) (max 2.0f0 (1+ (* 0.5f0 font-size))))
+					 (+ (the center-x) (max 2.0f0 (1+ (* 0.5f0 font-size))))
+					 (- (the center-y) (max 2.0f0 (1+ (* 0.5f0 font-size))))
 					 object-id
 					 (1+ layer))
 	    (the primitive-handles)))
@@ -994,6 +1089,7 @@
 
 (defobject popup-window-mixin (homemade-window-mixin))
 
+#+NOTYET
 (defmethod get-window-bg-color-accessor ((window popup-window-mixin))
   #'popup-bg-color)		      
   

@@ -287,7 +287,7 @@
 
 (defun do-the-copy (ses-name1 ses-name2 secs1)
   (with-open-file (input ses-name1 :element-type '(unsigned-byte 8) :direction :input)
-    (with-open-file (output ses-name2 :element-type '(unsinged-byte 8) :direction :output
+    (with-open-file (output ses-name2 :element-type '(unsigned-byte 8) :direction :output
                             :if-exists :supersede)
       (loop
         (let ((byte (read-byte input nil nil)))

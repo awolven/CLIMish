@@ -387,10 +387,10 @@
 ;;; line if there is a comment and returns the length of start, otherwise
 ;;; nil is returned.  Start must be a string.  This is used by the auto
 ;;; filling stuff too.
-(defun to-line-comment (mark start)
+(defun to-line-comment (buffer mark start)
   (with-mark ((tmark mark))
     (line-start tmark)
-    (let ((start-len (find-pattern tmark (get-comment-pattern start :start))))
+    (let ((start-len (find-pattern buffer tmark (get-comment-pattern start :start))))
       (when (and start-len (same-line-p mark tmark))
         (move-mark mark tmark)
         start-len))))
@@ -400,9 +400,9 @@
 ;;; line if end is there and returns the length of comment end, otherwise
 ;;; mark is moved to the end of the line returning nil.  This is used by
 ;;; the auto filling stuff too.
-(defun to-comment-end (mark end)
+(defun to-comment-end (buffer mark end)
   (with-mark ((tmark mark))
-    (let ((end-len (find-pattern tmark (get-comment-pattern end :end))))
+    (let ((end-len (find-pattern buffer tmark (get-comment-pattern end :end))))
       (cond ((and end-len (same-line-p mark tmark))
              (move-mark mark tmark)
              end-len)

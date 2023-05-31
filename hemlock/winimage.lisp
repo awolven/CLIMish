@@ -38,17 +38,7 @@
   (print-unreadable-object (object stream)
     (format stream "disembodied-buffer id = ~S" (slot-value object 'id))))
 
-(defconstant unaltered-bits #b000
-  "This is the value of the dis-line-flags when a line is neither moved nor
-  changed nor new.")
-(defconstant changed-bit #b001
-  "This bit is set in the dis-line-flags when a line is found to be changed.")
-(defconstant moved-bit #b010
-  "This bit is set in the dis-line-flags when a line is found to be moved.")
-(defconstant new-bit #b100
-  "This bit is set in the dis-line-flags when a line is found to be new.")
-(defconstant retag-bit #b1000
-  "This bit is set in the dis-line-flags when a line has an updated tag.")
+
 
 
 ;;; move-lines  --  Internal
@@ -218,7 +208,7 @@
                      ;; where line contents are unchanged.  For now, the backend papers
                      ;; over that, but this should get moved elsewhere.
                      ;;
-                     (sync-dis-line-tag line dis-line)
+                     (sync-dis-line-tag buffer line dis-line)
                      ;;
                      ;; Release any old font-changes.
                      (let ((changes (dis-line-font-changes dis-line)))

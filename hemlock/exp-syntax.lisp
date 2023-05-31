@@ -66,8 +66,8 @@
 ;; This mini-language for now is enough to write interesting recursive
 ;; descend parsers.
 
-(defun line-syntax-info (line)
-  (tag-syntax-info (line-tag line)))
+(defun line-syntax-info (buffer line)
+  (tag-syntax-info (line-tag buffer line)))
 
 (defun (setf line-syntax-info) (value line)
   (setf (getf (line-plist line) 'syntax-info-4) value))
@@ -322,7 +322,7 @@
 (defun empty-syntax-info ()
   (make-syntax-info :frob nil (initial-syntax-state) nil))
 
-(defun recompute-syntax-marks (line tag)
+(defun recompute-syntax-marks (buffer line tag)
   (let* ((sy (or (tag-syntax-info tag)
                  (empty-syntax-info)))
          (prev (line-previous line))
@@ -346,7 +346,7 @@
              (loop for p from 0 below (line-length line) do
                ;; really shouldn't use line-buffer line
                ;; should change signature of recompute-syntax-marks to take buffer as arg
-                  (let ((ch (line-character line p)))
+                  (let ((ch (line-character buffer line p)))
                     (setf state (step** state ch))
                     (let ((font (state-font state)))
                       (unless (eq font last-font)
@@ -354,7 +354,7 @@
                         (setf last-font font)))))
              (setf state (step** state #\newline))
              ;; hack
-             (let ((s (line-string line)) p1 p2)
+             (let ((s (line-string buffer line)) p1 p2)
                (when (and (eql 0 (search "(def" s))
                           (setf p1 (position #\space s))
                           (setf p2 (position #\space s :start (1+ p1))))
@@ -387,25 +387,24 @@
 
 ;; This should probably go into a different file
 
-(defun line-tag (line)
-  (let ((buffer (line-buffer line)))
-    (cond
-      ((null buffer)
-       nil) ;; don't have a tag, this should cause an error if the caller was expecting a tag
-      (t
-       (when (bufferp buffer)
-         (unless (< (line-number line)
-                    (buffer-tag-line-number buffer))
-           (recompute-tags-up-to line)
-           (setf (buffer-tag-line-number buffer) (1+ (line-number line)))))
-       (or (%line-tag line) (let ((tag (make-tag :syntax-info (empty-syntax-info))))
-                              (prog1 (setf (%line-tag line) tag)
-                                #+NIL
-                                (setf (tag-syntax-info tag)
-                                      (recompute-syntax-marks line tag)))))))))
+(defun line-tag (buffer line)
+  (cond
+    ((null buffer)
+     nil) ;; don't have a tag, this should cause an error if the caller was expecting a tag
+    (t
+     (when (bufferp buffer)
+       (unless (< (line-number line)
+                  (buffer-tag-line-number buffer))
+         (recompute-tags-up-to buffer line)
+         (setf (buffer-tag-line-number buffer) (1+ (line-number line)))))
+     (or (%line-tag line) (let ((tag (make-tag :syntax-info (empty-syntax-info))))
+                            (prog1 (setf (%line-tag line) tag)
+                              #+NIL
+                              (setf (tag-syntax-info tag)
+                                    (recompute-syntax-marks line tag))))))))
 
 
-(defun recompute-tags-up-to (end-line)
+(defun recompute-tags-up-to (buffer end-line)
   (let* ((level (buffer-tag-line-number (line-buffer end-line)))
          (start-line
           (iter (for line initially end-line then prev)
@@ -415,20 +414,20 @@
     (unless (line-previous start-line)
       (let ((tag (make-tag :syntax-info (empty-syntax-info))))
         (setf (%line-tag start-line) tag)
-        (setf (tag-syntax-info tag) (recompute-syntax-marks start-line tag)))
+        (setf (tag-syntax-info tag) (recompute-syntax-marks buffer start-line tag)))
       #+NIL ;; let start line have no previous, recompute-line-tag will still work
       ;; this was causing package at point to fail with wrong package when in-package form was first line.
       (setf start-line (line-next start-line)))
     (iter (for line initially start-line then (line-next line))
           (while line)
-          (recompute-line-tag line)
+          (recompute-line-tag buffer line)
           (until (eq line end-line)))))
 
 (defmacro cache-scanner (regex)
   ;; help compilers that don't support compiler macros
   `(load-time-value (ppcre:create-scanner ,regex)))
 
-(defun recompute-line-tag (line)
+(defun recompute-line-tag (buffer line)
   (let* ((prev (line-previous line))
          (ptag (and prev (%line-tag prev)))
          (tag (or (%line-tag line)
@@ -437,19 +436,19 @@
       (unless (eql (tag-line-number tag) new-line)
         (incf (tag-ticks tag)))
       (setf (tag-line-number tag) new-line))
-    (setf (tag-syntax-info tag) (recompute-syntax-marks line tag))
+    (setf (tag-syntax-info tag) (recompute-syntax-marks buffer line tag))
     (setf (tag-package tag)
           (or (cl-ppcre:register-groups-bind
                   (package)
                   ((cache-scanner
                     "^\\((?:[a-zA-Z]+:)?in-package (?:[^)]*::?)([^)]*)\\)")
-                   (line-string line))
+                   (line-string buffer line))
                 (when package
                   (hemlock::canonicalize-slave-package-name package)))
               (cl-ppcre:register-groups-bind
                   (package)
                   ((cache-scanner "^\\(in-package \"([^)]*)\"\\)")
-                   (line-string line))
+                   (line-string buffer line))
                 (when package
                   (hemlock::canonicalize-slave-package-name package)))
               (if ptag (tag-package ptag) "CL-USER")))))
