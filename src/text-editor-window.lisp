@@ -61,6 +61,13 @@
 
 (defobject text-editor-window (text-editor-window-mixin))
 
+(defmethod destroy-window :after ((view text-editor-window-mixin))
+  (let ((buffer (hi::window-buffer view)))
+    (setf (hi::buffer-windows buffer) (remove view (hi::buffer-windows buffer)))
+    (unless (hi::buffer-windows buffer)
+      (hi::delete-buffer buffer *echo-area-buffer*)))
+  (values))
+
 (defun make-hemlock-window ()
   (make-instance 'text-editor-window 'x 100 'y 75))
 
