@@ -330,8 +330,8 @@
 				    (xval (float (+ (* x space-width) xp)))
 				    (yval (float (+ (* y font-size) -2 yp))))
 			       (krma::draw-data-add-text-primitive draw-data group nil font color
-								   xval yval (subseq string start end)
-								   0 layer)))))
+							 xval yval (subseq string start end)
+							 0 layer)))))
 		    (do ((change (hi::dis-line-font-changes dl) (hi::font-change-next change)))
 			((null change)
 			 (buffer-view-add-string last position font text-color-key chars last length))

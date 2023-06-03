@@ -814,18 +814,18 @@
 (defmethod initialize-instance :after ((app application) &rest initargs)
   (declare (ignore initargs))
 
-  #+NIL
+
   (setq hemlock::*kill-ring* (hi::make-kill-ring
 			      (clui::window-display (krma::main-window app))
 			      10))
-  #+NIL
+
   (unless (boundp '*style*)
     (setq *style* (make-instance 'light-style
 				 'display (application-display app)
 				 'monitor (clui::get-primary-monitor (application-display app)))))
-  #+NIL
+
   (krma.gui::make-echo-area-window :app app)
-  #+NIL
+
   (bt:signal-semaphore (command-loop-go-semaphore (main-window app)))
 
   (values))

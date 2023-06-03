@@ -985,6 +985,10 @@
           #+NIL
           (prepl:repl)))
 
+#+CCL
+(defun simple-backtrace (&optional (stream *debug-io*))
+  (princ (ccl:backtrace-as-list) stream))
+
 #+SBCL
 (defun simple-backtrace (&optional (stream *debug-io*)#+NIL(stream *standard-output*))
   (sb-debug:print-backtrace :stream stream)
