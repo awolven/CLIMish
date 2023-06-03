@@ -123,7 +123,6 @@
 
    
    (:file "src/kill-ring")
-   (:file "src/gui-application")
    (:file "src/text-editor-view")
    (:file "src/text-editor-window")
    (:file "hemlock/exp-syntax")
@@ -131,5 +130,6 @@
    (:file "src/command-tables")
    (:file "src/commands")
    (:file "src/debugger")
+   (:file "src/gui-application")
    (:file "src/gestures")))
 	  

@@ -6,8 +6,9 @@
 (defclass application (application-mixin)
   ())
 
-(defun post-init-hemlock (hemlock::initial-buffer)
-  hemlock::(progn
+(in-package :hemlock)
+
+(defun krma.gui::post-init-hemlock (hemlock::initial-buffer)
 	     (defmode "Echo Area" :major-p t :current-buffer initial-buffer)
 	     
 	     (setq hi::*echo-area-buffer* (make-instance 'hi:buffer :name "Echo Area" :modes '("Echo Area") :current-buffer initial-buffer))
@@ -806,19 +807,25 @@
 		      :current-buffer initial-buffer)
 
 	     (defmode "Lisp Listener" :major-p nil :current-buffer initial-buffer)
-	     ))
+	     )
+
+(in-package :krma.gui)
 
 (defmethod initialize-instance :after ((app application) &rest initargs)
   (declare (ignore initargs))
 
+  #+NIL
   (setq hemlock::*kill-ring* (hi::make-kill-ring
 			      (clui::window-display (krma::main-window app))
 			      10))
+  #+NIL
   (unless (boundp '*style*)
     (setq *style* (make-instance 'light-style
 				 'display (application-display app)
 				 'monitor (clui::get-primary-monitor (application-display app)))))
+  #+NIL
   (krma.gui::make-echo-area-window :app app)
+  #+NIL
   (bt:signal-semaphore (command-loop-go-semaphore (main-window app)))
 
   (values))

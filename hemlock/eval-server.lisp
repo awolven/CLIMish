@@ -497,6 +497,7 @@
                                                :slave-buffer slave
                                                :background-buffer background)))))
                  :name slave)))
+          #+sbcl
           (sb-thread:release-foreground slave-thread))
         #+NIL(hi::process-incoming-connection (request-server-listener request-server))
 
@@ -799,7 +800,8 @@
 ;;;
 (defvar cl-user::*io* nil)
 (defun made-buffers-for-typescript (slave-info background-info)
-  
+
+  #+sbcl
   (setf *original-terminal-io* sb-sys:*stdout*)
   #+NIL
   (macrolet ((frob (symbol new-value)
@@ -983,6 +985,7 @@
           #+NIL
           (prepl:repl)))
 
+#+SBCL
 (defun simple-backtrace (&optional (stream *debug-io*)#+NIL(stream *standard-output*))
   (sb-debug:print-backtrace :stream stream)
   (sb-debug:print-backtrace :stream sb-sys::*stdout*)

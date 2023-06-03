@@ -1123,7 +1123,7 @@
 
 
 
-#-(or cmu scl)
+#-(or cmu scl ccl)
 (defun print-directory-verbose (pathname all return-list)
   (let* ((contents (%directory pathname all))
          (result nil)

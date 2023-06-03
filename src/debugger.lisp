@@ -37,7 +37,9 @@
       (unwind-protect (my-debugger window buffer condition hook-value)
 	(destroy-window window)))))
 
-(defun my-debugger (window buffer condition hook-value)
+(in-package :hemlock)
+
+(defun krma.gui::my-debugger (window buffer condition hook-value)
   (declare (ignorable hook-value))
   (let* ((stream (hemlock::variable-value 'hemlock::buffer-stream :buffer buffer))
 	 (*terminal-io* stream) ;; set up our streams
@@ -50,16 +52,17 @@
 
     
     
-    hemlock::(let ((.form. nil))
+    (let ((.form. nil))
 	       (in-lisp krma.gui::buffer
 		 (let ((hi::*debug-on-error* t)
-		       #+sbcl (sb-ext:*invoke-debugger-hook* nil)
-		       (*debugger-hook* #'(lambda (condition hook-value)
+		       (#+CCL *debugger-hook* #+sbcl sb-ext:*invoke-debugger-hook*
+			      #'(lambda (condition hook-value)
 					    (krma.gui::my-debugger
-					     krma.gui::window
-					     krma.gui::buffer
+					     window
+					     buffer
 					     condition hook-value))))
 		   (progn
+		     #+sbcl
 		     (sb-debug:print-backtrace)
 		     (terpri *debug-io*)
 		     (terpri *debug-io*)

@@ -69,7 +69,7 @@
 	(event-chain)
 	(result)
 	(p nil)
-	(sb-ext:*invoke-debugger-hook* #'gui-debug-condition))
+	(#+CCL *debugger-hook* #+SBCL sb-ext:*invoke-debugger-hook* #'gui-debug-condition))
 
 
     (restart-bind ((ignore #'(lambda (&optional c)
@@ -178,7 +178,7 @@
   (bt:make-thread #'(lambda ()
 		      (bt:wait-on-semaphore (command-loop-go-semaphore window))
 		      (command-loop window)) :name "command loop")
-  (sb-thread:release-foreground (bt:current-thread)))
+  #+SBCL(sb-thread:release-foreground (bt:current-thread)))
 
 (defmethod initialize-instance :after ((window krma-gui-window-mixin) &rest initargs)
   (declare (ignore initargs))
