@@ -4,7 +4,11 @@
   "Dummy dis-line that we put at the head of window's dis-lines")
 
 (defclass window ()
-  ((width-in-chars
+  ((lock
+    :reader window-lock
+    :initform (bt:make-recursive-lock "window lock"))
+   
+   (width-in-chars
     :accessor window-width
     :initform nil
     :initarg :width-chars

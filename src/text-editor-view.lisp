@@ -29,21 +29,22 @@
     (invalidate-hemlock-window-size view)
     
     (hi::update-window-image view)
-    ;;(redraw-buffer view)
+    
     (values)))
 
 (defun invalidate-hemlock-window-size (view)
-  (with-slots (hi::the-sentinel) view
-    (unless (eq (cdr (hi::window-first-line view)) hi::the-sentinel)
-      (shiftf (cdr (hi::window-last-line view))
-	      (hi::window-spare-lines view)
-	      (cdr (hi::window-first-line view))
-	      hi::the-sentinel))
+  (bt:with-recursive-lock-held ((hi::window-lock view))
+    (with-slots (hi::the-sentinel) view
+      (unless (eq (cdr (hi::window-first-line view)) hi::the-sentinel)
+	(shiftf (cdr (hi::window-last-line view))
+		(hi::window-spare-lines view)
+		(cdr (hi::window-first-line view))
+		hi::the-sentinel))
                 
-    (do ((i (- (hi::window-height view)) (1+ i))
-	 (res ()
-	      (cons (hi::make-window-dis-line (make-string (hi::window-width view))) res)))
-	((= i (hi::window-height view)) (setf (hi::window-spare-lines view) res)))))
+      (do ((i (- (hi::window-height view)) (1+ i))
+	   (res ()
+		(cons (hi::make-window-dis-line (make-string (hi::window-width view))) res)))
+	  ((= i (hi::window-height view)) (setf (hi::window-spare-lines view) res))))))
 
 	
 
@@ -88,17 +89,20 @@
 
 (defun wrapped-line? (window dis-lines)
   (declare (ignorable window))
-  (and (cdr dis-lines)
+  (and dis-lines
+       (cdr dis-lines)
        (eql (hi::dis-line-line (car dis-lines))
 	    (hi::dis-line-line (cadr dis-lines)))))
 
 (defun krma.gui::mark-to-cursorpos (mark window)
   (multiple-value-bind (dis-lines offset) (find-dis-line window mark)
-    (unless (eql dis-lines (slot-value window 'hi::the-sentinel))
-      (unless (minusp offset)
-	(values offset (hi::dis-line-position (car dis-lines)))))))
+    (unless (or (null dis-lines) (eql dis-lines (slot-value window 'hi::the-sentinel)))
+      (unless (and offset (minusp offset))
+	(values (or offset 0) (hi::dis-line-position (car dis-lines)))))))
 
 (defun find-dis-line (window mark)
+  ;; this function has to be resilient to broken windows
+  ;; hence checking for non-null dis-lines and cdr dis-lines and such
   (let* ((dis-lines (cdr (hi::window-first-line window)))
 	 (the-sentinel (slot-value window 'hi::the-sentinel))
 	 (line (hi::mark-line mark))
@@ -107,7 +111,8 @@
 
     (tagbody
      check
-       (when (or (eq (hi::dis-line-line (car dis-lines)) line)
+       (when (or (null dis-lines)
+		 (eq (hi::dis-line-line (car dis-lines)) line)
 		 (eql dis-lines the-sentinel))
 	 (go exit))
 
@@ -124,17 +129,18 @@
 	 (setq i 0)
 	 (when (wrapped-line? window dis-lines)
 	   (let* ((break0 0)
-		  (length (hi::dis-line-length (car dis-lines)))
+		  (length (or (and dis-lines (hi::dis-line-length (car dis-lines))) 0))
 		  (break1 length))
 
 	     (tagbody
-	      check (when (or (eql (cdr dis-lines) the-sentinel)
+	      check (when (or (null dis-lines)
+			      (null (cdr dis-lines))
+			      (eql (cdr dis-lines) the-sentinel)
 			      (and (<= break0 charpos) (< charpos break1)))
 		      (go exit))	   
 	   
 		(unless (wrapped-line? window dis-lines)
 		  (go again))
-
 	   
 		(setq dis-lines (cdr dis-lines))
 
@@ -143,7 +149,7 @@
 	   
 		(decf offset length)
 	   
-		(setq length (hi::dis-line-length (car dis-lines)))
+		(setq length (or (and dis-lines (hi::dis-line-length (car dis-lines))) 0))
 
 		(incf i)
 	   
@@ -329,7 +335,7 @@
 			     (let* ((color (lookup-text-color (or text-color-key 0)))
 				    (xval (float (+ (* x space-width) xp)))
 				    (yval (float (+ (* y font-size) -2 yp))))
-			       (krma::draw-data-add-text-primitive draw-data group nil font color
+			       (krma::draw-data-add-text draw-data group font color
 							 xval yval (subseq string start end)
 							 0 layer)))))
 		    (do ((change (hi::dis-line-font-changes dl) (hi::font-change-next change)))

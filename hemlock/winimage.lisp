@@ -103,374 +103,375 @@
 (defun update-window-image (window)
   (let ((buffer (window-buffer window)))
     (when buffer
-      (with-buffer-globals (buffer)
-        (with-slots (the-sentinel) window
-          ;; Make the-sentinel in this buffer so we don't delete it.
-          (setf (line-%buffer (dis-line-line (car the-sentinel))) .buffer.)
-          ;; this functions need to be able to capture the variable .buffer.
-          ;; and still be visibile to each other, that's why they are now in
-          ;; a labels form instead of toplevel defuns
-          ;; they are only used in update-window-image, so that's ok
-          (labels ((compute-cached-line-image (index dis-line xpos width)
-                     ;; compute-cached-line-image  --  Internal
-                     ;;
-                     ;;    Like compute-normal-line-image, only works on the cached line.
-                     ;;
-                     (declare (fixnum index width) (type (or fixnum null) xpos))
-                     (prog ((gap (- right-open-pos left-open-pos))
-                            (dest (dis-line-chars dis-line))
-                            (done-p (= right-open-pos line-cache-length))
-                            (losing 0)
-                            string
-                            underhang)
-                        (declare (fixnum gap) (simple-string dest)
-                                 (type (or fixnum null) losing))
-                      LEFT-LOOP
-                        (cond
-                          (underhang
-                           (update-and-punt dis-line width string underhang index))
-                          ((null xpos)
-                           (update-and-punt dis-line width nil 0 index))
-                          ((>= index left-open-pos)
-                           (go RIGHT-START)))
-                        (setq losing (%fcwa open-chars index left-open-pos losing-char))
-                        (cond
-                          (losing
-                           (display-some-chars open-chars index losing dest xpos width nil)
-                           ;; If we we didn't wrap then display some losers...
-                           (if xpos
-                               (display-losing-chars open-chars index left-open-pos dest xpos
-                                   width string underhang string-get-rep
-                                   (and done-p (= index left-open-pos)))
-                               (update-and-punt dis-line width nil 0 index)))
-                          (t
-                           (display-some-chars open-chars index left-open-pos dest xpos width done-p)))
-                        (go LEFT-LOOP)
+      (bt:with-recursive-lock-held ((window-lock window))
+        (with-buffer-globals (buffer)
+          (with-slots (the-sentinel) window
+            ;; Make the-sentinel in this buffer so we don't delete it.
+            (setf (line-%buffer (dis-line-line (car the-sentinel))) .buffer.)
+            ;; this functions need to be able to capture the variable .buffer.
+            ;; and still be visibile to each other, that's why they are now in
+            ;; a labels form instead of toplevel defuns
+            ;; they are only used in update-window-image, so that's ok
+            (labels ((compute-cached-line-image (index dis-line xpos width)
+                       ;; compute-cached-line-image  --  Internal
+                       ;;
+                       ;;    Like compute-normal-line-image, only works on the cached line.
+                       ;;
+                       (declare (fixnum index width) (type (or fixnum null) xpos))
+                       (prog ((gap (- right-open-pos left-open-pos))
+                              (dest (dis-line-chars dis-line))
+                              (done-p (= right-open-pos line-cache-length))
+                              (losing 0)
+                              string
+                              underhang)
+                          (declare (fixnum gap) (simple-string dest)
+                                   (type (or fixnum null) losing))
+                        LEFT-LOOP
+                          (cond
+                            (underhang
+                             (update-and-punt dis-line width string underhang index))
+                            ((null xpos)
+                             (update-and-punt dis-line width nil 0 index))
+                            ((>= index left-open-pos)
+                             (go RIGHT-START)))
+                          (setq losing (%fcwa open-chars index left-open-pos losing-char))
+                          (cond
+                            (losing
+                             (display-some-chars open-chars index losing dest xpos width nil)
+                             ;; If we we didn't wrap then display some losers...
+                             (if xpos
+                                 (display-losing-chars open-chars index left-open-pos dest xpos
+                                     width string underhang string-get-rep
+                                     (and done-p (= index left-open-pos)))
+                                 (update-and-punt dis-line width nil 0 index)))
+                            (t
+                             (display-some-chars open-chars index left-open-pos dest xpos width done-p)))
+                          (go LEFT-LOOP)
 
-                      RIGHT-START
-                        (setq index (+ index gap))
-                      RIGHT-LOOP
-                        (cond
-                          (underhang
-                           (update-and-punt dis-line width string underhang (- index gap)))
-                          ((null xpos)
-                           (update-and-punt dis-line width nil 0 (- index gap)))
-                          ((= index line-cache-length)
-                           (update-and-punt dis-line xpos nil nil (- index gap))))
-                        (setq losing (%fcwa open-chars index line-cache-length losing-char))
-                        (cond
-                          (losing
-                           (display-some-chars open-chars index losing dest xpos width nil)
-                           (cond
-                             ;; Did we wrap?
-                             ((null xpos)
-                              (update-and-punt dis-line width nil 0 (- index gap)))
-                             (t
-                              (display-losing-chars open-chars index line-cache-length dest xpos
-                                  width string underhang string-get-rep))))
-                          (t
-                           (display-some-chars open-chars index line-cache-length dest xpos width t)))
-                        (go RIGHT-LOOP)))
+                        RIGHT-START
+                          (setq index (+ index gap))
+                        RIGHT-LOOP
+                          (cond
+                            (underhang
+                             (update-and-punt dis-line width string underhang (- index gap)))
+                            ((null xpos)
+                             (update-and-punt dis-line width nil 0 (- index gap)))
+                            ((= index line-cache-length)
+                             (update-and-punt dis-line xpos nil nil (- index gap))))
+                          (setq losing (%fcwa open-chars index line-cache-length losing-char))
+                          (cond
+                            (losing
+                             (display-some-chars open-chars index losing dest xpos width nil)
+                             (cond
+                               ;; Did we wrap?
+                               ((null xpos)
+                                (update-and-punt dis-line width nil 0 (- index gap)))
+                               (t
+                                (display-losing-chars open-chars index line-cache-length dest xpos
+                                    width string underhang string-get-rep))))
+                            (t
+                             (display-some-chars open-chars index line-cache-length dest xpos width t)))
+                          (go RIGHT-LOOP)))
                    
-                   (compute-line-image (string underhang line offset dis-line width)
-                     ;;
-                     ;; compute-line-image  --  Internal
-                     ;;
-                     ;;    This function builds a full line image from some characters in
-                     ;; a line and from some characters which may be left over from the previous
-                     ;; line.
-                     ;;
-                     ;; Parameters:
-                     ;;    String - This is the string which contains the characters left over
-                     ;; from the previous line.  This is NIL if there are none.
-                     ;;    Underhang - Characters from here to the end of String are put at the
-                     ;; beginning of the line image.
-                     ;;    Line - This is the line to display characters from.
-                     ;;    Offset - This is the index of the first character to display in Line.
-                     ;;    Dis-Line - This is the dis-line to put the line-image in.  The only
-                     ;; slots affected are the chars and the length.
-                     ;;    Width - This is the width of the field to display in.
-                     ;;
-                     ;; Three values are returned:
-                     ;;    1) The new overhang string, if none this is NIL.
-                     ;;    2) The new underhang, if this is NIL then the entire line was
-                     ;; displayed.  If the entire line was not displayed, but there was no
-                     ;; underhang, then this is 0.
-                     ;;    3) The index in line after the last character displayed.
-                     ;;
+                     (compute-line-image (string underhang line offset dis-line width)
+                       ;;
+                       ;; compute-line-image  --  Internal
+                       ;;
+                       ;;    This function builds a full line image from some characters in
+                       ;; a line and from some characters which may be left over from the previous
+                       ;; line.
+                       ;;
+                       ;; Parameters:
+                       ;;    String - This is the string which contains the characters left over
+                       ;; from the previous line.  This is NIL if there are none.
+                       ;;    Underhang - Characters from here to the end of String are put at the
+                       ;; beginning of the line image.
+                       ;;    Line - This is the line to display characters from.
+                       ;;    Offset - This is the index of the first character to display in Line.
+                       ;;    Dis-Line - This is the dis-line to put the line-image in.  The only
+                       ;; slots affected are the chars and the length.
+                       ;;    Width - This is the width of the field to display in.
+                       ;;
+                       ;; Three values are returned:
+                       ;;    1) The new overhang string, if none this is NIL.
+                       ;;    2) The new underhang, if this is NIL then the entire line was
+                       ;; displayed.  If the entire line was not displayed, but there was no
+                       ;; underhang, then this is 0.
+                       ;;    3) The index in line after the last character displayed.
+                       ;;
 
 
                      
-                     ;;
-                     ;; Check the tag.
-                     ;;
-                     ;; FIXME This isn't sufficient, because we don't get called in cases
-                     ;; where line contents are unchanged.  For now, the backend papers
-                     ;; over that, but this should get moved elsewhere.
-                     ;;
-                     (sync-dis-line-tag buffer line dis-line)
-                     ;;
-                     ;; Release any old font-changes.
-                     (let ((changes (dis-line-font-changes dis-line)))
-                       (when changes
-                         (do ((prev changes current)
-                              (current (font-change-next changes)
-                                       (font-change-next current)))
-                             ((null current)
-                              (setf (dis-line-font-changes dis-line) nil)
-                              (shiftf (font-change-next prev) *free-font-changes* changes))
-                           (setf (font-change-mark current) nil))))
-                     ;;
-                     ;; If the line has any Font-Marks, add Font-Changes for them.
+                       ;;
+                       ;; Check the tag.
+                       ;;
+                       ;; FIXME This isn't sufficient, because we don't get called in cases
+                       ;; where line contents are unchanged.  For now, the backend papers
+                       ;; over that, but this should get moved elsewhere.
+                       ;;
+                       (sync-dis-line-tag buffer line dis-line)
+                       ;;
+                       ;; Release any old font-changes.
+                       (let ((changes (dis-line-font-changes dis-line)))
+                         (when changes
+                           (do ((prev changes current)
+                                (current (font-change-next changes)
+                                         (font-change-next current)))
+                               ((null current)
+                                (setf (dis-line-font-changes dis-line) nil)
+                                (shiftf (font-change-next prev) *free-font-changes* changes))
+                             (setf (font-change-mark current) nil))))
+                       ;;
+                       ;; If the line has any Font-Marks, add Font-Changes for them.
 
-                     (let ((marks (line-marks line)))
-                       (when (dolist (m marks nil)
-                               (when (fast-font-mark-p m) (return t)))
-                         (let ((prev nil))
-                           ;;
-                           ;; Find the last Font-Mark with charpos less than Offset.  If there is
-                           ;; such a Font-Mark, then there is a font-change to this font at X = 0.
-                           (let ((max -1)
-                                 (max-mark nil))
-                             (dolist (m marks)
-                               (when (fast-font-mark-p m)
-                                 (let ((charpos (mark-charpos m)))
-                                   (when (and (< charpos offset) (> charpos max))
-                                     (setq max charpos  max-mark m)))))
-                             (when max-mark
-                               (setq prev (alloc-font-change 0 (font-mark-font max-mark) max-mark))
-                               (setf (dis-line-font-changes dis-line) prev)))
-                           ;;
-                           ;; Repeatedly scan through marks, adding a font-change for the
-                           ;; smallest Font-Mark with a charpos greater than Bound, until
-                           ;; we find no such mark.
-                           (do ((bound (1- offset) min)
-                                (min most-positive-fixnum most-positive-fixnum)
-                                (min-mark nil nil))
-                               (())
-                             (dolist (m marks)
-                               (when (fast-font-mark-p m)
-                                 (let ((charpos (mark-charpos m)))
-                                   (when (and (> charpos bound) (< charpos min))
-                                     (setq min charpos  min-mark m)))))
-                             (unless min-mark (return nil))
-                             (let ((len (if (eq line open-line)
-                                            (.cached-real-line-length. line 10000 offset min)
-                                            (.real-line-length. line 10000 offset min))))
-                               (when (< len width)
-                                 (let ((new-fc (alloc-font-change
-                                                (+ len
-                                                   (if string
-                                                       (- (length (the simple-string string)) underhang)
-                                                       0))
-                                                (font-mark-font min-mark)
-                                                min-mark)))
-                                   (if prev
-                                       (setf (font-change-next prev) new-fc)
-                                       (setf (dis-line-font-changes dis-line) new-fc))
-                                   (setq prev new-fc))))))))
-                     ;;
-                     ;; Recompute the line image.
-                     (cond
-                       (string
-                        (let ((len (strlen string))
-                              (chars (dis-line-chars dis-line))
-                              (xpos 0))
-                          (declare (type (or fixnum null) xpos) (simple-string chars))
-                          (display-some-chars string underhang len chars xpos width nil)
-                          (cond
-                            ((null xpos)
-                             (values string underhang offset))
-                            ((eq line open-line)
-                             (compute-cached-line-image offset dis-line xpos width))
-                            (t
-                             (compute-normal-line-image line offset dis-line xpos width)))))
-                       ((eq line open-line)
-                        (compute-cached-line-image offset dis-line 0 width))
-                       (t
-                        (compute-normal-line-image line offset dis-line 0 width))))
-                   
-                   (move-lines (changed string underhang line offset trail current width)
-                     ;; move-lines  --  Internal
-                     ;;
-                     ;;    This function is called by Maybe-Change-Window when it believes that
-                     ;; a line needs to be inserted or deleted.  When called it finishes the
-                     ;; image-update for the entire rest of the window.  Here and many other
-                     ;; places the phrase "dis-line" is often used to mean a pointer into the
-                     ;; window's list of dis-lines.
-                     ;;
-                     ;; Window - The window whose image needs to be updated.
-                     ;; Changed - True if the first-changed line has already been set, if false
-                     ;;  we must set it.
-                     ;; String - The overhang string to be added to the beginning of the first
-                     ;;  line image we build.  If no overhang then this is NIL.
-                     ;; Underhang - The number of trailing chars of String to use.
-                     ;; Line - The line at which we are to continue building the image.  This
-                     ;;  may be NIL, in which case we are at the end of the buffer.
-                     ;; Offset - The charpos within Line to continue at.
-                     ;; Current - The dis-line which caused Maybe-Change-Window to choke; it
-                     ;;  may be the-sentinel, it may not be the dummy line at head of the
-                     ;;  window's dis-lines.  This is the dis-line at which Maybe-Change-Window
-                     ;;  turns over control, it should not be one whose image it built.
-                     ;; Trail - This is the dis-line which immediately precedes Current in the
-                     ;;  dis-line list.  It may be the dummy dis-line, it may not be the sentinel.
-                     ;; Width - (window-width window)
-                     (declare (fixnum offset width))
-                     (do* ((delta 0)
-                           (cc (car current))
-                           (old-line (dis-line-line cc))
-                           ;; Can't use current, since might be the-sentinel.
-                           (pos (1+ (dis-line-position (car trail))))
-                           ;; Are we on an extension line?
-                           (is-wrapped (eq line (dis-line-line (car trail))))
-                           (last (window-last-line window))
-                           (last-line (dis-line-line (car last)))
-                           (save trail)
-                           (height (window-height window))
-                           (buffer (setf (line-%buffer (dis-line-line (car the-sentinel))) .buffer.))
-                           (spare-lines (window-spare-lines window))
-                           (start offset) new-num)                           
-                       
-                          ((or (= pos height) (null line))
-                           ;;    If we have run off the bottom or run out of lines then we are
-                           ;; done.  At this point Trail is the last line displayed and Current is
-                           ;; whatever comes after it, possibly the-sentinel.
-                           ;;    We always say that last-changed is the last line so that we
-                           ;; don't have to max in the old last-changed.
-                           (setf (window-last-changed window) trail)
-                           ;; If there are extra lines at the end that need to be deleted
-                           ;; and haven't been already then link them into the free-list.
-                           (unless (eq last trail)
-                             ;; This test works, because if the old last line was either
-                             ;; deleted or another line was inserted after it then it's
-                             ;; cdr would be something else.
-                             (when (eq (cdr last) the-sentinel)
-                               (shiftf (cdr last) spare-lines (cdr trail) the-sentinel))
-                             (setf (window-last-line window) trail))
-                           (setf (window-spare-lines window) spare-lines)
-                           ;;    If first-changed has not been set then we set the first-changed
-                           ;; to the first line we looked at if it does not come after the
-                           ;; new position of the old first-changed.
-                           (unless changed
-                             (when (> (dis-line-position (car (window-first-changed window)))
-                                      (dis-line-position (car save)))
-                               (setf (window-first-changed window) (cdr save)))))
-
-                       (setq new-num (line-number line))
-                       ;; If a line has been deleted, it's line-%buffer is smashed; we unlink
-                       ;; any dis-line which displayed such a line.
-
+                       (let ((marks (line-marks line)))
+                         (when (dolist (m marks nil)
+                                 (when (fast-font-mark-p m) (return t)))
+                           (let ((prev nil))
+                             ;;
+                             ;; Find the last Font-Mark with charpos less than Offset.  If there is
+                             ;; such a Font-Mark, then there is a font-change to this font at X = 0.
+                             (let ((max -1)
+                                   (max-mark nil))
+                               (dolist (m marks)
+                                 (when (fast-font-mark-p m)
+                                   (let ((charpos (mark-charpos m)))
+                                     (when (and (< charpos offset) (> charpos max))
+                                       (setq max charpos  max-mark m)))))
+                               (when max-mark
+                                 (setq prev (alloc-font-change 0 (font-mark-font max-mark) max-mark))
+                                 (setf (dis-line-font-changes dis-line) prev)))
+                             ;;
+                             ;; Repeatedly scan through marks, adding a font-change for the
+                             ;; smallest Font-Mark with a charpos greater than Bound, until
+                             ;; we find no such mark.
+                             (do ((bound (1- offset) min)
+                                  (min most-positive-fixnum most-positive-fixnum)
+                                  (min-mark nil nil))
+                                 (())
+                               (dolist (m marks)
+                                 (when (fast-font-mark-p m)
+                                   (let ((charpos (mark-charpos m)))
+                                     (when (and (> charpos bound) (< charpos min))
+                                       (setq min charpos  min-mark m)))))
+                               (unless min-mark (return nil))
+                               (let ((len (if (eq line open-line)
+                                              (.cached-real-line-length. line 10000 offset min)
+                                              (.real-line-length. line 10000 offset min))))
+                                 (when (< len width)
+                                   (let ((new-fc (alloc-font-change
+                                                  (+ len
+                                                     (if string
+                                                         (- (length (the simple-string string)) underhang)
+                                                         0))
+                                                  (font-mark-font min-mark)
+                                                  min-mark)))
+                                     (if prev
+                                         (setf (font-change-next prev) new-fc)
+                                         (setf (dis-line-font-changes dis-line) new-fc))
+                                     (setq prev new-fc))))))))
+                       ;;
+                       ;; Recompute the line image.
                        (cond
-                         ((neq (line-%buffer old-line) .buffer.)
-                          (do ((ptr (cdr current) (cdr ptr))
-                               (prev current ptr))
-                              ((eq (line-%buffer (dis-line-line (car ptr))) .buffer.)
-                               (setq delta (- pos (1+ (dis-line-position (car prev)))))
-                               (shiftf (cdr trail) (cdr prev) spare-lines current ptr)))
-                          (setq cc (car current)  old-line (dis-line-line cc)))
-                         ;; If the line-number of the old line is less than the line-number
-                         ;; of the line we want to display then the old line must be off the top
-                         ;; of the screen - delete it.  The-Sentinel fails this test because
-                         ;; it's line-number is most-positive-fixnum.
-                         ((< (line-number old-line) new-num)
-                          (do ((ptr (cdr current) (cdr ptr))
-                               (prev current ptr))
-                              ((>= (line-number (dis-line-line (car ptr))) new-num)
-                               (setq delta (- pos (1+ (dis-line-position (car prev)))))
-                               (shiftf (cdr trail) (cdr prev) spare-lines current ptr)))
-                          (setq cc (car current)  old-line (dis-line-line cc)))
-                         ;; New line comes before old line, insert it, punting when
-                         ;; we hit the bottom of the screen.
-                         ((neq line old-line)
-                          (do ((chars (unless is-wrapped (line-chars line)) nil) new)
-                              (())
-                            (setq new (car spare-lines))
-                            (setf (dis-line-old-chars new) chars
-                                  (dis-line-position new) pos
-                                  (dis-line-line new) line
-                                  (dis-line-delta new) 0
-                                  (dis-line-flags new) new-bit)
-                            (setq pos (1+ pos)  delta (1+ delta))
-                            (multiple-value-setq (string underhang start)
-                              (compute-line-image string underhang line start new width))
-                            (rotatef (cdr trail) spare-lines (cdr spare-lines))
-                            (setq trail (cdr trail))
-                            (cond ((= pos height)
-                                   (return nil))
-                                  ((null underhang)
-                                   (setq start 0  line (line-next line))
-                                   (return nil))))
-                          (setq is-wrapped nil))
-                         ;; The line is the same, possibly moved.  We add in the delta and
-                         ;; or in the moved bit so that if redisplay punts in the middle
-                         ;; the information is not lost.
-                         ((eq (line-chars line) (dis-line-old-chars cc))
-                          ;; If the line is the old bottom line on the screen and it has moved and
-                          ;; is full length, then mash the old-chars and quit so that the image
-                          ;; will be recomputed the next time around the loop, since the line might
-                          ;; have been wrapped off the bottom of the screen.
-                          (cond
-                            ((and (eq line last-line)
-                                  (= (dis-line-length cc) width)
-                                  (not (zerop delta)))
-                             (setf (dis-line-old-chars cc) :another-unique-thing))
-                            (t
-                             (do ()
-                                 ((= pos height))
-                               (unless (zerop delta)
-                                 (setf (dis-line-position cc) pos)
-                                 (incf (dis-line-delta cc) delta)
-                                 (setf (dis-line-flags cc) (logior (dis-line-flags cc) moved-bit)))
-                               (shiftf trail current (cdr current))
-                               (setq cc (car current)  old-line (dis-line-line cc)  pos (1+ pos))
-                               (when (not (eq old-line line))
-                                 (setq start 0  line (line-next line))
-                                 (return nil))))))
-                         ;; The line is changed, possibly moved.
+                         (string
+                          (let ((len (strlen string))
+                                (chars (dis-line-chars dis-line))
+                                (xpos 0))
+                            (declare (type (or fixnum null) xpos) (simple-string chars))
+                            (display-some-chars string underhang len chars xpos width nil)
+                            (cond
+                              ((null xpos)
+                               (values string underhang offset))
+                              ((eq line open-line)
+                               (compute-cached-line-image offset dis-line xpos width))
+                              (t
+                               (compute-normal-line-image line offset dis-line xpos width)))))
+                         ((eq line open-line)
+                          (compute-cached-line-image offset dis-line 0 width))
                          (t
-                          (do ((chars (line-chars line) nil))
-                              (())
-                            (multiple-value-setq (string underhang start)
-                              (compute-line-image string underhang line start cc width))
-                            (setf (dis-line-flags cc) (logior (dis-line-flags cc) changed-bit)
-                                  (dis-line-old-chars cc) chars
-                                  (dis-line-position cc) pos)
-                            (unless (zerop delta)
-                              (incf (dis-line-delta cc) delta)
-                              (setf (dis-line-flags cc) (logior (dis-line-flags cc) moved-bit)))
-                            (shiftf trail current (cdr current))
-                            (setq cc (car current)  old-line (dis-line-line cc)  pos (1+ pos))
-                            (cond ((= pos height)
-                                   (return nil))
-                                  ((null underhang)
+                          (compute-normal-line-image line offset dis-line 0 width))))
+                   
+                     (move-lines (changed string underhang line offset trail current width)
+                       ;; move-lines  --  Internal
+                       ;;
+                       ;;    This function is called by Maybe-Change-Window when it believes that
+                       ;; a line needs to be inserted or deleted.  When called it finishes the
+                       ;; image-update for the entire rest of the window.  Here and many other
+                       ;; places the phrase "dis-line" is often used to mean a pointer into the
+                       ;; window's list of dis-lines.
+                       ;;
+                       ;; Window - The window whose image needs to be updated.
+                       ;; Changed - True if the first-changed line has already been set, if false
+                       ;;  we must set it.
+                       ;; String - The overhang string to be added to the beginning of the first
+                       ;;  line image we build.  If no overhang then this is NIL.
+                       ;; Underhang - The number of trailing chars of String to use.
+                       ;; Line - The line at which we are to continue building the image.  This
+                       ;;  may be NIL, in which case we are at the end of the buffer.
+                       ;; Offset - The charpos within Line to continue at.
+                       ;; Current - The dis-line which caused Maybe-Change-Window to choke; it
+                       ;;  may be the-sentinel, it may not be the dummy line at head of the
+                       ;;  window's dis-lines.  This is the dis-line at which Maybe-Change-Window
+                       ;;  turns over control, it should not be one whose image it built.
+                       ;; Trail - This is the dis-line which immediately precedes Current in the
+                       ;;  dis-line list.  It may be the dummy dis-line, it may not be the sentinel.
+                       ;; Width - (window-width window)
+                       (declare (fixnum offset width))
+                       (do* ((delta 0)
+                             (cc (car current))
+                             (old-line (dis-line-line cc))
+                             ;; Can't use current, since might be the-sentinel.
+                             (pos (1+ (dis-line-position (car trail))))
+                             ;; Are we on an extension line?
+                             (is-wrapped (eq line (dis-line-line (car trail))))
+                             (last (window-last-line window))
+                             (last-line (dis-line-line (car last)))
+                             (save trail)
+                             (height (window-height window))
+                             (buffer (setf (line-%buffer (dis-line-line (car the-sentinel))) .buffer.))
+                             (spare-lines (window-spare-lines window))
+                             (start offset) new-num)                           
+                       
+                            ((or (= pos height) (null line))
+                             ;;    If we have run off the bottom or run out of lines then we are
+                             ;; done.  At this point Trail is the last line displayed and Current is
+                             ;; whatever comes after it, possibly the-sentinel.
+                             ;;    We always say that last-changed is the last line so that we
+                             ;; don't have to max in the old last-changed.
+                             (setf (window-last-changed window) trail)
+                             ;; If there are extra lines at the end that need to be deleted
+                             ;; and haven't been already then link them into the free-list.
+                             (unless (eq last trail)
+                               ;; This test works, because if the old last line was either
+                               ;; deleted or another line was inserted after it then it's
+                               ;; cdr would be something else.
+                               (when (eq (cdr last) the-sentinel)
+                                 (shiftf (cdr last) spare-lines (cdr trail) the-sentinel))
+                               (setf (window-last-line window) trail))
+                             (setf (window-spare-lines window) spare-lines)
+                             ;;    If first-changed has not been set then we set the first-changed
+                             ;; to the first line we looked at if it does not come after the
+                             ;; new position of the old first-changed.
+                             (unless changed
+                               (when (> (dis-line-position (car (window-first-changed window)))
+                                        (dis-line-position (car save)))
+                                 (setf (window-first-changed window) (cdr save)))))
+
+                         (setq new-num (line-number line))
+                         ;; If a line has been deleted, it's line-%buffer is smashed; we unlink
+                         ;; any dis-line which displayed such a line.
+
+                         (cond
+                           ((neq (line-%buffer old-line) .buffer.)
+                            (do ((ptr (cdr current) (cdr ptr))
+                                 (prev current ptr))
+                                ((eq (line-%buffer (dis-line-line (car ptr))) .buffer.)
+                                 (setq delta (- pos (1+ (dis-line-position (car prev)))))
+                                 (shiftf (cdr trail) (cdr prev) spare-lines current ptr)))
+                            (setq cc (car current)  old-line (dis-line-line cc)))
+                           ;; If the line-number of the old line is less than the line-number
+                           ;; of the line we want to display then the old line must be off the top
+                           ;; of the screen - delete it.  The-Sentinel fails this test because
+                           ;; it's line-number is most-positive-fixnum.
+                           ((< (line-number old-line) new-num)
+                            (do ((ptr (cdr current) (cdr ptr))
+                                 (prev current ptr))
+                                ((>= (line-number (dis-line-line (car ptr))) new-num)
+                                 (setq delta (- pos (1+ (dis-line-position (car prev)))))
+                                 (shiftf (cdr trail) (cdr prev) spare-lines current ptr)))
+                            (setq cc (car current)  old-line (dis-line-line cc)))
+                           ;; New line comes before old line, insert it, punting when
+                           ;; we hit the bottom of the screen.
+                           ((neq line old-line)
+                            (do ((chars (unless is-wrapped (line-chars line)) nil) new)
+                                (())
+                              (setq new (car spare-lines))
+                              (setf (dis-line-old-chars new) chars
+                                    (dis-line-position new) pos
+                                    (dis-line-line new) line
+                                    (dis-line-delta new) 0
+                                    (dis-line-flags new) new-bit)
+                              (setq pos (1+ pos)  delta (1+ delta))
+                              (multiple-value-setq (string underhang start)
+                                (compute-line-image string underhang line start new width))
+                              (rotatef (cdr trail) spare-lines (cdr spare-lines))
+                              (setq trail (cdr trail))
+                              (cond ((= pos height)
+                                     (return nil))
+                                    ((null underhang)
+                                     (setq start 0  line (line-next line))
+                                     (return nil))))
+                            (setq is-wrapped nil))
+                           ;; The line is the same, possibly moved.  We add in the delta and
+                           ;; or in the moved bit so that if redisplay punts in the middle
+                           ;; the information is not lost.
+                           ((eq (line-chars line) (dis-line-old-chars cc))
+                            ;; If the line is the old bottom line on the screen and it has moved and
+                            ;; is full length, then mash the old-chars and quit so that the image
+                            ;; will be recomputed the next time around the loop, since the line might
+                            ;; have been wrapped off the bottom of the screen.
+                            (cond
+                              ((and (eq line last-line)
+                                    (= (dis-line-length cc) width)
+                                    (not (zerop delta)))
+                               (setf (dis-line-old-chars cc) :another-unique-thing))
+                              (t
+                               (do ()
+                                   ((= pos height))
+                                 (unless (zerop delta)
+                                   (setf (dis-line-position cc) pos)
+                                   (incf (dis-line-delta cc) delta)
+                                   (setf (dis-line-flags cc) (logior (dis-line-flags cc) moved-bit)))
+                                 (shiftf trail current (cdr current))
+                                 (setq cc (car current)  old-line (dis-line-line cc)  pos (1+ pos))
+                                 (when (not (eq old-line line))
                                    (setq start 0  line (line-next line))
-                                   (return nil))
-                                  ((not (eq old-line line))
-                                   (setq is-wrapped t)
-                                   (return nil)))))))))
+                                   (return nil))))))
+                           ;; The line is changed, possibly moved.
+                           (t
+                            (do ((chars (line-chars line) nil))
+                                (())
+                              (multiple-value-setq (string underhang start)
+                                (compute-line-image string underhang line start cc width))
+                              (setf (dis-line-flags cc) (logior (dis-line-flags cc) changed-bit)
+                                    (dis-line-old-chars cc) chars
+                                    (dis-line-position cc) pos)
+                              (unless (zerop delta)
+                                (incf (dis-line-delta cc) delta)
+                                (setf (dis-line-flags cc) (logior (dis-line-flags cc) moved-bit)))
+                              (shiftf trail current (cdr current))
+                              (setq cc (car current)  old-line (dis-line-line cc)  pos (1+ pos))
+                              (cond ((= pos height)
+                                     (return nil))
+                                    ((null underhang)
+                                     (setq start 0  line (line-next line))
+                                     (return nil))
+                                    ((not (eq old-line line))
+                                     (setq is-wrapped t)
+                                     (return nil)))))))))
             
-            (macrolet ((maybe-change-window (changed line offset trail current width)
-                         ;; maybe-change-window  --  Internal
-                         ;;
-                         ;;    This macro is "Called" in update-window-image whenever it finds that
-                         ;; the chars of the line and the dis-line don't match.  This may happen for
-                         ;; several reasons:
-                         ;;
-                         ;; 1] The previous line was unchanged, but wrapped, so the dis-line-chars
-                         ;; are nil.  In this case we just skip over the extension lines.
-                         ;;
-                         ;; 2] A line is changed but not moved; update the line noting whether the
-                         ;; next line is moved because of this, and bugging out to Move-Lines if
-                         ;; it is.
-                         ;;
-                         ;; 3] A line is deleted, off the top of the screen, or moved.  Bug out
-                         ;; to Move-Lines.
-                         ;;
-                         ;;    There are two possible results, either we return NIL, and Line,
-                         ;; Trail and Current are updated, or we return T, in which case
-                         ;; Update-Window-Image should terminate immediately.  Changed is true
-                         ;; if a changed line changed lines has been found.
-                         ;;
+              (macrolet ((maybe-change-window (changed line offset trail current width)
+                           ;; maybe-change-window  --  Internal
+                           ;;
+                           ;;    This macro is "Called" in update-window-image whenever it finds that
+                           ;; the chars of the line and the dis-line don't match.  This may happen for
+                           ;; several reasons:
+                           ;;
+                           ;; 1] The previous line was unchanged, but wrapped, so the dis-line-chars
+                           ;; are nil.  In this case we just skip over the extension lines.
+                           ;;
+                           ;; 2] A line is changed but not moved; update the line noting whether the
+                           ;; next line is moved because of this, and bugging out to Move-Lines if
+                           ;; it is.
+                           ;;
+                           ;; 3] A line is deleted, off the top of the screen, or moved.  Bug out
+                           ;; to Move-Lines.
+                           ;;
+                           ;;    There are two possible results, either we return NIL, and Line,
+                           ;; Trail and Current are updated, or we return T, in which case
+                           ;; Update-Window-Image should terminate immediately.  Changed is true
+                           ;; if a changed line changed lines has been found.
+                           ;;
                            `(let* ((cc (car ,current))
                                    (old-line (dis-line-line cc)))
                               (cond
@@ -593,4 +594,4 @@
                     (move-mark (window-point window) (buffer-point (window-buffer window)))) 
 
                   
-                  ))))))))
+                  )))))))))
