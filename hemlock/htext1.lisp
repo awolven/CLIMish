@@ -229,16 +229,18 @@
     `(let* ((,mark-sym ,mark)
             (,new-line-sym ,new-line)
             (old-line (mark-line ,mark-sym)))
-       (when (not (eq (mark-%kind ,mark-sym) :temporary))
-         (do ((scan (line-marks old-line) (cdr scan))
-              (prev () scan))
-             ((eq (car scan) ,mark-sym)
-              (if prev
-                  (setf (cdr prev) (cdr scan))
-                  (setf (line-marks old-line) (cdr scan)))
-              (setf (cdr scan) (line-marks ,new-line-sym)
-                    (line-marks ,new-line-sym) scan))))
-       (setf (mark-line ,mark-sym) ,new-line-sym))))
+       (when ,new-line-sym
+         (when old-line
+           (when (not (eq (mark-%kind ,mark-sym) :temporary))
+             (do ((scan (line-marks old-line) (cdr scan))
+                  (prev () scan))
+                 ((eq (car scan) ,mark-sym)
+                  (if prev
+                      (setf (cdr prev) (cdr scan))
+                      (setf (line-marks old-line) (cdr scan)))
+                  (setf (cdr scan) (line-marks ,new-line-sym)
+                        (line-marks ,new-line-sym) scan)))))
+         (setf (mark-line ,mark-sym) ,new-line-sym)))))
 
 
 (defmacro change-line (mark new-line)
@@ -247,17 +249,19 @@
     `(let* ((,mark-sym ,mark)
             (,new-line-sym ,new-line)
             (old-line (mark-line ,mark-sym)))
-       (unless (or (eq (mark-%kind ,mark-sym) :temporary)
-                   (eq old-line ,new-line-sym))
-         (do ((scan (line-marks old-line) (cdr scan))
-              (prev () scan))
-             ((eq (car scan) ,mark-sym)
-              (if prev
-                  (setf (cdr prev) (cdr scan))
-                  (setf (line-marks old-line) (cdr scan)))
-              (setf (cdr scan) (line-marks ,new-line-sym)
-                    (line-marks ,new-line-sym) scan))))
-       (setf (mark-line ,mark-sym) ,new-line-sym))))
+       (when ,new-line-sym
+         (when old-line
+           (unless (or (eq (mark-%kind ,mark-sym) :temporary)
+                       (eq old-line ,new-line-sym))
+             (do ((scan (line-marks old-line) (cdr scan))
+                  (prev () scan))
+                 ((eq (car scan) ,mark-sym)
+                  (if prev
+                      (setf (cdr prev) (cdr scan))
+                      (setf (line-marks old-line) (cdr scan)))
+                  (setf (cdr scan) (line-marks ,new-line-sym)
+                        (line-marks ,new-line-sym) scan)))))
+         (setf (mark-line ,mark-sym) ,new-line-sym)))))
 
 
 ;;; MOVE-SOME-MARKS  --  Internal

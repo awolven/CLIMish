@@ -34,17 +34,19 @@
 
 (defun invalidate-hemlock-window-size (view)
   (bt:with-recursive-lock-held ((hi::window-lock view))
-    (with-slots (hi::the-sentinel) view
-      (unless (eq (cdr (hi::window-first-line view)) hi::the-sentinel)
-	(shiftf (cdr (hi::window-last-line view))
-		(hi::window-spare-lines view)
-		(cdr (hi::window-first-line view))
-		hi::the-sentinel))
-                
-      (do ((i (- (hi::window-height view)) (1+ i))
-	   (res ()
-		(cons (hi::make-window-dis-line (make-string (hi::window-width view))) res)))
-	  ((= i (hi::window-height view)) (setf (hi::window-spare-lines view) res))))))
+    (when (and (> (hi::window-height view) 0)
+	       (> (hi::window-height view) 0))
+      (with-slots (hi::the-sentinel) view
+	(unless (eq (cdr (hi::window-first-line view)) hi::the-sentinel)
+	  (shiftf (cdr (hi::window-last-line view))
+		  (hi::window-spare-lines view)
+		  (cdr (hi::window-first-line view))
+		  hi::the-sentinel))
+	
+	(do ((i (- (hi::window-height view)) (1+ i))
+	     (res ()
+		  (cons (hi::make-window-dis-line (make-string (hi::window-width view))) res)))
+	    ((= i (hi::window-height view)) (setf (hi::window-spare-lines view) res)))))))
 
 	
 
