@@ -326,6 +326,7 @@ BOOL CreateProcessW(
               (let ((hr S_OK #+NOTYET(CreatePseudoConsole
                          console-size in-pipe-pseudo-console-side out-pipe-pseudo-console-side 0 &hPC)))
 
+		#+NOTNOW
                 (unless (eq hr S_OK)
                   (error "Could not create pseudo-console: ~S" (GetLastError)))
 

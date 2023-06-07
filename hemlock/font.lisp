@@ -98,10 +98,12 @@
 
 ;;;; Referencing and setting font ids.
 
+#+NIL
 (defun window-font (window font)
   "Returns a font id for window and font."
   (svref (font-family-map (bitmap-hunk-font-family (window-hunk window))) font))
 
+#+NIL
 (defun (setf window-font) (font-object window font)
   "Change the font-object associated with a font-number in a window."
   (unless (valid-font-p font)
@@ -118,6 +120,7 @@
   "Returns the font id for font out of the default font family."
   (svref (font-family-map *default-font-family*) font))
 
+#+NIL
 (defun (setf default-font) (font-object font)
   "Change the font-object associated with a font-number in new windows."
   (unless (valid-font-p font)

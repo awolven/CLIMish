@@ -49,8 +49,8 @@
 (defun (setf buffer-region) (new-region buffer)
   "Set a buffer's region."
   (let ((old (buffer-region buffer)))
-    (delete-region old)
-    (ninsert-region (region-start old) new-region)
+    (delete-region buffer old)
+    (ninsert-region buffer (region-start old) new-region)
     old))
 
 (defun buffer-name (buffer)

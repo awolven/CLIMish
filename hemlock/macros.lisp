@@ -673,7 +673,7 @@
        (hemlock::simple-backtrace *standard-output*)
        (invoke-debugger condition))
       ((and *stack-trace-on-error* (not message-only-p))
-       (let ((cw (make-instance 'krma.gui::text-editor-window :buffer (make-instance 'buffer :name "f00"))))
+       (let ((cw (krma.gui::focused-window (clui::window-parent *echo-area-window*))))
          (with-pop-up-display (s :height 100 :current-window cw)
            (format s "An error of type ~A has been caught and ignored:~%  ~A~%~%"
                    (type-of condition)

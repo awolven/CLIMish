@@ -649,7 +649,7 @@
       (setf (mark-line m) line  (mark-charpos m) start)
       (delete-characters m matched)
       (insert-string buffer m replacement)
-      (when forward-p (character-offset m new))
+      (when forward-p (character-offset buffer m new))
       (when (zerop n) (return m))
 
       (.close-line.))))

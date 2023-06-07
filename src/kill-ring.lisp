@@ -58,30 +58,27 @@
 (defmethod ring-push (region (ring kill-ring-head))
   (let ((window (krma.gui::focused-window (krma::main-window krma::*app*))))
     (when window
-      (with-buffer-globals ((window-buffer window))
-        (let* ((string (.region-to-string. region))
-               (new (make-instance 'kill-ring-element))
-               (prev (krma.gui::prev ring)))
+      (let* ((string (region-to-string (window-buffer window) region))
+             (new (make-instance 'kill-ring-element))
+             (prev (krma.gui::prev ring)))
     
-          
-    
-          (when (= (kill-ring-max-size ring)
-                   (1+ (kill-ring-element-index prev)))
-            ;; drop off the oldest one
-            (setf (krma.gui::next prev) ring
-                  (krma.gui::prev ring) (krma.gui::prev prev)))
+        (when (= (kill-ring-max-size ring)
+                 (1+ (kill-ring-element-index prev)))
+          ;; drop off the oldest one
+          (setf (krma.gui::next prev) ring
+                (krma.gui::prev ring) (krma.gui::prev prev)))
 
-          (setf (kill-ring-element-value new)
-                (kill-ring-element-value ring))
+        (setf (kill-ring-element-value new)
+              (kill-ring-element-value ring))
 
-          (setf (krma.gui::next new) (krma.gui::next ring))
-          (setf (krma.gui::prev new) ring)
-          (setf (krma.gui::next ring) new)
-          (setf (kill-ring-element-value ring) string)
-          (unless (eq (krma.gui::prev ring) ring)
-            (setf (kill-ring-element-index (krma.gui::prev ring))
-                  (1+ (kill-ring-element-index
-                       (krma.gui::prev (krma.gui::prev ring)))))))))
+        (setf (krma.gui::next new) (krma.gui::next ring))
+        (setf (krma.gui::prev new) ring)
+        (setf (krma.gui::next ring) new)
+        (setf (kill-ring-element-value ring) string)
+        (unless (eq (krma.gui::prev ring) ring)
+          (setf (kill-ring-element-index (krma.gui::prev ring))
+                (1+ (kill-ring-element-index
+                     (krma.gui::prev (krma.gui::prev ring))))))))
     (values)))
 
 

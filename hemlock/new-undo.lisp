@@ -175,7 +175,7 @@
                 (charpos (mark-charpos mark)))
            (setf (mark-line (slot-value buffer '*internal-temp-mark*)) line
                  (mark-charpos (slot-value buffer '*internal-temp-mark*)) charpos)
-           (let ((other-mark (character-offset (slot-value buffer '*internal-temp-mark*) n)))
+           (let ((other-mark (character-offset buffer (slot-value buffer '*internal-temp-mark*) n)))
              (cond
                (other-mark
                 (if (< n 0)
@@ -262,7 +262,7 @@
                          (unless (eql c (schar matter i))
                            (error "Undo lost sync at line ~D colum ~D"
                                   (mark-line mark) (mark-charpos mark))))
-                       (mark-after mark)))
+                       (mark-after buffer mark)))
                    (let ((mark (apply #'position-mark p)))
                      (delete-characters mark n)
                      (setf modifiedp t))))

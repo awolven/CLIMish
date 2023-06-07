@@ -133,15 +133,13 @@
 
 (defmacro line-length* (line)
   "Returns the number of characters on the line, but it's a macro!"
-  `(let ((buffer (line-%buffer ,line)))
-     (with-slots (open-line left-open-pos right-open-pos line-cache-length) buffer
-       (cond ((eq ,line open-line)
-              (+ left-open-pos (- line-cache-length right-open-pos)))
-             (t
-              (let ((chars (line-chars ,line))) ;; line chars seems to sometimes return an integer!!
-                (if (typep chars 'simple-string)
-                    (length (the simple-string chars))
-                    0)))))))
+  `(cond ((eq ,line open-line)
+          (+ left-open-pos (- line-cache-length right-open-pos)))
+         (t
+          (let ((chars (line-chars ,line))) ;; line chars seems to sometimes return an integer!!
+            (if (typep chars 'simple-string)
+               (length (the simple-string chars))
+               0)))))
 
 ;; $Log: line.lisp,v $
 ;; Revision 1.2  2004-12-15 12:16:45  crhodes

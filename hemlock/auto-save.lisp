@@ -128,7 +128,7 @@
     (cond ((hemlock-ext:file-writable pathname)
            (message "Saving ~A" ns)
            (handler-case (progn
-                           (write-file (buffer-region buffer) pathname
+                           (write-file buffer (buffer-region buffer) pathname
                                        :keep-backup nil
                                        :access #o600) ;read/write by owner.
                            t)
@@ -186,7 +186,7 @@
              (cond ((or (not new-pn)
                         (zerop (length
                                 (the simple-string (namestring new-pn)))))
-                    (setf (buffer-minor-mode buffer "Save") nil))
+                    (setf (buffer-minor-mode buffer "Save" buffer) nil))
                    (t
                     (when (write-checkpoint-file new-pn buffer)
                       (reset-auto-save-state buffer)
@@ -262,7 +262,7 @@
 ;;;
 
 (defun interactive-modes (buffer on)
-  (when on (setf (buffer-minor-mode buffer "Save") nil)))
+  (when on (setf (buffer-minor-mode buffer "Save" buffer) nil)))
 
 #+GBNIL (add-hook typescript-mode-hook 'interactive-modes)
 #+GBNIL (add-hook eval-mode-hook 'interactive-modes)
@@ -280,9 +280,9 @@
 ;;; the key count threshold (and write a checkpoint if we have) and we
 ;;; increment the key count for the buffer.
 ;;;
-(defun auto-save-count-keys ()
+(defun auto-save-count-keys (current-window)
   #.*fast*
-  (let ((buffer (current-buffer)))
+  (let ((buffer (window-buffer current-window)))
     (unless (eq buffer *echo-area-buffer*)
       (let ((state (value auto-save-state))
             (threshold (value auto-save-key-count-threshold)))
@@ -307,8 +307,8 @@
 
 ;;;; "Save" mode
 
-(defcommand "Auto Save Mode" (p)
-  "If the argument is zero or negative, turn \"Save\" mode off.  If it
+(defcommand "Auto Save Mode" (window p)
+    "If the argument is zero or negative, turn \"Save\" mode off.  If it
   is positive turn \"Save\" mode on.  If there is no argument, toggle
   \"Save\" mode in the current buffer.  When in \"Save\" mode, files
   are automatically checkpointed every \"Auto Save Checkpoint Frequency\"
@@ -321,11 +321,12 @@
   the new name and the old checkpoint file will be deleted if it exists.
   When a buffer is written out, the checkpoint will be deleted if the
   hvar \"Auto Save Cleanup Checkpoints\" is non-NIL."
-  "Turn on, turn off, or toggle \"Save\" mode in the current buffer."
-  (setf (buffer-minor-mode (current-buffer) "Save")
-        (if p
-            (plusp p)
-            (not (buffer-minor-mode (current-buffer) "Save")))))
+    "Turn on, turn off, or toggle \"Save\" mode in the current buffer."
+  (let ((buffer (window-buffer window)))
+    (setf (buffer-minor-mode buffer "Save" buffer)
+          (if p
+              (plusp p)
+              (not (buffer-minor-mode buffer "Save"))))))
 
 (defun setup-auto-save-mode (buffer)
   (let* ((signature (buffer-signature buffer))

@@ -41,32 +41,32 @@
 
 
 
-(defcommand "Apropos Quit" (p)
+(defcommand "Apropos Quit" (window p)
   "Kill the apropos buffer."
   ""
   (declare (ignore p))
-  (when *apropos-buffer* (delete-buffer-if-possible *apropos-buffer*)))
+  (when *apropos-buffer* (delete-buffer-if-possible *apropos-buffer* (window-buffer window))))
 
 (defun apropos-entry-from-mark (mark)
   )
 
-(defcommand "Apropos Find Definition" (p)
+(defcommand "Apropos Find Definition" (window p)
   "" ""
   (declare (ignore p))
-  (let ((entry (apropos-entry-from-mark (current-point))))
+  (let ((entry (apropos-entry-from-mark (buffer-point (window-buffer window)))))
     (when entry
       (change-to-definition entry))))
 
-(defcommand "Apropos Describe" (p)
+(defcommand "Apropos Describe" (window p)
   "" ""
   (declare (ignore p))
-  (let ((entry (apropos-entry-from-mark (current-point))))
+  (let ((entry (apropos-entry-from-mark (buffer-point (window-buffer window)))))
     (when entry
       (change-to-definition entry))))
 
 (defun refresh-apropos (buf entries)
   (with-writable-buffer (buf)
-    (delete-region (buffer-region buf))
+    (delete-region buf (buffer-region buf))
     (setf *apropos-entries-end* (length entries))
     (setf *apropos-entries* (coerce entries 'vector))
     (with-output-to-mark (s (buffer-point buf))
@@ -102,11 +102,11 @@
 (defun first-line-of-string (str)
   (with-input-from-string (s str) (read-line s nil "")))
 
-(defcommand "Apropos Help" (p)
+(defcommand "Apropos Help" (window p)
   "Show this help."
   "Show this help."
   (declare (ignore p))
-  (describe-mode-command nil "Apropos"))
+  (describe-mode-command window nil "Apropos"))
 
 (defcommand "Slave Apropos Ignoring Point"
             (window p &optional (str

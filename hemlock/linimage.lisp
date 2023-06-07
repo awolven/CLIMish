@@ -51,7 +51,7 @@
           (code-char (+ i (char-code #\@))))
     (setf (character-attribute :print-representation (code-char i)) str))
   (setf (character-attribute :print-representation (code-char #o177)) "^?")
-  (setf (character-attribute :print-representation (code-char 13)) "")
+  (setf (character-attribute :print-representation (code-char 13)) " ")
   (setf (character-attribute :print-representation #\tab)
         #'redis-tab-display-fun))
 

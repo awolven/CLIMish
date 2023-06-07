@@ -56,7 +56,8 @@
   (when deactivate-region (deactivate-region buffer))
   (let ((point (buffer-point buffer))
         (mark (current-mark buffer)))
-    (if (mark< mark point) (region mark point) (region point mark))))
+    (when (mark-line mark)
+      (if (mark< mark point) (region mark point) (region point mark)))))
 
 
 (defcommand "Activate Region" (window p)
@@ -70,7 +71,9 @@
 ;;;
 
 (defun control-g-deactivate-region ()
-  (deactivate-region (window-buffer (krma.gui::focused-window (krma::main-window krma::*app*)))))
+  (let ((window (krma.gui::focused-window (krma::main-window krma::*app*))))
+    (when window
+      (deactivate-region (window-buffer window)))))
 ;;;
 
 
@@ -106,7 +109,7 @@
   "Pushes mark into buffer's mark ring, ensuring that the mark is in the right
    buffer and :right-inserting.  Optionally, the current region is made active.
    This never deactivates the current region.  Mark is returned."
-  (cond (t;;(eq (line-buffer (mark-line mark)) buffer)
+  (cond ((eq (line-buffer (mark-line mark)) buffer)
          (setf (mark-kind mark) :right-inserting)
          (ring-push mark (variable-value 'buffer-mark-ring :buffer buffer)))
         (t (error "Mark not in the current buffer.")))
@@ -196,9 +199,9 @@
    If the region is not active nor the last command a yank, signal an error."
   "Kill the region, pushing on the kill ring."
   (declare (ignore p))
-  (with-buffer-globals ((window-buffer window))
-    (.kill-region. (current-region .buffer.)
-                   (if (mark< (current-mark .buffer.) .point.)
+  (let ((buffer (window-buffer window)))
+    (kill-region buffer (current-region buffer)
+                   (if (mark< (current-mark buffer) (buffer-point buffer))
                        :kill-backward
                        :kill-forward))))
 
@@ -208,17 +211,17 @@
   "Insert the region into the kill ring."
   (declare (ignore p))
   (let ((buffer (window-buffer window)))
-    (with-buffer-globals (buffer)
-      (ring-push (hi::.copy-region. (current-region buffer)) *kill-ring*))))
+    (ring-push (copy-region buffer (current-region buffer)) *kill-ring*)))
 
-(defmacro .kill-next-word. (&optional p)
-  `(let ((num (or ,p 1)))
-     (with-mark ((mark .point. :temporary))
-       (if (word-offset mark num)
-           (if (minusp num)
-               (.kill-region. (region mark .point.) :kill-backward)
-               (.kill-region. (region .point. mark) :kill-forward))
-           (editor-error)))))
+(defun kill-next-word (buffer &optional p)
+  (let ((point (buffer-point buffer))
+        (num (or p 1)))
+    (with-mark ((mark point :temporary))
+      (if (word-offset mark num)
+          (if (minusp num)
+              (kill-region buffer (region mark point) :kill-backward)
+              (kill-region buffer (region point mark) :kill-forward))
+          (editor-error)))))
 
 (defcommand "Kill Next Word" (window p)
   "Kill a word at the point.
@@ -227,58 +230,45 @@
   next to the text being killed."
     "Kill p words at the point"
   (let ((buffer (window-buffer window)))
-    (with-buffer-globals (buffer)
-      (.kill-next-word. p))
-    (krma.gui::redraw-buffer window)))
+    (kill-next-word buffer p)
+    (krma.gui:redraw-buffer window)))
 
 (defcommand "Kill Previous Word" (window p)
-  "Kill a word before the point.
+    "Kill a word before the point.
   With prefix argument kill that many words before the point.  The text
   being killed is appended to the text currently at the top of the kill
   ring if it was next to the text being killed."
     "Kill p words before the point"
   (let ((buffer (window-buffer window)))
-    (with-buffer-globals (buffer)
-      (.kill-next-word. (- (or p 1))))
-    (krma.gui::redraw-buffer window)))
-
-(defmacro kill-line-macro (buffer p)
-  (let ((p-sym (gensym "KILL-LINE_P"))
-        (buffer-sym (gensym "KILL-LINE_BUFFER")))
-    `(let* ((,p-sym ,p)
-            (,buffer-sym ,buffer)
-            (point (buffer-point ,buffer-sym))
-            (line (mark-line point)))
-       (with-mark ((mark point))
-         (cond
-           (,p-sym
-            (when (and (/= (mark-charpos point) 0) (minusp ,p-sym))
-              (incf ,p-sym))
-            (unless (line-offset mark ,p-sym 0)
-              (with-buffer-globals (,buffer-sym)
-                (if (plusp ,p-sym)
-                    (.kill-region. (region .point. (buffer-end mark .buffer.)) :kill-forward)
-                    (.kill-region. (region (buffer-start mark .buffer.) .point.) :kill-backward)))
-              (editor-error))
-            (if (plusp ,p-sym)
-                (with-buffer-globals (,buffer-sym)
-                  (.kill-region. (region .point. mark) :kill-forward)
-                  (.kill-region. (region mark .point.) :kill-backward))))
-           (t
-            (cond ((not (with-buffer-globals (,buffer-sym) (hi::.blank-after-p. mark)))
-                   (line-end mark))
-                  ((line-next line)
-                   (line-start mark (line-next line)))
-                  ((not (end-line-p mark))
-                   (line-end mark))
-                  (t
-                   (editor-error)))
-            (with-buffer-globals (,buffer-sym)
-              (.kill-region. (region .point. mark) :kill-forward))))))))
+    (kill-next-word buffer (- (or p 1)))
+    (krma.gui:redraw-buffer window)))
 
 (defun kill-line (buffer &optional (p 1))
-  (with-buffer-globals (buffer)
-    (kill-line-macro buffer p)))
+  (let* ((point (buffer-point buffer))
+         (line (mark-line point)))
+    (with-mark ((mark point))
+      (cond
+        (p
+         (when (and (/= (mark-charpos point) 0) (minusp p))
+           (incf p))
+         (unless (line-offset mark p 0)
+           (if (plusp p)
+               (kill-region buffer (region point (buffer-end mark buffer)) :kill-forward)
+               (kill-region buffer (region (buffer-start mark buffer) point) :kill-backward))
+           (editor-error))
+         (if (plusp p)
+             (kill-region buffer (region point mark) :kill-forward)
+             (kill-region buffer (region mark point) :kill-backward)))
+        (t
+         (cond ((not (blank-after-p buffer mark))
+                (line-end buffer mark))
+               ((line-next line)
+                (line-start mark (line-next line)))
+               ((not (end-line-p buffer mark))
+                (line-end buffer mark))
+               (t
+                (editor-error)))
+         (kill-region buffer (region point mark) :kill-forward))))))
 
 (defcommand "Kill Line" (window p)
   "Kills the characters to the end of the current line.
@@ -287,7 +277,7 @@
     "Kills p lines after the point."
   (let ((buffer (window-buffer window)))
     (kill-line buffer p)
-    (krma.gui::redraw-buffer window)))
+    (krma.gui:redraw-buffer window)))
 
 (defcommand "Backward Kill Line" (window p)
     "Kill from the point to the beginning of the line.
@@ -300,13 +290,12 @@
         (kill-line buffer (- p))
         (with-mark ((m (buffer-point buffer)))
           (cond ((zerop (mark-charpos m))
-                 (mark-before m)
+                 (mark-before buffer m)
                  (unless (reverse-find-attribute m :space #'zerop)
                    (buffer-start m buffer)))
                 (t
                  (line-start m)))
-          (with-buffer-globals (buffer)
-            (.kill-region. (region m .point.) :kill-backward))))))
+          (kill-region buffer (region m (buffer-point buffer)) :kill-backward)))))
 
 
 (defcommand "Delete Blank Lines" (window p)
@@ -315,14 +304,15 @@
   deletes all blank following that one."
   "Kill blank lines around the point"
   (declare (ignore p))
-  (let ((point (buffer-point (window-buffer window))))
+  (let* ((buffer (window-buffer window))
+         (point (buffer-point buffer)))
     (with-mark ((beg-mark point :left-inserting)
                 (end-mark point :right-inserting))
       ;; handle case when the current line is blank
-      (when (blank-line-p (mark-line point))
+      (when (blank-line-p buffer (mark-line point))
         ;; back up to last non-whitespace character
         (reverse-find-attribute beg-mark :whitespace #'zerop)
-        (when (previous-character beg-mark)
+        (when (previous-character buffer beg-mark)
           ;; that is, we didn't back up to the beginning of the buffer
           (unless (same-line-p beg-mark end-mark)
             (line-offset beg-mark 1 0)))
@@ -331,16 +321,16 @@
                (line-offset end-mark 1 0))
               (t
                (line-start end-mark)))
-        (delete-region (region beg-mark end-mark)))
+        (delete-region buffer (region beg-mark end-mark)))
       ;; always delete all blank lines after the current line
       (move-mark beg-mark point)
       (when (line-offset beg-mark 1 0)
         (move-mark end-mark beg-mark)
         (find-attribute end-mark :whitespace #'zerop)
-        (when (next-character end-mark)
+        (when (next-character buffer end-mark)
           ;; that is, we didn't go all the way to the end of the buffer
           (line-start end-mark))
-        (delete-region (region beg-mark end-mark))))))
+        (delete-region buffer (region beg-mark end-mark))))))
 
 
 (defcommand #+NO "Un-Kill" #+NO "uncle" "Yank" (window p)
@@ -349,19 +339,20 @@
   argument inserts the prefix'th most recent item."
     "Inserts the item with index p in the kill ring at the point, leaving
   the mark before and the point after."
-  (with-buffer-globals ((window-buffer window))
+  (let* ((buffer (window-buffer window))
+         (point (buffer-point buffer)))
     (let ((idx (1- (or p 1))))
       (cond ((> (ring-length *kill-ring*) idx -1)
              (let* ((string (ring-ref *kill-ring* idx))
-                    (mark (copy-mark .point.)))
-               (push-buffer-mark .buffer. mark)
-               (insert-string .buffer. .point. string)
+                    (mark (copy-mark point)))
+               (push-buffer-mark buffer mark)
+               (insert-string buffer point string)
                (make-region-undo :delete "Yank"
-                                 (region (copy-mark mark) (copy-mark .point.))))
+                                 (region (copy-mark mark) (copy-mark point))))
              (setf (last-command-type) :unkill))
             (t (editor-error)))
-      (deactivate-region .buffer.)))
-  (krma.gui::redraw-buffer window))
+      (deactivate-region buffer)))
+  (krma.gui:redraw-buffer window))
 ;;;
 (push :unkill *ephemerally-active-command-types*)
 
@@ -372,15 +363,14 @@
   "This function will not behave in any reasonable fashion when
   called as a lisp function."
   (let ((buffer (window-buffer window)))
-    (with-buffer-globals (buffer)
-      (let ((point (buffer-point buffer))
-            (mark (current-mark buffer)))
-        (cond ((or (not (eq (last-command-type) :unkill))
-                   (zerop (ring-length *kill-ring*)))
-               (editor-error))
-              (t (delete-region (region mark point))
-                 (rotate-ring *kill-ring* (or p 1))
-                 (hi::.insert-string. point (ring-ref *kill-ring* 0))
-                 (make-region-undo :delete "Un-Kill"
-                                   (region (copy-mark mark) (copy-mark point)))
-                 (setf (last-command-type) :unkill)))))))
+    (let ((point (buffer-point buffer))
+          (mark (current-mark buffer)))
+      (cond ((or (not (eq (last-command-type) :unkill))
+                 (zerop (ring-length *kill-ring*)))
+             (editor-error))
+            (t (delete-region buffer (region mark point))
+               (rotate-ring *kill-ring* (or p 1))
+               (insert-string buffer point (ring-ref *kill-ring* 0))
+               (make-region-undo :delete "Yank"
+                                 (region (copy-mark mark) (copy-mark point)))
+               (setf (last-command-type) :unkill))))))

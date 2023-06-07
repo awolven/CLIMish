@@ -556,6 +556,7 @@
 ;;; window's buffer's properties.  Therefore, we must queue the change to
 ;;; happen sometime before redisplay but after the change takes effect.
 ;;;
+#+NIL
 (defun queue-window-change (window &optional something-else)
   (declare (ignore something-else))
   (push (list #'update-modeline-for-window window) *things-to-do-once*))

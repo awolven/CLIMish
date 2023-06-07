@@ -358,10 +358,11 @@
 
 ;;;; Lines.
 
-(defun line-length (line)
+(defun line-length (buffer line)
   "Returns the number of characters on the line."
   (if (linep line)
-      (line-length* line)
+      (with-buffer-globals (buffer)
+        (line-length* line))
       (error "~S is not a line!" line)))
 
 (defun line-buffer (line)
@@ -620,10 +621,10 @@
   otherwise."
   (= (mark-charpos mark) 0))
 
-(defun end-line-p (mark)
+(defun end-line-p (buffer mark)
   "Returns T if the Mark points after the last character in a line, Nil
   otherwise."
-  (= (mark-charpos mark) (line-length (mark-line mark))))
+  (= (mark-charpos mark) (line-length buffer (mark-line mark))))
 
 (defmacro .empty-line-p. (mark)
   "Returns T if the line pointer to by Mark contains no characters, Nil
@@ -679,7 +680,7 @@
 (defmacro .blank-line-p. (line)
   (let ((line-sym (gensym "BLANK-LINE-P_LINE")))
     `(let ((,line-sym ,line))
-       (.blank-between-positions. ,line-sym 0 (line-length ,line-sym)))))
+       (.blank-between-positions. ,line-sym 0 (line-length .buffer. ,line-sym)))))
 
 (defun blank-line-p (buffer line)
   "True if line contains only characters with a :whitespace attribute of 1."
@@ -706,7 +707,7 @@
     `(let* ((,mark-sym ,mark)
             (line (mark-line ,mark-sym)))
        (.blank-between-positions. line (mark-charpos ,mark-sym)
-                                  (line-length line)))))
+                                  (line-length .buffer. line)))))
 
 (defun blank-after-p (buffer mark)
   (with-buffer-globals (buffer)

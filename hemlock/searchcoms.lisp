@@ -50,7 +50,7 @@
          (mark (copy-mark point))
          (won (find-pattern buffer point pattern)))
     (cond (won
-           (character-offset point won)
+           (character-offset buffer point won)
            (if (region-active-p buffer)
                (delete-mark mark)
                (push-buffer-mark buffer mark)))
@@ -163,7 +163,7 @@
     (let ((peek-event (my-listen *editor-input*)))
       (case (%i-search-char-eval current-window
                                  buffer
-                                 (clui::input-event-id peek-event) string point trailer
+                                 (krma.gui::input-event-id peek-event) string point trailer
                                  direction failure)
         (:cancel
          (%i-search-echo-refresh string direction failure)
@@ -190,7 +190,7 @@
       finally (return event))))
 
 (defun next-event-character/id (input)
-  (clui::input-event-id
+  (krma.gui::input-event-id
    (krma.gui::get-next-event input)))
 
 (defun discard-next-event (input)
@@ -255,7 +255,7 @@
         (cond ((progn (discard-next-event *editor-input*)
                       (let* ((next-event (my-listen *editor-input*))
                              (character (clui::input-event-character next-event)))
-                        (and character (standard-char-p character))))
+                        character))
                (%i-search-printed-char current-window buffer
                                        peeked-event
                                        string point trailer
@@ -331,14 +331,22 @@
   ;; a key-event got us here, we are expecting a character next
   ;; should come almost right away, but if not and we get here, another keystroke will be necessary
   (let* ((event (my-listen *editor-input*))
-        (tchar (clui::input-event-character event)))
+         (tchar (clui::input-event-character event)))
     (if (null tchar)
-        (unless (%i-search-test-peeked-event current-window buffer (clui::input-event-id event)
+        (unless (%i-search-test-peeked-event current-window buffer (krma.gui::input-event-id event)
                                              string point trailer direction failure)
           (editor-error "Not a text character -- ~S"
                         (next-event-character/id *editor-input*)))
         (progn
           (discard-next-event *editor-input*)
+          #+NIL
+          (when (interactive)
+            (let ((cr (current-region buffer nil nil)))
+              (if (string= string "")
+                  (progn (push-buffer-mark buffer (copy-mark point) t)
+                         (move-mark (region-end cr) point)
+                         (character-offset (region-end cr) 1)))))
+
           (when (interactive)
             (insert-character *echo-area-buffer* (buffer-point *echo-area-buffer*) tchar)
             (force-output *echo-area-stream*))
@@ -346,7 +354,7 @@
             (i-search-pattern new-string direction)
             (cond (failure (%i-search current-window buffer new-string point trailer direction failure))
                   ((and (eq direction :backward) (next-character buffer trailer))
-                   (%i-search-find-pattern current-window buffer new-string point (mark-after trailer)
+                   (%i-search-find-pattern current-window buffer new-string point (mark-after buffer trailer)
                                            direction))
                   (t
                    (%i-search-find-pattern current-window buffer new-string point trailer direction))))))))
@@ -359,19 +367,19 @@
 (defun %i-search-find-pattern (current-window buffer string point trailer direction &optional backup)
   (let ((found-offset (find-pattern buffer trailer *last-search-pattern*)))
     (cond (found-offset
-            (cond ((eq direction :forward)
-                   (character-offset (move-mark point trailer) found-offset)
-                   (if (hi::maybe-recenter-window-on-mark current-window point)
-                       (krma.gui::redraw-buffer current-window)
-                       (hi::update-window-image current-window)))
-                  (t
-                   (move-mark point trailer)
-                   (character-offset trailer found-offset)
-                   (if (hi::maybe-recenter-window-on-mark current-window point)
-                       (krma.gui::redraw-buffer current-window)
-                       (hi::update-window-image current-window))))
+           (cond ((eq direction :forward)
+                  (character-offset buffer (move-mark point trailer) found-offset))
+                 (t
+                  (move-mark point trailer)
+                  (character-offset buffer trailer found-offset)))
 
-            (%i-search current-window buffer string point trailer direction nil))
+           (push-buffer-mark buffer trailer t)
+
+           (if (hi::maybe-recenter-window-on-mark current-window point)
+               (krma.gui::redraw-buffer current-window)
+               (hi::update-window-image current-window))
+
+           (%i-search current-window buffer string point trailer direction nil))
           (t
            (when backup
              (move-mark point backup)
@@ -460,16 +468,16 @@
 ;;; QUERY-REPLACE-FUNCTION uses.
 ;;;
 (defun replace-that-case (buffer lower cap upper mark length dumb)
-  (character-offset mark (- length))
+  (character-offset buffer mark (- length))
   (let ((insert (cond (dumb lower)
                       ((upper-case-p (next-character buffer mark))
-                       (mark-after mark)
+                       (mark-after buffer mark)
                        (prog1 (if (upper-case-p (next-character buffer mark)) upper cap)
-                              (mark-before mark)))
+                              (mark-before buffer mark)))
                       (t lower))))
     (with-mark ((undo-mark1 mark :left-inserting)
                 (undo-mark2 mark :left-inserting))
-      (character-offset undo-mark2 length)
+      (character-offset buffer undo-mark2 length)
       (push (make-replace-undo
              ;; Save :right-inserting, so the INSERT-STRING at mark below
              ;; doesn't move the copied mark the past replacement.
@@ -543,11 +551,11 @@
          (loop
            (let ((won (find-pattern buffer point *last-search-pattern*)))
              (when (or (null won) (zerop count) (mark> point stop-mark))
-               (character-offset (move-mark point last-found) replacement-len)
+               (character-offset buffer (move-mark point last-found) replacement-len)
                (return t))
              (decf count)
              (move-mark last-found point)
-             (character-offset point length)
+             (character-offset buffer point length)
              (if doing-all?
                  (replace-that-case buffer replacement cap upper point length dumb)
                  (command-case
@@ -620,16 +628,16 @@
       (list (line-string buffer (mark-line mark)))
       (with-mark ((mark mark)
                   (beg-mark mark))
-        (unless (line-offset beg-mark (- num))
-          (buffer-start beg-mark .buffer.))
-        (unless (line-offset mark num)
-          (buffer-end mark .buffer.))
+        (unless (line-offset buffer beg-mark (- num))
+          (buffer-start beg-mark buffer))
+        (unless (line-offset buffer mark num)
+          (buffer-end mark buffer))
         (let ((lines (list "--------")))
           (loop
             (push (line-string buffer (mark-line mark)) lines)
             (when (same-line-p mark beg-mark)
               (return lines))
-            (line-offset mark -1))))))
+            (line-offset buffer mark -1))))))
 
 (defcommand "Delete Matching Lines" (window p &optional string)
     "Deletes all lines that match the search pattern using delete-region. If
@@ -717,5 +725,5 @@
             (when (or (null won) (mark> mark end-mark))
               (return))
             (incf occurrences)
-            (character-offset mark won))))
+            (character-offset buffer mark won))))
       occurrences)))

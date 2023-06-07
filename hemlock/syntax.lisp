@@ -487,13 +487,12 @@
           (when ,result (decf ,result gap)))))))
 ); eval-when (:compile-toplevel :execute)
 ;;;
-(defun find-attribute (mark attribute &optional (test #'not-zerop))
+(defun find-attribute (buffer mark attribute &optional (test #'not-zerop))
   "Find the next character whose attribute value satisfies test."
   (let* ((charpos (mark-charpos mark))
          (line (mark-line mark))
          (mask 0)
-         char-set end-wins
-         (buffer (line-%buffer line)))
+         char-set end-wins)
     (declare (type (or character-set null) char-set)
              (fixnum mask)
              (type (or fixnum null) charpos))
@@ -510,7 +509,7 @@
         ;; Newlines win and there is one.
         ((and (not (zerop (logand mask (char-set-ref char-set (char-code #\newline)))))
               (line-next line))
-         (move-to-position mark (line-length line) line))
+         (move-to-position mark (line-length buffer line) line))
         ;; We can ignore newlines.
         (t
          (do (prev)

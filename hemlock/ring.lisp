@@ -17,7 +17,7 @@
   (declare (ignore depth obj))
   (write-string "#<Hemlock Ring>" stream))
 
-#+NIL
+
 (defun required-argument ()
   "Portable surrogate of cmucl ext:required-argument. --amb"
   (error "A required keyword argument was not supplied."))

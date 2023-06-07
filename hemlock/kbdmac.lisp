@@ -109,10 +109,10 @@
 (defvar *kbdmac-text* (make-array 100 :fill-pointer 0 :adjustable t))
 
 (defun insert-string-at-point (buffer string)
-  (insert-string (buffer-point buffer) string))
+  (insert-string buffer (buffer-point buffer) string))
 
 (defun insert-character-at-point (buffer character)
-  (insert-character (buffer-point buffer) character))
+  (insert-character buffer (buffer-point buffer) character))
 
 (defun key-vector-to-string (key-vector)
   (let ((string (make-array (length key-vector) :element-type 'character)))

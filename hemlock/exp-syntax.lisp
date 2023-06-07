@@ -343,7 +343,7 @@
            (let ((state prev-to)
                  (last-font 0))
              ;;(print `(:begin ,state) *trace-output*)
-             (loop for p from 0 below (line-length line) do
+             (loop for p from 0 below (line-length buffer line) do
                ;; really shouldn't use line-buffer line
                ;; should change signature of recompute-syntax-marks to take buffer as arg
                   (let ((ch (line-character buffer line p)))

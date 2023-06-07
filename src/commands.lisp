@@ -21,10 +21,10 @@
     (let* ((buffer (window-buffer window))
 	   (point (buffer-point buffer)))
       (let* ((target (set-target-column buffer point)))
-	(unless (line-offset point (or p 1))
+	(unless (line-offset buffer point (or p 1))
 	  (cond ((not p)
 		 (when (same-line-p point (buffer-end-mark buffer))
-		   (line-end point))
+		   (line-end buffer point))
 		 ;;
 		 ;; The insert-character was probably intentional back when
 		 ;; Hemlock was written, but it inserts bogus newlines at
@@ -38,7 +38,7 @@
 		(t
 		 (buffer-end point buffer)
 		 (when p (editor-error "No next line.")))))
-	(unless (move-to-column buffer point target) (line-end point))
+	(unless (move-to-column buffer point target) (line-end buffer point))
 	(setf (last-command-type) :line-motion))
       (unless (displayed-p point window)
 	(hi::center-window-on-mark window point))
@@ -66,7 +66,7 @@
     "Moves the point down p lines and then to the beginning of the line."
   (let* ((buffer (window-buffer window))
 	 (point (buffer-point buffer)))
-    (unless (line-offset point (if p p 0)) (editor-error "No such line."))
+    (unless (line-offset buffer point (if p p 0)) (editor-error "No such line."))
     (line-start point)
     (setf (last-command-type) nil)
     (krma.gui:redraw-buffer window)))
@@ -78,8 +78,8 @@
     "Moves the point down p lines and then to the end of the line."
   (let* ((buffer (window-buffer window))
 	 (point (buffer-point buffer)))
-    (unless (line-offset point (if p p 0)) (editor-error "No such line."))
-    (line-end point)
+    (unless (line-offset buffer point (if p p 0)) (editor-error "No such line."))
+    (line-end buffer point)
     (setf (last-command-type) nil)
     (krma.gui:redraw-buffer window)))
 
@@ -91,7 +91,7 @@
   (let ((p (or p 1)))
     (let* ((buffer (window-buffer view))
 	   (point (buffer-point buffer)))
-      (cond ((character-offset point p))
+      (cond ((character-offset buffer point p))
 	    ((= p 1)
 	     (editor-error "No next character."))
 	    ((= p -1)
@@ -139,8 +139,8 @@
       (let ((arg (or p 1))
 	    (point (buffer-point buffer)))
 	(dotimes (i (abs arg))
-	  (when (or (minusp arg) (end-line-p point))
-	    (mark-before point))
+	  (when (or (minusp arg) (end-line-p buffer point))
+	    (mark-before buffer point))
 	  (let ((prev nil)
 		(next nil))
 	    (setq prev (previous-character buffer point))
@@ -150,7 +150,7 @@
 		  (t
 		   (setf (previous-character buffer point) next)
 		   (setf (next-character buffer point) prev)))
-	      (when (plusp arg) (mark-after point)))))))
+	      (when (plusp arg) (mark-after buffer point)))))))
   (setf (last-command-type) nil)
   (krma.gui:redraw-buffer view))
 
@@ -191,8 +191,8 @@
                   :must-exist nil
                   :help "Name of file to read into its own buffer."
                   :default (hemlock-ext:default-directory))))
-         (buffer (find-file-buffer view pn))
-	 (window (krma.gui::find-or-create-text-editor-window-for-buffer buffer)))
+         (buffer (find-file-buffer view pn)))
+    (krma.gui::find-or-create-text-editor-window-for-buffer buffer)
     buffer))
 
 (defcommand "Mousewheel Scroll" (window p)
@@ -201,9 +201,8 @@
   (declare (ignore p))
   (let* ((last-event (krma.gui::window-last-event (clui::window-parent (adhoc:send window adhoc::root))))
 	 (offset (clui::pointer-wheel-event-yoffset last-event)))
-    (with-buffer-globals ((window-buffer window))
-      (hi::.scroll-window. window (- (* 2 (round offset)))))
-    (krma.gui::redraw-buffer window)))
+    (scroll-window window (- (* 2 (round offset))))
+    (krma.gui:redraw-buffer window)))
 
 (defcommand "Cycle Windows" (window p)
     "Focus next window"

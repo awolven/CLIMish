@@ -76,7 +76,7 @@
 	      (unless (the iconified?)
 		(when (typep self 'text-editor-view-mixin)
 		  (multiple-value-bind (ox oy) (global-window-position (the buffer-view text))
-		    (multiple-value-bind (x y) (krma.gui::mark-to-cursorpos (hi::window-point self) self)
+		    (multiple-value-bind (x y) (mark-to-cursorpos (hi::window-point self) self)
 		      (when x
 			(let* ((font (the font))
 			       (font-size (font-size font))
@@ -89,6 +89,62 @@
 			   (list xval yval (+ xval space-width) (+ yval font-size))
 			   0 (1+ (the buffer-view text layer)))))))))))))))
 
+
+(defun cursorpos-to-mark (x y window)
+  
+  (if (or (minusp x) (minusp y))
+      
+      (copy-mark (window-display-start window))
+    
+      (let ((last-lines (hi::window-last-line window)))
+	
+	(if (and (<= y (hi::dis-line-position (car last-lines)))
+		 (<= x (hi::window-width window)))
+
+	    (with-slots (hi::the-sentinel) window
+
+	      (labels ((line-exists? (this)
+			 (and this
+			      (not (eql this hi::the-sentinel))
+			      (not (eql this (hi::window-first-line window)))))
+
+		       (continuing-wrapped-line? (this prev)
+			 (and (line-exists? prev)
+			      (eq (hi::dis-line-line (car prev))
+				  (hi::dis-line-line (car this))))))
+
+		(let ((dis-lines (hi::window-first-line window))
+		      (offset 0))
+
+		  (when (eql (cdr dis-lines) hi::the-sentinel) ;; there are no lines
+		    (return-from cursorpos-to-mark nil))
+		
+		  (loop while dis-lines
+		    
+			when (null (cdr dis-lines))
+			  ;; window image is bogus
+			  do (return-from cursorpos-to-mark nil)
+			     
+			do (if (continuing-wrapped-line? (cdr dis-lines) dis-lines)
+			       (incf offset (1- (hi::window-width window)))
+			       (setq offset 0))
+		       
+			do (setq dis-lines (cdr dis-lines))
+
+			when (eql (cdr dis-lines) hi::the-sentinel)
+			  do (return)
+		       
+			when (= y (hi::dis-line-position (car dis-lines)))
+			  do (return))
+
+		  (let ((buf-line (hi::dis-line-line (car dis-lines))))
+		    (hi::internal-make-mark
+		      buf-line
+		      (min (+ x offset) (hi::dis-line-end (car dis-lines)))
+		      :temporary)))))
+
+	    (copy-mark (window-display-end window))))))
+
 (defun wrapped-line? (window dis-lines)
   (declare (ignorable window))
   (and dis-lines
@@ -96,7 +152,17 @@
        (eql (hi::dis-line-line (car dis-lines))
 	    (hi::dis-line-line (cadr dis-lines)))))
 
-(defun krma.gui::mark-to-cursorpos (mark window)
+(defun line-exists? (window this)
+  (and this
+       (not (eql this (slot-value window 'hi::the-sentinel)))
+       (not (eql this (hi::window-first-line window)))))
+
+(defun continuing-wrapped-line? (window this prev)
+  (and (line-exists? window prev)
+       (eq (hi::dis-line-line (car prev))
+	   (hi::dis-line-line (car this)))))
+
+(defun mark-to-cursorpos (mark window)
   (multiple-value-bind (dis-lines offset) (find-dis-line window mark)
     (unless (or (null dis-lines) (eql dis-lines (slot-value window 'hi::the-sentinel)))
       (unless (and offset (minusp offset))
@@ -105,61 +171,61 @@
 (defun find-dis-line (window mark)
   ;; this function has to be resilient to broken windows
   ;; hence checking for non-null dis-lines and cdr dis-lines and such
-  (let* ((dis-lines (cdr (hi::window-first-line window)))
-	 (the-sentinel (slot-value window 'hi::the-sentinel))
-	 (line (hi::mark-line mark))
-	 (charpos (hi::mark-charpos mark))
-	 (offset charpos))
 
-    (tagbody
-     check
-       (when (or (null dis-lines)
-		 (eq (hi::dis-line-line (car dis-lines)) line)
-		 (eql dis-lines the-sentinel))
-	 (go exit))
-
-       (setq dis-lines (cdr dis-lines))
-
-       (go check)
-
-     exit)
-
-    (let ((i))
+  (unless (or (mark< mark (hi::window-display-start window))
+	      (mark> mark (hi::window-display-end window)))
+  
+    (let* ((dis-lines (hi::window-first-line window))
+	   (the-sentinel (slot-value window 'hi::the-sentinel))
+	   (line (hi::mark-line mark))
+	   (charpos (hi::mark-charpos mark))
+	   (offset charpos)
+	   (i 0))
+    
+      (when (eql (cdr dis-lines) hi::the-sentinel) ;; there are no lines
+	(return-from find-dis-line nil))
 
       (tagbody
-       again
-	 (setq i 0)
-	 (when (wrapped-line? window dis-lines)
-	   (let* ((break0 0)
-		  (length (or (and dis-lines (hi::dis-line-length (car dis-lines))) 0))
-		  (break1 length))
+       check
+	 (when (or (null (cdr dis-lines)) ;; invalid window image
+		   (eq (hi::dis-line-line (cadr dis-lines)) line) ;; end case
+		   (eql (cdr dis-lines) the-sentinel)) ;; hard stop
+	   (go exit))
 
-	     (tagbody
-	      check (when (or (null dis-lines)
-			      (null (cdr dis-lines))
-			      (eql (cdr dis-lines) the-sentinel)
-			      (and (<= break0 charpos) (< charpos break1)))
-		      (go exit))	   
-	   
-		(unless (wrapped-line? window dis-lines)
-		  (go again))
-	   
-		(setq dis-lines (cdr dis-lines))
+	 (setq dis-lines (cdr dis-lines))
+       
+	 (go check)
+       
+       exit)
 
-		(setq break0 break1)
-		(incf break1 length)
-	   
-		(decf offset length)
-	   
-		(setq length (or (and dis-lines (hi::dis-line-length (car dis-lines))) 0))
+      (if (wrapped-line? window (cdr dis-lines))
+	  (progn
+	    (loop while (cdr dis-lines)
+	  
+		  when (null (cdr dis-lines))
+		    ;; window image is bogus
+		    do (return-from find-dis-line nil)
 
-		(incf i)
-	   
-		(go check)
+		  when (< offset (hi::dis-line-length (cadr dis-lines)))
+		    do (when (and (wrapped-line? window (cdr dis-lines))
+				  (= (+ offset i) (1- (hi::window-width window))))
+			 ;; special case for when cursor would
+			 ;; be displayed on #\! line-wrap char
+			 (setq dis-lines (cdr dis-lines))
+			 (setq offset 0)
+			 (setq i 0))
+		       (return-from find-dis-line
+			 (values (cdr dis-lines) (+ offset i)))
 
-	      exit))))
+		  when (wrapped-line? window (cdr dis-lines))
+		    do (setq dis-lines (cdr dis-lines))
+		       (incf i)
+		       (decf offset (hi::window-width window))
+	     
+		  when (eql (cdr dis-lines) hi::the-sentinel)
+		    do (return-from find-dis-line (values dis-lines offset))))
 
-      (values dis-lines (+ offset i)))))
+	  (values (cdr dis-lines) offset)))))
 
 (defun draw-active-region-closure-generator (window scene)
   #'(lambda ()
@@ -178,70 +244,73 @@
 			   (font-data (font-data font))
 			   (space-width (slot-value font-data '3b-bmfont-common::space-size)))
 		      (multiple-value-bind (ox oy) (global-window-position (the buffer-view text))
-			(let* ((active-region (current-region buffer nil nil))
-			       (m0 (hi::region-start active-region))
-			       (m1 (hi::region-end active-region)))
-			  (unless (hi::mark= m0 m1)
-			    (flet ((before-start? (mark start)
-				     (let* ((line (hi::mark-line mark))
-					    (number (hi::line-number line))
-					    (charpos (hi::mark-charpos mark))
-					    (offset (hi::mark-charpos start))
-					    (start-number (hi::line-number (hi::mark-line start))))
-				       (or (< number start-number)
-					   (and (= number start-number) (< charpos offset)))))
-				   (after-end? (mark end)
-				     (let* ((line (hi::mark-line mark))
-					    (number (hi::line-number line))
-					    (charpos (hi::mark-charpos mark))
-					    (offset (hi::mark-charpos end))
-					    (end-number (hi::line-number (hi::mark-line end))))
-				       (or (> number end-number)
-					   (and (= number end-number) (> charpos offset))))))
+			(let* ((active-region (current-region buffer nil nil)))
+			  (when active-region
+			    (let ((m0 (hi::region-start active-region))
+				  (m1 (hi::region-end active-region)))
+			  (when (and (hi::mark-line m0)
+				     (hi::mark-line m1))
+			    (unless (hi::mark= m0 m1)
+			      (flet ((before-start? (mark start)
+				       (let* ((line (hi::mark-line mark))
+					      (number (hi::line-number line))
+					      (charpos (hi::mark-charpos mark))
+					      (offset (hi::mark-charpos start))
+					      (start-number (hi::line-number (hi::mark-line start))))
+					 (or (< number start-number)
+					     (and (= number start-number) (< charpos offset)))))
+				     (after-end? (mark end)
+				       (let* ((line (hi::mark-line mark))
+					      (number (hi::line-number line))
+					      (charpos (hi::mark-charpos mark))
+					      (offset (hi::mark-charpos end))
+					      (end-number (hi::line-number (hi::mark-line end))))
+					 (or (> number end-number)
+					     (and (= number end-number) (> charpos offset))))))
 
-			      (let ((start-mark (hi::window-display-start self))
-				    (end-mark (hi::window-display-end self)))
+				(let ((start-mark (hi::window-display-start self))
+				      (end-mark (hi::window-display-end self)))
 
-				(when (or (before-start? m1 start-mark)
-					  (after-end? m0 end-mark))
-				  (return-from draw-region (values)))
+				  (when (or (before-start? m1 start-mark)
+					    (after-end? m0 end-mark))
+				    (return-from draw-region (values)))
 
-				(when (before-start? m0 start-mark)
-				  (setq m0 (copy-mark start-mark :right-inserting)))
+				  (when (before-start? m0 start-mark)
+				    (setq m0 (copy-mark start-mark :temporary)))
 
-				(when (after-end? m1 end-mark)
-				  (setq m1 (copy-mark end-mark :left-inserting)))
+				  (when (after-end? m1 end-mark)
+				    (setq m1 (copy-mark end-mark :temporary)))
 				
-				(multiple-value-bind (dis-line-m0 offset-m0) (find-dis-line self m0)
-				  (multiple-value-bind (dis-line-m1 offset-m1) (find-dis-line self m1)
+				  (multiple-value-bind (dis-line-m0 offset-m0) (find-dis-line self m0)
+				    (multiple-value-bind (dis-line-m1 offset-m1) (find-dis-line self m1)
+				      ;; bug: this won't draw first line if first line is first line of window.
+				      (when dis-line-m0
+					(let ((ypos (hi::dis-line-position (car dis-line-m0))))
 
-				    (when dis-line-m0
-				      (let ((ypos (hi::dis-line-position (car dis-line-m0))))
+					  (flet ((draw (y x0 x1)
+						   (scene-draw-filled-2d-rectangle-list
+						    scene :cursor #xff770077
+						    (list (+ (* x0 space-width) ox) (+ (* y font-size) oy)
+							  (+ (* x1 space-width) ox) (+ (* (1+ y) font-size) oy))
+						    0 (1+ (the buffer-view text layer)))))
 
-					(flet ((draw (y x0 x1)
-						 (scene-draw-filled-2d-rectangle-list
-						  scene :cursor #xff770077
-						  (list (+ (* x0 space-width) ox) (+ (* y font-size) oy)
-							(+ (* x1 space-width) ox) (+ (* (1+ y) font-size) oy))
-						  0 (1+ (the buffer-view text layer)))))
+					    (when (eql dis-line-m0 dis-line-m1)
+					      ;; it's just a partial line, draw and return
+					      (draw ypos offset-m0 offset-m1)
+					      (return-from draw-region (values)))
 
-					  (when (eql dis-line-m0 dis-line-m1)
-					    ;; it's just a partial line, draw and return
-					    (draw ypos offset-m0 offset-m1)
-					    (return-from draw-region (values)))
-
-					  ;; draw the first line
-					  (draw ypos offset-m0 (1+ (hi::dis-line-length (car dis-line-m0))))
+					    ;; draw the first line
+					    (draw ypos offset-m0 (hi::dis-line-length (car dis-line-m0)))
 					       
-					  ;; draw the middle lines (if any)
-					  (do ((dl (cdr dis-line-m0) (cdr dl)))
-					      ((or (eql dl hi::the-sentinel)
-						   (eql dl dis-line-m1)))
-					    (draw (incf ypos) 0 (1+ (hi::dis-line-length (car dl)))))
+					    ;; draw the middle lines (if any)
+					    (do ((dl (cdr dis-line-m0) (cdr dl)))
+						((or (eql dl hi::the-sentinel)
+						     (eql dl dis-line-m1)))
+					      (draw (incf ypos) 0 (hi::dis-line-length (car dl))))
 
-					  (draw (incf ypos) 0 offset-m1))
+					    (draw (incf ypos) 0 offset-m1))
 					  
-					  )))))))))))))))))))
+					  ))))))))))))))))))))))
   
 
 (defmethod initialize-instance :around ((self text-editor-view-mixin) &rest initargs)

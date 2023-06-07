@@ -59,7 +59,7 @@
                        (prompt-for-keyword window (list *command-names*)
                                            :prompt "Command: "
                                            :help "Name of command to look for.")
-    (let ((bindings (command-bindings cmd)))
+    (let ((bindings (command-bindings window cmd)))
       (with-pop-up-display (s :current-window window)
         (cond
          ((null bindings)
@@ -107,7 +107,7 @@
           (dolist (com coms)
             (let ((obj (getstring com *command-names*)))
               (write-padded com)
-              (print-command-bindings (command-bindings obj) s)
+              (print-command-bindings (command-bindings current-window obj) s)
               (terpri s)
               (print-short-doc (command-documentation obj) s))))
         (when vars
@@ -227,7 +227,7 @@
   (declare (ignore p))
   (let ((illegal-command (getstring "Illegal" *command-names*)))
     (with-pop-up-display (s :current-window window)
-      (dolist (cmd (get-mouse-commands))
+      (dolist (cmd (get-mouse-commands window))
         (unless (eq cmd illegal-command)
           (format s "Documentation for ~S:~%   ~A~%"
                   (command-name cmd)
@@ -235,14 +235,14 @@
           (write-line
            "This can be invoked in the following ways:" s)
           (write-string "   " s)
-          (print-command-bindings (command-bindings cmd) s)
+          (print-command-bindings (command-bindings window cmd) s)
           (terpri s) (terpri s))))))
 
-(defun get-mouse-commands ()
+(defun get-mouse-commands (current-window)
   (let ((result nil))
     (do-strings (name cmd *command-names* result)
       (declare (ignore name))
-      (dolist (b (command-bindings cmd))
+      (dolist (b (command-bindings current-window cmd))
         (let ((key (car b)))
           (declare (simple-vector key))
           (when (dotimes (i (length key) nil)
@@ -279,7 +279,7 @@
     (declare (ignore ignore))
     (case kwd
       (:variable
-       (describe-and-show-variable-command nil))
+       (describe-and-show-variable-command window nil))
       (:command (describe-command-command window ()))
       (:key (describe-key-command window ()))
       (:attribute
@@ -289,7 +289,7 @@
                              (list *character-attribute-names*)
                              :help "Name of character attribute to describe."
                              :prompt "Attribute: ")
-         (print-full-doc name (character-attribute-documentation attr)))))))
+         (print-full-doc window name (character-attribute-documentation attr)))))))
 
 ;;; PRINT-FULL-DOC displays whole documentation string in a pop-up window.
 ;;; Doc may be a function that takes at least one arg, :short or :full.

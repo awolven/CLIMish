@@ -116,7 +116,7 @@
                      (setf (dired-info-dot-files-p (variable-value 'dired-information
                                                                    :buffer buffer))
                            t)
-                     (update-dired-buffer directory pattern buffer))
+                     (update-dired-buffer current-window directory pattern buffer))
                    buffer)
                   (t
                    (let ((buffer (make-instance 'buffer
@@ -125,9 +125,9 @@
                                                 (append (value default-modeline-fields)
                                                         (list (modeline-field :dired-cmds)))
                                                 :delete-hook (list 'dired-buffer-delete-hook))))
-                     (unless (initialize-dired-buffer directory pattern
+                     (unless (initialize-dired-buffer current-window directory pattern
                                                       dot-files-p buffer)
-                       (delete-buffer-if-possible buffer)
+                       (delete-buffer-if-possible buffer (window-buffer current-window))
                        (editor-error "No entries for ~A." full-name))
                      (push (cons full-name buffer) *pathnames-to-dired-buffers*)
                      buffer)))))
@@ -137,9 +137,9 @@
 ;;; variables to make it usable as a dired buffer.  If there are no file
 ;;; satisfying directory, then this returns nil, otherwise t.
 ;;;
-(defun initialize-dired-buffer (directory pattern dot-files-p buffer)
+(defun initialize-dired-buffer (current-window directory pattern dot-files-p buffer)
   (multiple-value-bind (pathnames dired-files)
-                       (dired-in-buffer directory pattern dot-files-p buffer)
+                       (dired-in-buffer current-window directory pattern dot-files-p buffer)
     (if (zerop (length dired-files))
         nil
         (defhvar "Dired Information"
@@ -155,14 +155,14 @@
 ;;; CALL-PRINT-DIRECTORY gives us a nice way to report PRINT-DIRECTORY errors
 ;;; to the user and to clean up the dired buffer.
 ;;;
-(defun call-print-directory (directory mark dot-files-p)
+(defun call-print-directory (current-window directory mark dot-files-p)
   (handler-case (with-output-to-mark (s mark :full)
                   (print-directory directory s
                                    :all dot-files-p
                                    :verbose t
                                    :return-list t))
     (error (condx)
-      (delete-buffer-if-possible (line-buffer (mark-line mark)))
+      (delete-buffer-if-possible (line-buffer (mark-line mark)) (window-buffer current-window))
       (editor-error "~A" condx))))
 
 ;;; DIRED-BUFFER-DELETE-HOOK is called on dired buffers upon deletion.  This
@@ -272,9 +272,9 @@
               (setf (next-character mark current-buffer) note-char))))))))
 
 (defun dired-down-line (buffer point)
-  (line-offset point 1)
+  (line-offset buffer point 1)
   (when (blank-line-p buffer (mark-line point))
-    (line-offset point -1)))
+    (line-offset buffer point -1)))
 
 
 
@@ -361,7 +361,7 @@
     (editor-error "Not in Dired buffer."))
   (let ((buffer (window-buffer window))
         (dir-info (value dired-information)))
-    (update-dired-buffer (dired-info-pathname dir-info)
+    (update-dired-buffer window (dired-info-pathname dir-info)
                          (dired-info-pattern dir-info)
                          buffer)))
 
@@ -371,12 +371,12 @@
 ;;; are compared to the old ones propagating any deleted flags if the name
 ;;; and the write date is the same for both specifications.
 ;;;
-(defun update-dired-buffer (directory pattern buffer)
+(defun update-dired-buffer (current-window directory pattern buffer)
   (with-writable-buffer (buffer)
     (delete-region buffer (buffer-region buffer))
     (let ((dir-info (variable-value 'dired-information :buffer buffer)))
       (multiple-value-bind (pathnames new-dired-files)
-                           (dired-in-buffer directory pattern
+                           (dired-in-buffer current-window directory pattern
                                             (dired-info-dot-files-p dir-info)
                                             buffer)
         (let ((point (buffer-point buffer))
@@ -412,11 +412,12 @@
 ;;; and trailing lines known to be in the output (into every code a little
 ;;; slime must fall).
 ;;;
-(defun dired-in-buffer (directory pattern dot-files-p buffer)
+(defun dired-in-buffer (current-window directory pattern dot-files-p buffer)
   (let ((point (buffer-point buffer)))
 
     (with-writable-buffer (buffer)
       (let* ((pathnames (call-print-directory
+                         current-window
 			             (if pattern
 			                 (merge-pathnames directory pattern)
                              (osicat::pathname-as-directory directory)
@@ -430,7 +431,7 @@
                                    (concatenate 'simple-string "  " str))
                                (buffer-region buffer))
           (delete-characters buffer point -2)
-          (delete-region buffer (line-to-region (mark-line (buffer-start point buffer))))
+          (delete-region buffer (line-to-region buffer (mark-line (buffer-start point buffer))))
           (delete-characters buffer point))
         (do ((p pathnames (cdr p))
              (i 0 (1+ i)))
@@ -504,14 +505,14 @@
   (declare (ignore p))
   (when (expunge-dired-files window)
     (dired-update-buffer-command window nil))
-  (maintain-dired-consistency))
+  (maintain-dired-consistency window))
 
 (defcommand "Dired Quit" (window p)
   "Expunges the files in a dired buffer and then exits."
   "Expunges the files in a dired buffer and then exits."
   (declare (ignore p))
   (expunge-dired-files window)
-  (delete-buffer-if-possible (window-buffer window)))
+  (delete-buffer-if-possible (window-buffer window) (window-buffer window)))
 
 
 
@@ -584,7 +585,7 @@
          (dired:*yesp-function* #'dired-yesp-function))
     (dired:copy-file source dest :update (if (eq confirm :update) t nil)
                      :clobber (not confirm)))
-  (maintain-dired-consistency))
+  (maintain-dired-consistency window))
 
 (defcommand "Dired Rename File" (window p)
   "Rename the file or directory under the point"
@@ -608,7 +609,7 @@
          (dired:*yesp-function* #'dired-yesp-function))
     ;; ARRAY-ELEMENT-FROM-MARK moves mark to line start.
     (dired:rename-file source dest :clobber (value dired-rename-file-confirm)))
-  (maintain-dired-consistency))
+  (maintain-dired-consistency window))
 
 (defcommand "Dired Copy with Wildcard" (window p)
   "Copy files that match a pattern containing ONE wildcard."
@@ -634,7 +635,7 @@
     (dired:copy-file pattern destination :update (if (eq confirm :update) t nil)
                      :clobber (not confirm)
                      :directory (dired-info-file-list dir-info)))
-  (maintain-dired-consistency))
+  (maintain-dired-consistency window))
 
 (defcommand "Dired Rename with Wildcard" (window p)
   "Rename files that match a pattern containing ONE wildcard."
@@ -659,7 +660,7 @@
     (dired:rename-file pattern destination
                        :clobber (not (value dired-rename-file-confirm))
                        :directory (dired-info-file-list dir-info)))
-  (maintain-dired-consistency))
+  (maintain-dired-consistency window))
 
 (defcommand "Delete File" (window p)
   "Delete a file.  Specify directories with a trailing slash."
@@ -686,7 +687,7 @@
     (dired:delete-file spec :recursive t
                        :clobber (or directoryp
                                     (value dired-file-expunge-confirm))))
-  (maintain-dired-consistency))
+  (maintain-dired-consistency window))
 
 (defcommand "Copy File" (window p)
   "Copy a file, allowing ONE wildcard."
@@ -713,7 +714,7 @@
          (dired:*yesp-function* #'dired-yesp-function))
     (dired:copy-file source dest :update (if (eq confirm :update) t nil)
                      :clobber (not confirm)))
-  (maintain-dired-consistency))
+  (maintain-dired-consistency window))
 
 (defcommand "Rename File" (window p)
   "Rename a file, allowing ONE wildcard."
@@ -739,16 +740,16 @@
          (dired:*yesp-function* #'dired-yesp-function))
     (dired:rename-file source dest
                        :clobber (not (value dired-rename-file-confirm))))
-  (maintain-dired-consistency))
+  (maintain-dired-consistency window))
 
-(defun maintain-dired-consistency ()
+(defun maintain-dired-consistency (current-window)
   (dolist (info *pathnames-to-dired-buffers*)
     (let* ((directory (directory-namestring (car info)))
            (buffer (cdr info))
            (dir-info (variable-value 'dired-information :buffer buffer))
            (write-date (file-write-date directory)))
       (unless (= (dired-info-write-date dir-info) write-date)
-        (update-dired-buffer directory (dired-info-pattern dir-info) buffer)))))
+        (update-dired-buffer current-window directory (dired-info-pattern dir-info) buffer)))))
 
 
 
@@ -847,7 +848,7 @@
   (declare (ignore p))
   (let* ((buf (window-buffer window))
          (funp (call-view-return-fun)))
-    (delete-buffer-if-possible buf)
+    (delete-buffer-if-possible buf buf)
     (unless funp (editor-error "No View return method for this buffer."))))
 
 ;;; CALL-VIEW-RETURN-FUN returns nil if there is no current

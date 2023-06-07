@@ -377,7 +377,7 @@
       (let ((name (read-line-default "File to write" string)))
         (format t "Writing file ~A..." name)
         (force-output)
-        (write-file (buffer-region buffer) name)
+        (write-file buffer (buffer-region buffer) name)
         (write-line "write WON")))))
 
 (defun read-line-default (prompt default)

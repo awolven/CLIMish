@@ -104,11 +104,11 @@
     `(let ((,region-sym ,region))
        (let* ((start (region-start ,region-sym))
               (end (region-end ,region-sym))
-              (undo-region (hi::.copy-region. (region (line-start start) (line-end end)))))
+              (undo-region (hi::.copy-region. (region (line-start start) (line-end buffer end)))))
          (.indent-region. ,region-sym)
          (make-region-undo :twiddle "Indent"
                            (region (line-start (copy-mark start :left-inserting))
-                                   (line-end (copy-mark end :right-inserting)))
+                                   (line-end buffer (copy-mark end :right-inserting)))
                            undo-region)))))
 
 (defun indent-region-for-commands (buffer region)
@@ -165,9 +165,9 @@
              (funcall (hi::value indent-function) buffer mark))
             (t
              (if (plusp p)
-                 (unless (line-offset point (1- p))
+                 (unless (line-offset buffer point (1- p))
                    (buffer-end point buffer))
-                 (unless (line-offset mark (1+ p))
+                 (unless (line-offset buffer mark (1+ p))
                    (buffer-start mark buffer)))
              (indent-region-for-commands buffer (region mark point))
              (find-attribute (line-start point) :whitespace #'zerop))))))
@@ -203,14 +203,14 @@
         (with-mark ((temp (region-start region) :left-inserting))
           (loop
             (when (mark> temp end) (return))
-            (delete-horizontal-space buffer (line-end temp))
+            (delete-horizontal-space buffer (line-end buffer temp))
             (delete-horizontal-space buffer (line-start temp))
-            (let* ((len (line-length (mark-line temp)))
+            (let* ((len (line-length buffer (mark-line temp)))
                    (spaces (- (or p (hi::value fill-column)) len)))
               (if (and (plusp spaces)
                        (not (zerop len)))
                   (indent-to-column buffer temp (ceiling spaces 2)))
-              (unless (line-offset temp 1) (return))
+              (unless (line-offset buffer temp 1) (return))
               (line-start temp))))))))
 
 
@@ -234,7 +234,7 @@
       (if (not (minusp count))
           (dotimes (i count)
             (insert-character buffer point #\newline)
-            (mark-before point))
+            (mark-before buffer point))
           (editor-error)))))
 
 
@@ -256,7 +256,7 @@
                         (let ((after (line-next next)))
                           (or (not after) (blank-line-p buffer after))))
                    (line-start point next)
-                   (let ((len (line-length next)))
+                   (let ((len (line-length buffer next)))
                      (unless (zerop len)
                        (delete-characters buffer point len))))
                   (t
@@ -283,7 +283,7 @@
   (let* ((buffer (window-buffer window))
          (point (buffer-point buffer)))
     (with-mark ((m point :right-inserting))
-      (when p (line-offset m 1))
+      (when p (line-offset buffer m 1))
       (line-start m)
       (unless (delete-characters buffer m -1) (editor-error "No previous line."))
       (delete-horizontal-space buffer m)
@@ -340,7 +340,7 @@
             ((mark= mark1 mark2))
           (cond ((empty-line-p buffer mark1))
                 ((blank-after-p buffer mark1)
-                 (delete-characters buffer mark1 (line-length (mark-line mark1))))
+                 (delete-characters buffer mark1 (line-length buffer (mark-line mark1))))
                 (t (find-attribute mark1 :whitespace #'zerop)
                    (let ((new-column (+ p (mark-column buffer mark1))))
                      (delete-characters buffer mark1 (- (mark-charpos mark1)))

@@ -39,7 +39,7 @@
            (,function-sym ,function))
        (let ((arg (or ,p-sym 1)))
          (with-mark ((mark ,point-sym))
-           (if (word-offset (if (minusp arg) mark ,point-sym) arg)
+           (if (word-offset .buffer. (if (minusp arg) mark ,point-sym) arg)
                (filter-region .buffer. ,function-sym (region mark ,point-sym))
                (editor-error "Not enough words.")))))))
 
@@ -76,22 +76,22 @@
       (with-mark ((start point :left-inserting)
                   (end point))
         (when (minusp arg)
-          (unless (word-offset start arg) (editor-error "No previous word.")))
+          (unless (word-offset buffer start arg) (editor-error "No previous word.")))
         (do ((region (region start end))
              (cnt (abs arg) (1- cnt)))
             ((zerop cnt) (move-mark point end))
           (unless (find-attribute start :word-delimiter #'zerop)
             (editor-error "No next word."))
           (move-mark end start)
-          (find-attribute end :word-delimiter)
+          (find-attribute buffer end :word-delimiter)
           (loop
             (when (mark= start end)
               (move-mark point end)
               (editor-error "No alphabetic characters in word."))
             (when (alpha-char-p (next-character buffer start)) (return))
-            (character-offset start 1))
+            (character-offset buffer start 1))
           (setf (next-character buffer start) (char-upcase (next-character buffer start)))
-          (mark-after start)
+          (mark-after buffer start)
           (filter-region buffer #'string-downcase region))))))
 
 ;;; TWIDDLE-REGION implements "Uppercase Region" and "Lowercase Region".
@@ -157,10 +157,10 @@
               (let ((prev (previous-character buffer mark)))
                 (cond ((and prev (char= prev #\tab))
                        (let ((pos (mark-column buffer mark)))
-                         (mark-before mark)
+                         (mark-before buffer mark)
                          (incf fill (- pos (mark-column buffer mark) 1)))
                        (incf del))
-                      ((mark-before mark)
+                      ((mark-before buffer mark)
                        (incf del))
                       (t
                        (setq errorp t)
@@ -244,11 +244,11 @@
                         :help "The name of a variable to set.")
     (declare (ignore name))
     (setf (variable-value var)
-          (handle-lisp-errors
+          ;;(handle-lisp-errors
             (eval (prompt-for-expression
                    window
                   :prompt "Value: "
-                  :help "Expression to evaluate for new value."))))))
+                  :help "Expression to evaluate for new value.")))));;)
 
 (defcommand "Defhvar" (window p)
   "Define a hemlock variable in some location.  If the named variable exists
@@ -575,34 +575,28 @@
       (when (typep last-event 'clui::pointer-button-press-event-mixin)
         (let* ((pixel-x (clui::pointer-event-x last-event))
                (pixel-y (clui::pointer-event-y last-event))
+               (buffer-view (adhoc:send window krma.gui::buffer-view))
                (coord (krma.gui::untransform-global-coordinate
-                       (3d-vectors::vec3 pixel-x pixel-y 0) (adhoc::send window krma.gui::buffer-view)))
-               (font (hi::window-font-family window))
-               (x (floor (3d-vectors::vx coord)
-                         (slot-value (slot-value font 'krma::data) '3b-bmfont-common::space-size)))
-               (y (floor (3d-vectors::vy coord) (krma.gui::font-size font)))
-               (m (cursorpos-to-mark x y window)))
-          (unless m (editor-error))
-          ;;(maybe-change-window window window)
-          (let* ((buffer (window-buffer window))
-                 (point (buffer-point buffer)))
-            (let (#+NIL(region (buffer-region .buffer.)))
+                       (3d-vectors::vec3 pixel-x pixel-y 0) buffer-view)))
+          (when (and (<= 0 (3d-vectors::vx coord) (adhoc:send buffer-view krma.gui::width))
+                     (<= 0 (3d-vectors::vy coord) (adhoc:send buffer-view krma.gui::height)))
+            (let* ((font (hi::window-font-family window))
+                   (x (floor (3d-vectors::vx coord)
+                             (slot-value (slot-value font 'krma::data) '3b-bmfont-common::space-size)))
+                   (y (floor (3d-vectors::vy coord) (krma.gui::font-size font)))
+                   (m (cursorpos-to-mark x y window)))
+              (unless m (editor-error))
+              (let* ((buffer (window-buffer window))
+                     (point (buffer-point buffer)))
+                (move-mark point m)
+                (push-buffer-mark buffer m t))
               
-              (move-mark point m)
-              (push-buffer-mark buffer m t)
-
-              #+NIL
-              (line-offset .point. (round (* (1- (count-lines region)) x)
-                                          (1- (window-width window))))
-              ;; let cursor function show our new point:
-              ))
-          
-          (update-window-image window)
-          (supply-generic-pointer-move-function #'(lambda ()
-                                                    (point-to-here-move-action window)))
+              (update-window-image window)
+              (supply-generic-pointer-move-function #'(lambda ()
+                                                        (point-to-here-move-action window)))
                                                       
-          (supply-generic-pointer-up-function #'(lambda ()
-                                                  (point-to-here-up-action window))))))))
+              (supply-generic-pointer-up-function #'(lambda ()
+                                                      (point-to-here-up-action window))))))))))
 
 (defun point-to-here-move-action (window)
   (when (typep window 'krma.gui::text-editor-view-mixin)
@@ -611,21 +605,22 @@
                 (typep last-event 'clui::pointer-motion-event-mixin))
         (let* ((pixel-x (clui::pointer-event-x last-event))
                (pixel-y (clui::pointer-event-y last-event))
+               (buffer-view (adhoc:send window krma.gui::buffer-view))
                (coord (krma.gui::untransform-global-coordinate
-                       (3d-vectors::vec3 pixel-x pixel-y 0) (adhoc::send window krma.gui::buffer-view)))
-               (font (hi::window-font-family window))
-               (x (floor (3d-vectors::vx coord)
-                         (slot-value (slot-value font 'krma::data) '3b-bmfont-common::space-size)))
-               (y (floor (3d-vectors::vy coord) (krma.gui::font-size font)))
-               (m (cursorpos-to-mark x y window)))
-          ;;(maybe-change-window window window)
-          (unless m (editor-error))
-          (with-buffer-globals ((window-buffer window))
-            (move-mark .point. m))
-            
-          (activate-region (window-buffer window))
-          (update-window-image window)
-            )))))
+                       (3d-vectors::vec3 pixel-x pixel-y 0) buffer-view)))
+          (when (and (<= 0 (3d-vectors::vx coord) (adhoc:send buffer-view krma.gui::width))
+                     (<= 0 (3d-vectors::vy coord) (adhoc:send buffer-view krma.gui::height)))
+            (let* ((font (hi::window-font-family window))
+                   (x (floor (3d-vectors::vx coord)
+                             (slot-value (slot-value font 'krma::data) '3b-bmfont-common::space-size)))
+                   (y (floor (3d-vectors::vy coord) (krma.gui::font-size font)))
+                   (m (cursorpos-to-mark x y window))
+                   (buffer (window-buffer window)))
+              (unless m (editor-error))
+              (move-mark (buffer-point buffer) m)
+              (activate-region buffer)
+              (update-window-image window)
+              )))))))
 
 (defun point-to-here-up-action (window)
   (when (typep window 'krma.gui::text-editor-view-mixin)
@@ -633,23 +628,25 @@
       (when (typep last-event 'clui::pointer-button-release-event-mixin)
         (let* ((pixel-x (clui::pointer-event-x last-event))
                (pixel-y (clui::pointer-event-y last-event))
+               (buffer-view (adhoc:send window krma.gui::buffer-view))
                (coord (krma.gui::untransform-global-coordinate
-                       (3d-vectors::vec3 pixel-x pixel-y 0) (adhoc::send window krma.gui::buffer-view)))
-               (font (hi::window-font-family window))
-               (x (floor (3d-vectors::vx coord)
-                         (slot-value (slot-value font 'krma::data) '3b-bmfont-common::space-size)))
-               (y (floor (3d-vectors::vy coord) (krma.gui::font-size font)))
-               (m (cursorpos-to-mark x y window)))
-          ;;(maybe-change-window window window)
-          (unless m (editor-error))
-          (with-buffer-globals ((window-buffer window))
-            
-            (move-mark .point. m)
-            (activate-region (window-buffer window))
-            (update-window-image window))))))
-  (setf (last-command-type) nil)
-  (setf *generic-pointer-up-fun* nil)
-  (setf *generic-pointer-move-fun* nil))
+                       (3d-vectors::vec3 pixel-x pixel-y 0) buffer-view)))
+          (when (and (<= 0 (3d-vectors::vx coord) (adhoc:send buffer-view krma.gui::width))
+                     (<= 0 (3d-vectors::vy coord) (adhoc:send buffer-view krma.gui::height)))
+
+            (let* ((font (hi::window-font-family window))
+                   (x (floor (3d-vectors::vx coord)
+                             (slot-value (slot-value font 'krma::data) '3b-bmfont-common::space-size)))
+                   (y (floor (3d-vectors::vy coord) (krma.gui::font-size font)))
+                   (m (cursorpos-to-mark x y window))
+                   (buffer (window-buffer window)))
+              (unless m (editor-error))
+              (move-mark (buffer-point buffer) m)
+              (activate-region buffer)
+              (update-window-image window))))
+        (setf (last-command-type) nil)
+        (setf *generic-pointer-up-fun* nil)
+        (setf *generic-pointer-move-fun* nil)))))
   
           
 
@@ -808,7 +805,7 @@
                 ((= (character-attribute :page-delimiter (next-character buffer m))
                     1)
                  (push "" result)
-                 (mark-after m)
+                 (mark-after buffer m)
                  (return))))))))
 
 
@@ -821,7 +818,7 @@
     (unless (page-offset buffer point (- (or p 1)))
       (editor-error "No such page."))
     (line-start (move-mark (window-display-start window) point))
-    (krma.gui::redraw-buffer window)))
+    (krma.gui:redraw-buffer window)))
 
 (defcommand "Next Page" (window p)
   "Move to the beginning of the next page.
@@ -858,9 +855,9 @@
          (dotimes (i n mark)
            (unless (next-character buffer mark) (return nil))
            (loop
-             (unless (find-attribute mark :page-delimiter)
+             (unless (find-attribute buffer mark :page-delimiter)
                (return-from page-offset nil))
-             (unless (mark-after mark)
+             (unless (mark-after buffer mark)
                (return (if (= i (1- n)) mark)))
              (when (= (mark-charpos mark) 1) (return)))))
         (t
@@ -871,11 +868,11 @@
             (loop
               (unless (reverse-find-attribute mark :page-delimiter)
                 (return-from page-offset nil))
-              (mark-before mark)
+              (mark-before buffer mark)
               (when (= (mark-charpos mark) 0) (return))))
           (let ((buffer (line-buffer (mark-line mark))))
             (unless (or (not buffer) (mark= mark (buffer-start-mark buffer)))
-              (mark-after mark)))))))
+              (mark-after buffer mark)))))))
 
 
 
@@ -933,23 +930,24 @@
              activep (count-lines region))))
 
 (defcommand "Count Words" (window p)
-  "Prints in the Echo Area the number of words in the region
+    "Prints in the Echo Area the number of words in the region
    between the point and the mark by using word-offset. The
    argument is ignored."
-  "Prints Number of Words in the Region"
+    "Prints Number of Words in the Region"
   (declare (ignore p))
-  (multiple-value-bind (region activep) (get-count-region (window-buffer window))
-    (let ((end-mark (region-end region)))
-      (with-mark ((beg-mark (region-start region)))
-        (let ((word-count 0))
-          (loop
-            (when (mark>= beg-mark end-mark)
-              (return))
-            (unless (word-offset beg-mark 1)
-              (return))
-            (incf word-count))
-          (message "~:[After point~;Active region~]: ~D Word~:P"
-                   activep word-count))))))
+  (let ((buffer (window-buffer window)))
+    (multiple-value-bind (region activep) (get-count-region buffer)
+      (let ((end-mark (region-end region)))
+        (with-mark ((beg-mark (region-start region)))
+          (let ((word-count 0))
+            (loop
+              (when (mark>= beg-mark end-mark)
+                (return))
+              (unless (word-offset buffer beg-mark 1)
+                (return))
+              (incf word-count))
+            (message "~:[After point~;Active region~]: ~D Word~:P"
+                     activep word-count)))))))
 
 
 ;;;; Some modes:

@@ -36,7 +36,7 @@
    (:file "hemlock/macros")
 
    (:file "hemlock/table")
-      (:file "src/classes")
+   (:file "src/classes")
    (:file "hemlock/vars")
 
 
@@ -64,7 +64,7 @@
 
 
    (:file "hemlock/cursor")
-   (:file "hemlock/screen")
+   #+NIL(:file "hemlock/screen")
 
    (:file "hemlock/linimage")
    (:file "hemlock/winimage")
@@ -91,7 +91,7 @@
    (:file "hemlock/killcoms")
    (:file "hemlock/command")
    
-   (:file "hemlock/undo")
+   #+NIL(:file "hemlock/undo")
 
    (:file "hemlock/searchcoms")
    (:file "hemlock/filecoms")

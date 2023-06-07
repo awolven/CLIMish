@@ -148,7 +148,7 @@
                         (if line
                             (iter
                               (while line)
-                              (summing (1+ (line-length line)))
+                              (summing (1+ (line-length buffer line)))
                               (setf line (line-previous line)))
                             0))))
           :fonts (compute-linedit-font-marks buffer (editor-prompt device)))))))
@@ -200,7 +200,7 @@
                          (collect (list (+ offset (mark-charpos mark))
                                         (font-mark-font mark)
                                         nil)))
-                       (incf offset (1+ (line-length line)))))))
+                       (incf offset (1+ (line-length buffer line)))))))
 
 #+NIL
 (defmethod device-init ((device tty-device))
@@ -423,7 +423,7 @@
          (if line
              (iter
                (while line)
-               (summing (line-length line))
+               (summing (line-length buffer line))
                (setf line (line-previous line)))
              0)))))
 

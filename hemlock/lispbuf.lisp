@@ -20,7 +20,7 @@
   (let ((current-package-name (gensym))
         (package-at-point-name (gensym))
         (package (gensym)))
-    `(handle-lisp-errors
+    `;;(handle-lisp-errors
       (let* ((,current-package-name (value current-package))
              (,package-at-point-name (package-at-point ,buffer (buffer-point ,buffer)))
              (,package (or (and ,current-package-name
@@ -28,7 +28,7 @@
                            (and ,package-at-point-name
                                 (find-package ,package-at-point-name)))))
         (progv (if ,package '(*package*)) (if ,package (list ,package))
-          ,@body)))))
+          ,@body))));;)
 
 
 
@@ -491,19 +491,19 @@
 
 
 
-(defcommand "Editor Mode" (p)
+(defcommand "Editor Mode" (window p)
   "Turn on \"Editor\" mode in the current buffer.  If it is already on, turn it
   off.  When in editor mode, most lisp compilation and evaluation commands
   manipulate the editor process instead of the current eval server."
   "Toggle \"Editor\" mode in the current buffer."
   (declare (ignore p))
-  (setf (buffer-minor-mode (current-buffer) "Editor")
-        (not (buffer-minor-mode (current-buffer) "Editor"))))
+  (setf (buffer-minor-mode (window-buffer window) "Editor" (window-buffer window))
+        (not (buffer-minor-mode (window-buffer window) "Editor"))))
 
 
 (define-file-option "Editor" (buffer value)
   (declare (ignore value))
-  (setf (buffer-minor-mode buffer "Editor") t))
+  (setf (buffer-minor-mode buffer "Editor" buffer) t))
 
 
 
@@ -537,9 +537,8 @@
 
     (with-mark ((start mark)
                 (end mark))
-      (with-buffer-globals (buffer)
-        (.pre-command-parse-check. start))
-    (cond ((not (mark-top-level-form start end))
+      (pre-command-parse-check buffer start)
+    (cond ((not (mark-top-level-form buffer start end))
            (editor-error "No current or next top level form."))
           (t (region start end)))))
 

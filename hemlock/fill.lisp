@@ -113,7 +113,7 @@
       (let ((paragraphp (paragraph-offset buffer m 1)))
         (unless (or paragraphp
                     (and (last-line-p m)
-                         (end-line-p m)
+                         (end-line-p buffer m)
                          (not (blank-line-p buffer (mark-line m)))))
           (editor-error))
         ;;
@@ -228,18 +228,18 @@
              (%filling-set-next-line current-window buffer point nil prefix))
             ((%auto-fill-line-as-region-p buffer point mark2 column)
              (if (and insertp
-                      (not (or (end-line-p mark1)
+                      (not (or (end-line-p buffer mark1)
                                (whitespace-attribute-p (next-character buffer mark1)))))
                  (insert-character buffer mark1 #\space))
              (auto-fill-line-as-region buffer point (move-mark mark2 point) prefix column)
              (move-mark point mark1)
-             (if (and insertp (end-line-p point))
+             (if (and insertp (end-line-p buffer point))
                  (insert-character buffer point #\space)))
-            ((not (or (end-line-p mark1)
+            ((not (or (end-line-p buffer mark1)
                       (whitespace-attribute-p (next-character buffer mark1))))
              (insert-character buffer mark1 #\space)
              (%filling-set-next-line current-window buffer point nil prefix)
-             (mark-after point)
+             (mark-after buffer point)
              (%auto-fill-clean-previous-line buffer mark1 mark2))
             (t
              (%filling-set-next-line current-window buffer point insertp prefix)
@@ -260,7 +260,8 @@
          (end (value comment-end)))
     (line-start mark)
     (cond ((and (not prefix) start (to-line-comment mark start))
-           (fill-region (region mark (line-end point))
+           (fill-region buffer
+                        (region mark (line-end buffer point))
                         (gen-comment-prefix mark start begin)
                         column)
            (when end
@@ -269,7 +270,7 @@
                  ((mark>= mark point))
                (if (not (to-comment-end mark end)) (insert-string buffer mark end))
                (line-offset mark 1 0))))
-          (t (fill-region (region mark (line-end point)) prefix column)))))
+          (t (fill-region (region mark (line-end buffer point)) prefix column)))))
 
 
 
@@ -297,8 +298,8 @@
 
 
 (defun %auto-fill-clean-previous-line (buffer mark1 mark2)
-  (when (line-offset mark1 -1)
-    (line-end mark1)
+  (when (line-offset buffer mark1 -1)
+    (line-end buffer mark1)
     (move-mark mark2 mark1)
     (unless (and (reverse-find-attribute mark1 :whitespace #'zerop)
                  (same-line-p mark1 mark2))
@@ -316,7 +317,7 @@
          (indent-new-comment-line-command current-window nil))
         (t (new-line-command current-window nil)
            (if prefix (insert-string buffer point prefix))))
-  (if (not (find-attribute point :whitespace)) (line-end point))
+  (if (not (find-attribute buffer point :whitespace)) (line-end buffer point))
   (if insertp (insert-character buffer point #\space)))
 
 
@@ -406,7 +407,7 @@
               (cmark fill-mark :left-inserting))
     (do ((collapse-p t))
         (nil)
-      (line-end fill-mark)
+      (line-end buffer fill-mark)
       (line-start (move-mark mark1 fill-mark))
       (skip-prefix-if-here mark1 prefix prefix-len)
       (cond ((mark>= fill-mark end-mark)
@@ -454,8 +455,8 @@
   (with-mark ((mark1 fill-mark :left-inserting))
     (move-to-column buffer mark1 column)
     (cond ((not (whitespace-attribute-p (next-character buffer mark1)))
-           (if (not (find-attribute mark1 :whitespace))
-               (line-end mark1))
+           (if (not (find-attribute buffer mark1 :whitespace))
+               (line-end buffer mark1))
            (move-mark fill-mark mark1)
            (if (eq (fill-region-word-past-column buffer fill-mark mark1 prefix)
                    :handled-oversized-word)
@@ -499,7 +500,7 @@
 (defun fill-region-set-next-line (buffer point prefix)
   (insert-character buffer point #\newline)
   (if prefix (insert-string buffer point prefix))
-  (if (not (find-attribute point :whitespace)) (line-end point)))
+  (if (not (find-attribute buffer point :whitespace)) (line-end buffer point)))
 
 
 
@@ -523,7 +524,7 @@
              (skip-prefix-if-here tmark prefix prefix-len)
              (fill-region-clear-bol buffer tmark)
              (let ((beginning-pos (mark-column buffer tmark)))
-               (find-attribute tmark :whitespace)
+               (find-attribute buffer tmark :whitespace)
                (cond ((> (+ prev-end-pos (if two-spaces-p 2 1)
                             (- (mark-column buffer tmark) beginning-pos))
                          column)
@@ -537,7 +538,7 @@
                       (insert-character buffer fill-mark #\space)
                       (if two-spaces-p (insert-character buffer fill-mark #\space))))))
             (t
-             (mark-after fill-mark))))))
+             (mark-after buffer fill-mark))))))
 
 
 
@@ -603,19 +604,19 @@
     (unless (mark>= mark1 mark2)
       (do ()
           (nil)
-        (if (not (find-attribute mark1 :whitespace)) ;not end of buffer
+        (if (not (find-attribute buffer mark1 :whitespace)) ;not end of buffer
             (return))
         (if (mark>= mark1 mark2) (return))
         (if (char/= (next-character buffer mark1) #\space)
             ;; since only on one line, must be tab or space
             (setf (next-character buffer mark1) #\space))
         (move-mark tmark mark1)
-        (if (mark= (mark-after mark1) mark2) (return))
+        (if (mark= (mark-after buffer mark1) mark2) (return))
         (let ((char (next-character buffer mark1)))
           (when (and (fill-region-insert-two-spaces-p buffer tmark)
                      (char= char #\space))
             ;; if at the end of a sentence, don't blow away the second space
-            (if (mark= (mark-after mark1) mark2)
+            (if (mark= (mark-after buffer mark1) mark2)
                 (return)
                 (setf char (next-character buffer mark1))))
           (when (whitespace-attribute-p char) ;more whitespace than necessary
@@ -640,14 +641,14 @@
 
 (defun fill-region-prefix-line (buffer fill-mark prefix prefix-length)
   (if (%line-has-prefix-p buffer fill-mark prefix prefix-length)
-      (character-offset fill-mark prefix-length)
+      (character-offset buffer fill-mark prefix-length)
       (insert-string buffer fill-mark prefix)))
 
 
 
 (defun %line-has-prefix-p (buffer mark prefix prefix-length)
   (declare (simple-string prefix))
-  (if (>= (line-length (mark-line mark)) prefix-length)
+  (if (>= (line-length buffer (mark-line mark)) prefix-length)
       (string= prefix (the simple-string (line-string buffer (mark-line mark)))
                :end2 prefix-length)))
 
@@ -664,9 +665,9 @@
   (do ((n 0 (1+ n)))
       ((not (sentence-closing-char-attribute-p (previous-character buffer mark)))
        (cond ((sentence-terminator-attribute-p (previous-character buffer mark))
-              (character-offset mark n))
-             (t (character-offset mark n) nil)))
-    (mark-before mark)))
+              (character-offset buffer mark n))
+             (t (character-offset buffer mark n) nil)))
+    (mark-before buffer mark)))
 
 
 
@@ -674,11 +675,11 @@
   (when prefix
     (insert-character buffer mark #\newline)
     (insert-character buffer mark #\newline)
-    (mark-before mark)
+    (mark-before buffer mark)
     (insert-string buffer mark prefix)
     (let ((pos (mark-column buffer mark)))
       (declare (simple-string prefix))
-      (mark-after mark)
+      (mark-after buffer mark)
       (delete-characters buffer mark (- (+ (length prefix) 2)))
       (if (>= pos column)
           (editor-error

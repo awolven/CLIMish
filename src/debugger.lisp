@@ -53,7 +53,7 @@
     
     
     (let ((.form. nil))
-	       (in-lisp krma.gui::buffer
+	       (in-lisp buffer
 		 (let ((hi::*debug-on-error* t)
 		       (#+CCL *debugger-hook* #+sbcl sb-ext:*invoke-debugger-hook*
 			      #'(lambda (condition hook-value)

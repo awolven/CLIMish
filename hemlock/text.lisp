@@ -72,10 +72,10 @@
            (paragraphp (paragraph-offset buffer tmark2 1)))
       (when (or paragraphp
                 (and (last-line-p tmark2)
-                     (end-line-p tmark2)
+                     (end-line-p buffer tmark2)
                      (not (blank-line-p buffer (mark-line tmark2)))))
-        (mark-before (move-mark tmark1 tmark2))
-        (%fill-paragraph-start tmark1 prefix prefix-len)
+        (mark-before buffer (move-mark tmark1 tmark2))
+        (%fill-paragraph-start buffer tmark1 prefix prefix-len)
         (move-mark mark1 tmark1)
         (move-mark mark2 tmark2)))))
 
@@ -89,24 +89,26 @@
 ;;; first branch of the COND must be as it is, and mark must be at the
 ;;; beginning of the line it is on.
 (defmacro %mark-to-paragraph (buffer mark prefix prefix-length
-                                   &optional (direction :forward))
-  `(do ((skip-prefix-p)
-        (paragraph-delim-function (value paragraph-delimiter-function)))
-       (nil)
-     (setf skip-prefix-p
-           (and ,prefix (%line-has-prefix-p ,mark ,prefix ,prefix-length)))
-     (if skip-prefix-p (character-offset ,mark ,prefix-length))
-     (let ((next-char (next-character ,buffer ,mark)))
-       (cond ((and (not (blank-after-p ,buffer ,mark))
-                   (or (whitespace-attribute-p next-char)
-                       (not (funcall paragraph-delim-function ,mark))))
-              (return (if skip-prefix-p (line-start ,mark) ,mark)))
-             (,(if (eq direction :forward)
-                   `(last-line-p ,mark)
-                   `(first-line-p ,mark))
-              (if skip-prefix-p (line-start ,mark))
-              (return nil)))
-       (line-offset ,mark ,(if (eq direction :forward) 1 -1) 0))))
+                              &optional (direction :forward))
+  (let ((buffer-sym (gensym)))
+    `(let ((,buffer-sym ,buffer))
+       (do ((skip-prefix-p)
+            (paragraph-delim-function (value paragraph-delimiter-function)))
+           (nil)
+         (setf skip-prefix-p
+               (and ,prefix (%line-has-prefix-p ,buffer-sym ,mark ,prefix ,prefix-length)))
+         (if skip-prefix-p (character-offset ,buffer-sym ,mark ,prefix-length))
+         (let ((next-char (next-character ,buffer-sym ,mark)))
+           (cond ((and (not (blank-after-p ,buffer ,mark))
+                       (or (whitespace-attribute-p next-char)
+                           (not (funcall paragraph-delim-function ,mark))))
+                  (return (if skip-prefix-p (line-start ,mark) ,mark)))
+                 (,(if (eq direction :forward)
+                       `(last-line-p ,mark)
+                       `(first-line-p ,mark))
+                  (if skip-prefix-p (line-start ,mark))
+                  (return nil)))
+           (line-offset ,buffer-sym ,mark ,(if (eq direction :forward) 1 -1) 0))))))
 
 
 ;;;      %PARAGRAPH-OFFSET-AUX is the inner loop of PARAGRAPH-OFFSET.  It
@@ -114,23 +116,25 @@
 ;;; direction.  Prefixes on a line are ignored or skipped over before it
 ;;; is determined if the line is a paragraph boundary.
 (defmacro %paragraph-offset-aux (buffer mark prefix prefix-length
-                                       &optional (direction :forward))
-  `(do ((paragraph-delim-function (value paragraph-delimiter-function))
+                                 &optional (direction :forward))
+  (let ((buffer-sym (gensym)))
+  `(let ((,buffer-sym ,buffer))
+     (do ((paragraph-delim-function (value paragraph-delimiter-function))
         (skip-prefix-p))
        (nil)
      (setf skip-prefix-p
-           (and ,prefix (%line-has-prefix-p ,mark ,prefix ,prefix-length)))
-     (if skip-prefix-p (character-offset ,mark ,prefix-length))
-     (cond ((or (blank-after-p ,buffer ,mark)
+           (and ,prefix (%line-has-prefix-p ,buffer-sym ,mark ,prefix ,prefix-length)))
+     (if skip-prefix-p (character-offset ,buffer-sym ,mark ,prefix-length))
+     (cond ((or (blank-after-p ,buffer-sym ,mark)
                 (funcall paragraph-delim-function ,mark))
             (return (line-start ,mark)))
            (,(if (eq direction :forward)
                  `(last-line-p ,mark)
                  `(first-line-p ,mark))
             (return ,(if (eq direction :forward)
-                         `(line-end ,mark)
+                         `(line-end ,buffer-sym ,mark)
                          `(line-start ,mark)))))
-     (line-offset ,mark ,(if (eq direction :forward) 1 -1) 0)))
+     (line-offset ,buffer-sym ,mark ,(if (eq direction :forward) 1 -1) 0)))))
 
 ); eval-when
 
@@ -167,10 +171,10 @@
                     (if (plusp n)
                         (%mark-to-paragraph buffer tmark prefix prefix-length))))
        ((zerop n) (move-mark mark tmark))
-    (cond ((and paragraphp (not (line-offset tmark 1))) ;
-           (if (or (> n 1) (and (last-line-p mark) (end-line-p mark)))
+    (cond ((and paragraphp (not (line-offset buffer tmark 1))) ;
+           (if (or (> n 1) (and (last-line-p mark) (end-line-p buffer mark)))
                (return nil))
-           (return (line-end (move-mark mark tmark))))
+           (return (line-end buffer (move-mark mark tmark))))
           (paragraphp (%paragraph-offset-aux buffer tmark prefix prefix-length))
           (t (return nil)))))
 
@@ -182,10 +186,10 @@
               (tmark2 mark))
     (do* ((n (abs number) (1- n))
           (prefix-length (length prefix))
-          (paragraphp (%para-offset-back-find-para tmark1 prefix
+          (paragraphp (%para-offset-back-find-para buffer tmark1 prefix
                                                    prefix-length mark)
                       (if (plusp n)
-                          (%para-offset-back-find-para tmark1 prefix
+                          (%para-offset-back-find-para buffer tmark1 prefix
                                                        prefix-length tmark2))))
          ((zerop n) (move-mark mark tmark1))
       (cond ((and paragraphp (first-line-p tmark1))
@@ -209,23 +213,23 @@
 ;;; would dictate.
 
 (defun %para-offset-back-place-mark (buffer mark prefix prefix-length)
-  (skip-prefix-if-here mark prefix prefix-length)
+  (skip-prefix-if-here buffer mark prefix prefix-length)
   (cond ((text-blank-line-p buffer mark) (line-start mark))
         ((not (first-line-p mark))
          (line-offset mark -1 0)
-         (skip-prefix-if-here mark prefix prefix-length)
+         (skip-prefix-if-here buffer mark prefix prefix-length)
          (if (text-blank-line-p buffer mark)
              (line-start mark)
              (line-offset mark 1 0)))))
 
 
 
-(defun %para-offset-back-find-para (mark1 prefix prefix-length mark2)
+(defun %para-offset-back-find-para (buffer mark1 prefix prefix-length mark2)
   (move-mark mark2 mark1)
   (line-start mark1)
   (let ((para-p (%mark-to-paragraph mark1 prefix prefix-length :backward)))
     (cond ((and para-p (same-line-p mark1 mark2))
-           (skip-prefix-if-here mark1 prefix prefix-length)
+           (skip-prefix-if-here buffer mark1 prefix prefix-length)
            (find-attribute mark1 :whitespace #'zerop)
            (cond ((mark<= mark2 mark1)
                   (line-offset mark1 -1 0)
@@ -304,23 +308,25 @@
 ;;; "Forward Sentence" and "Backward Sentence" for a definition of a sentence.
 
 (eval-when (:compile-toplevel :execute)
-(defmacro sentence-offset-end-p (buffer mark &optional (direction :forward))
-  `(let ((start (mark-charpos ,mark)))
-     (do ()
-         ((not (sentence-closing-char-attribute-p (next-character ,buffer ,mark))))
-       (mark-after ,mark))
-     (let ((next (next-character ,buffer ,mark)))
-       (cond ((or (not next)
-                  (char= next #\newline))
-              ,(if (eq direction :forward) mark `(mark-after ,mark)))
-             ((and (char= next #\space)
-                   (member (next-character ,buffer (mark-after ,mark))
-                           '(nil #\space #\newline)))
-              ,(if (eq direction :forward)
-                   `(mark-before ,mark)
-                   `(mark-after ,mark)))
-             (t (move-to-position ,mark start)
-                nil)))))
+  (defmacro sentence-offset-end-p (buffer mark &optional (direction :forward))
+    (let ((buffer-sym (gensym)))
+      `(let ((,buffer-sym ,buffer)
+             (start (mark-charpos ,mark)))
+         (do ()
+             ((not (sentence-closing-char-attribute-p (next-character ,buffer-sym ,mark))))
+           (mark-after ,buffer-sym ,mark))
+         (let ((next (next-character ,buffer-sym ,mark)))
+           (cond ((or (not next)
+                      (char= next #\newline))
+                  ,(if (eq direction :forward) mark `(mark-after ,buffer-sym ,mark)))
+                 ((and (char= next #\space)
+                       (member (next-character ,buffer-sym (mark-after ,buffer-sym ,mark))
+                               '(nil #\space #\newline)))
+                  ,(if (eq direction :forward)
+                       `(mark-before ,buffer-sym ,mark)
+                       `(mark-after ,buffer-sym ,mark)))
+                 (t (move-to-position ,mark start)
+                    nil))))))
 ); eval-when
 
 
@@ -334,26 +340,27 @@
 ;;; and end up right where we started.
 
 (eval-when (:compile-toplevel :execute)
-(defmacro sentence-offset-find-end (buffer mark &optional (direction :forward))
-  `(progn
-    ,@(if (eq direction :backward)
-          `((reverse-find-attribute ,mark :whitespace #'zerop)
-            (when (fill-region-insert-two-spaces-p ,mark)
-              (reverse-find-attribute ,mark :sentence-terminator)
-              (mark-before ,mark))))
-    (do ((foundp) (endp)) (nil)
-      (setf foundp ,(if (eq direction :forward)
-                        `(find-attribute ,mark :sentence-terminator)
-                        `(reverse-find-attribute ,mark :sentence-terminator)))
-      (setf endp ,(if (eq direction :forward)
-                      `(if foundp (progn (mark-after ,mark)
-                                         (sentence-offset-end-p ,buffer ,mark)))
-                      `(if foundp (sentence-offset-end-p ,buffer ,mark :backward))))
-      (if endp (return ,mark))
-      ,(if (eq direction :forward)
-           `(unless foundp (return nil))
-           `(if foundp (mark-before ,mark) (return nil))))))
-); eval-when
+  (defmacro sentence-offset-find-end (buffer mark &optional (direction :forward))
+    (let ((buffer-sym (gensym)))
+      `(let ((,buffer-sym ,buffer))
+         ,@(if (eq direction :backward)
+               `((reverse-find-attribute ,mark :whitespace #'zerop)
+                 (when (fill-region-insert-two-spaces-p ,mark)
+                   (reverse-find-attribute ,mark :sentence-terminator)
+                   (mark-before ,buffer-sym ,mark))))
+         (do ((foundp) (endp)) (nil)
+           (setf foundp ,(if (eq direction :forward)
+                             `(find-attribute ,buffer-sym ,mark :sentence-terminator)
+                             `(reverse-find-attribute ,mark :sentence-terminator)))
+           (setf endp ,(if (eq direction :forward)
+                           `(if foundp (progn (mark-after ,buffer-sym ,mark)
+                                              (sentence-offset-end-p ,buffer-sym ,mark)))
+                           `(if foundp (sentence-offset-end-p ,buffer-sym ,mark :backward))))
+           (if endp (return ,mark))
+           ,(if (eq direction :forward)
+                `(unless foundp (return nil))
+                `(if foundp (mark-before ,buffer-sym ,mark) (return nil)))))))
+  )                                     ; eval-when
 
 
 
@@ -424,24 +431,24 @@
 
 
 (defun sent-back-para-start-p (buffer mark1 mark2 prefix prefix-length)
-  (skip-prefix-if-here (line-start mark2) prefix prefix-length)
+  (skip-prefix-if-here buffer (line-start mark2) prefix prefix-length)
   (cond ((text-blank-line-p buffer mark2)
          (line-start mark2))
         ((whitespace-attribute-p (next-character buffer mark2))
          (find-attribute mark2 :whitespace #'zerop)
          (if (mark= mark1 mark2) (line-offset mark2 -1 0)))
         ((and (mark= mark2 mark1) (line-offset mark2 -1 0))
-         (skip-prefix-if-here mark2 prefix prefix-length)
+         (skip-prefix-if-here buffer mark2 prefix prefix-length)
          (if (text-blank-line-p buffer mark2)
              (line-start mark2)))))
 
 
 
 (defun sent-back-place-para-start (buffer mark2 prefix prefix-length)
-  (skip-prefix-if-here mark2 prefix prefix-length)
+  (skip-prefix-if-here buffer mark2 prefix prefix-length)
   (when (text-blank-line-p buffer mark2)
     (line-offset mark2 1 0)
-    (skip-prefix-if-here mark2 prefix prefix-length))
+    (skip-prefix-if-here buffer mark2 prefix prefix-length))
   (find-attribute mark2 :whitespace #'zerop))
 
 
@@ -469,19 +476,19 @@
             (setq mark-prev (previous-character buffer mark))
             (setq mark-next (next-character buffer mark)))
           (cond ((plusp num)
-                 (let ((forwardp (word-offset point num))
+                 (let ((forwardp (word-offset buffer point num))
                        (backwardp (if (or (word-delimiter-attribute-p mark-next)
                                           (word-delimiter-attribute-p mark-prev))
-                                      (word-offset mark -1)
-                                      (word-offset mark -2))))
+                                      (word-offset buffer mark -1)
+                                      (word-offset buffer mark -2))))
                    (if (and forwardp backwardp)
                        (transpose-words-forward buffer mark point start)
                        (editor-error))))
                 ((minusp num)
-                 (let ((enoughp (word-offset point (1- num))))
+                 (let ((enoughp (word-offset buffer point (1- num))))
                    (if (word-delimiter-attribute-p mark-prev)
                        (reverse-find-attribute mark :word-delimiter #'zerop)
-                       (find-attribute mark :word-delimiter))
+                       (find-attribute buffer mark :word-delimiter))
                    (if enoughp
                        (transpose-words-backward buffer point mark start)
                        (editor-error))))
@@ -493,10 +500,10 @@
   (with-buffer-globals (buffer)
     (with-mark ((tmark1 mark1 :left-inserting)
                 (tmark2 mark2 :left-inserting))
-      (find-attribute tmark1 :word-delimiter)
+      (find-attribute buffer tmark1 :word-delimiter)
       (do ((region1 (delete-and-save-region buffer (region mark1 tmark1))))
           ((mark= tmark2 end) (ninsert-region buffer end region1))
-        (word-offset tmark2 1)
+        (word-offset buffer tmark2 1)
         (reverse-find-attribute (move-mark tmark1 tmark2) :word-delimiter)
         (ninsert-region buffer mark1 (delete-and-save-region buffer (region tmark1 tmark2)))
         (move-mark mark1 tmark1)))))
@@ -510,8 +517,8 @@
       (move-mark mark2 mark1)
       (do ((region1 (delete-and-save-region buffer (region tmark1 mark1))))
           ((mark= tmark1 start) (ninsert-region buffer start region1))
-        (word-offset tmark1 -1)
-        (find-attribute (move-mark tmark2 tmark1) :word-delimiter)
+        (word-offset buffer tmark1 -1)
+        (find-attribute buffer (move-mark tmark2 tmark1) :word-delimiter)
         (ninsert-region buffer mark1 (delete-and-save-region buffer (region tmark1 tmark2)))
         (move-mark mark1 tmark1)))))
 
@@ -548,16 +555,16 @@
 
 (defun transpose-lines (buffer mark1 mark2)
   (with-mark ((tmark1 mark1))
-    (line-offset tmark1 1)
+    (line-offset buffer tmark1 1)
     (ninsert-region buffer mark2 (delete-and-save-region buffer (region mark1 tmark1)))))
 
 
 
 ;;;; -- Utilities --
 
-(defun skip-prefix-if-here (mark prefix prefix-length)
-  (if (and prefix (%line-has-prefix-p mark prefix prefix-length))
-      (character-offset mark prefix-length)))
+(defun skip-prefix-if-here (buffer mark prefix prefix-length)
+  (if (and prefix (%line-has-prefix-p buffer mark prefix prefix-length))
+      (character-offset buffer mark prefix-length)))
 
 
 

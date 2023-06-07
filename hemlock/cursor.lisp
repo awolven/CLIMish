@@ -254,7 +254,7 @@
     `(let* ((,mark-sym ,mark)
             (line (mark-line ,mark-sym))
             (,column-sym ,column)
-            (res (.find-position. line ,column-sym 0 (line-length line) 10000)))
+            (res (.find-position. line ,column-sym 0 (line-length .buffer. line) 10000)))
        (when res
          (move-to-position ,mark-sym res line)))))
 
@@ -332,6 +332,7 @@
 ;;; mark.  NIL is returned if the mark is not displayed in the window given
 ;;;
 ;;;
+#+NOTNOW
 (defun mark-to-cursorpos (mark window)
   "Return the (x, y) position of mark within window, or NIL if not displayed."
   (maybe-update-window-image window)
@@ -376,6 +377,7 @@
 ;;;    Find the right dis-line, then zero in on the correct position
 ;;; using real-line-length.
 ;;;
+#+NOTNOW
 (defun cursorpos-to-mark (x y window)
   (with-slots (the-sentinel) window
     (with-buffer-globals ((window-buffer window))
@@ -417,11 +419,11 @@
            (dotimes (i (- ,offset-sym) t)
              (let ((pos (mark-charpos ,mark-sym)))
                (if (>= pos w)
-                   (character-offset ,mark-sym (- w))
+                   (character-offset .buffer. ,mark-sym (- w))
                    (let ((prev (line-previous (mark-line ,mark-sym))))
                      (unless prev (return nil))
                      (multiple-value-bind (lines chars)
-                         (truncate (line-length prev) w)
+                         (truncate (line-length .buffer. prev) w)
                        (move-to-position ,mark-sym
                            (cond ((zerop lines) 0)
                                  ((< chars 2)
@@ -430,11 +432,11 @@
                                   (* w lines)))
                            prev))))))
            (dotimes (i ,offset-sym t)
-             (let ((left (- (line-length (mark-line ,mark-sym))
+             (let ((left (- (line-length .buffer. (mark-line ,mark-sym))
                             (mark-charpos ,mark-sym))))
                (if (> left ,width-sym)
-                   (character-offset ,mark-sym w)
-                   (unless (line-offset ,mark-sym 1 0)
+                   (character-offset .buffer. ,mark-sym w)
+                   (unless (line-offset .buffer. ,mark-sym 1 0)
                      (return nil)))))))))
 
 (defun dis-line-offset-guess (buffer mark offset width)
@@ -475,7 +477,7 @@
            (.dis-line-offset-guess. point (round (window-height ,window-sym) 2)
                                     width)
            (when iscurrent (move-mark bpoint point))))
-       (update-window-image ,window-sym)
+       ;;(update-window-image ,window-sym)
        t)))
 
 (defun scroll-window (window n)

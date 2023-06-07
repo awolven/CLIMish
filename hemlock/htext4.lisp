@@ -111,12 +111,11 @@
             (,n-sym ,n)
             (line (mark-line ,mark-sym))
             (charpos (mark-charpos ,mark-sym))
-            (length (line-length* line))
-            (buffer (line-%buffer line)))
+            (length (line-length* line)))
        (cond ((zerop ,n-sym) t)
              ;; Deleting chars on one line, just bump the pointers.
              ((<= 0 (+ charpos ,n-sym) length)
-              (modifying-buffer buffer
+              (modifying-buffer .buffer.
                 (.modifying-line. line ,mark-sym)
                 (cond
                   ((minusp ,n-sym)
@@ -139,7 +138,7 @@
              (t
               (setf (mark-line *internal-temp-mark*) line
                     (mark-charpos *internal-temp-mark*) charpos)
-              (let ((other-mark (character-offset *internal-temp-mark* ,n-sym)))
+              (let ((other-mark (character-offset .buffer. *internal-temp-mark* ,n-sym)))
                 (cond
                   (other-mark
                    (if (< ,n-sym 0)
@@ -524,7 +523,7 @@
        (if (zerop ,count-sym)
            ,mark-sym
            (with-mark ((temp ,mark-sym :left-inserting))
-             (if (character-offset temp ,count-sym)
+             (if (character-offset .buffer. temp ,count-sym)
                  (let ((current-type (if (plusp ,count-sym)
                                          :char-kill-forward
                                          :char-kill-backward))

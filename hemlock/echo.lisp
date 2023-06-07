@@ -228,7 +228,7 @@
               (insert-string *echo-area-buffer* (region-start *parse-input-region*) prefix)
               (let ((point (buffer-point *echo-area-buffer*)))
                 (move-mark point (region-start *parse-input-region*))
-                (unless (character-offset point ambig)
+                (unless (character-offset *echo-area-buffer* point ambig)
                   (buffer-end point *echo-area-buffer*)))
               nil))))
         (t
@@ -519,7 +519,7 @@
   (let ((event-id))
     (tagbody
      again
-       (setq event-id (clui::input-event-id (krma.gui::get-next-event input-source)))
+       (setq event-id (krma.gui::input-event-id (krma.gui::get-next-event input-source)))
        (when (eq event-id #k"MouseMove")
          (go again))
        (when (and ignore-abort-attempts-p (eq event-id #k"Ctrl-g"))
@@ -558,7 +558,7 @@
                            (t
                             (go FLAME))))
                     ((logical-key-event-p key-event :help)
-                     (hemlock::help-on-parse-command ())
+                     (hemlock::help-on-parse-command current-window ())
                      (go TOP)))
               (vector-push-extend key-event key)
               (when must-exist
@@ -732,7 +732,7 @@
           ((null o))
         (let ((option (caar o)))
           (if (and (consp option)
-                   (typep (car option) 'clui::input-event-id))
+                   (typep (car option) 'krma.gui::input-event-id))
               (princ (car option) s)
               (if (consp option)
                   (loop for o in option

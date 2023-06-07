@@ -22,7 +22,7 @@
   (let ((region-sym (gensym "REGION-TO-STRING_REGION")))
     `(let ((,region-sym ,region))
        (.close-line.)
-       (let* ((dst-length (count-characters ,region-sym))
+       (let* ((dst-length (count-characters .buffer. ,region-sym))
               (string (make-string dst-length))
               (start-mark (region-start ,region-sym))
               (end-mark (region-end ,region-sym))
@@ -92,10 +92,10 @@
                          (mark line (length (line-chars line))
                                :left-inserting))))))))))
 
-(defun line-to-region (line)
+(defun line-to-region (buffer line)
   "Returns a region containing the specified line."
   (internal-make-region (mark line 0 :right-inserting)
-                        (mark line (line-length* line) :left-inserting)))
+                        (mark line (line-length buffer line) :left-inserting)))
 
 (defmacro .previous-character. (mark)
   "Returns the character immediately before the given Mark."
@@ -214,10 +214,10 @@
         (character-sym (gensym "SET-PREVIOUS-CHARACTER_CHARACTER")))
     `(let ((,mark-sym ,mark)
            (,character-sym ,character))
-       (unless (mark-before ,mark)
+       (unless (mark-before .buffer. ,mark)
          (error "~S has no previous character, so it cannot be set." ,mark-sym))
        (setf (next-character .buffer. ,mark-sym) ,character-sym)
-       (mark-after ,mark-sym)
+       (mark-after .buffer. ,mark-sym)
        ,character-sym)))
 
 (defun (setf previous-character) (character buffer mark)
@@ -233,7 +233,7 @@
        (last-line (mark-line (region-end region))))
       ((eq line last-line) count)))
 
-(defun count-characters (region)
+(defun count-characters (buffer region)
   "Returns the number of characters in the region."
   (let* ((start (region-start region))
          (end (region-end region))
@@ -242,10 +242,10 @@
     (if (eq first-line last-line)
         (- (mark-charpos end) (mark-charpos start))
         (do ((line (line-next first-line) (line-next line))
-             (count (1+ (- (line-length* first-line) (mark-charpos start)))))
+             (count (1+ (- (line-length buffer first-line) (mark-charpos start)))))
             ((eq line last-line)
              (+ count (mark-charpos end)))
-          (setq count (+ 1 count (line-length* line)))))))
+          (setq count (+ 1 count (line-length buffer line)))))))
 
 (defun line-start (mark &optional line)
   "Changes the Mark to point to the beginning of the Line and returns it.
@@ -255,13 +255,13 @@
   (setf (mark-charpos mark) 0)
   mark)
 
-(defun line-end (mark &optional line)
+(defun line-end (buffer mark &optional line)
   "Changes the Mark to point to the end of the line and returns it.
   Line defaults to the line Mark is on."
   (if line
       (change-line mark line)
       (setq line (mark-line mark)))
-  (setf (mark-charpos mark) (line-length* line))
+  (setf (mark-charpos mark) (line-length buffer line))
   mark)
 
 (defun buffer-start (mark &optional (buffer (line-buffer (mark-line mark))))
@@ -283,7 +283,7 @@
   (setf (mark-charpos mark) (mark-charpos new-position))
   mark)
 
-(defun mark-before (mark)
+(defun mark-before (buffer mark)
   "Changes the Mark to point one character before where it currently points.
   NIL is returned if there is no previous character."
   (let ((charpos (mark-charpos mark)))
@@ -291,18 +291,18 @@
            (let ((prev (line-previous (mark-line mark))))
              (when prev
                (always-change-line mark prev)
-               (setf (mark-charpos mark) (line-length* prev))
+               (setf (mark-charpos mark) (line-length buffer prev))
                mark)))
           (t
            (setf (mark-charpos mark) (1- charpos))
            mark))))
 
-(defun mark-after (mark)
+(defun mark-after (buffer mark)
   "Changes the Mark to point one character after where it currently points.
   NIL is returned if there is no previous character."
   (let ((line (mark-line mark))
         (charpos (mark-charpos mark)))
-    (cond ((= charpos (line-length* line))
+    (cond ((= charpos (line-length buffer line))
            (let ((next (line-next line)))
              (when next
                (always-change-line mark next)
@@ -312,7 +312,7 @@
            (setf (mark-charpos mark) (1+ charpos))
            mark))))
 
-(defun character-offset (mark n)
+(defun character-offset (buffer mark n)
   "Changes the Mark to point N characters after (or -N before if N is negative)
   where it currently points.  If there aren't N characters before (or after)
   the mark, Nil is returned."
@@ -323,7 +323,7 @@
               (do ((line (line-previous (mark-line mark)) (line-previous line))
                    (n (- n charpos 1)))
                   ((null line) nil)
-                (let ((length (line-length* line)))
+                (let ((length (line-length buffer line)))
                   (cond ((<= n length)
                          (always-change-line mark line)
                          (setf (mark-charpos mark) (- length n))
@@ -333,12 +333,12 @@
               (progn (setf (mark-charpos mark) (- charpos n))
                      mark)))
         (let* ((line (mark-line mark))
-               (length (line-length* line)))
+               (length (line-length buffer line)))
           (if (> (+ charpos n) length)
               (do ((line (line-next line) (line-next line))
                    (n (- n (1+ (- length charpos)))))
                   ((null line) nil)
-                (let ((length (line-length* line)))
+                (let ((length (line-length buffer line)))
                   (cond ((<= n length)
                          (always-change-line mark line)
                          (setf (mark-charpos mark) n)
@@ -348,7 +348,7 @@
               (progn (setf (mark-charpos mark) (+ charpos n))
                      mark))))))
 
-(defun line-offset (mark n &optional charpos)
+(defun line-offset (buffer mark n &optional charpos)
   "Changes to Mark to point N lines after (-N before if N is negative) where
   it currently points.  If there aren't N lines after (or before) the Mark,
   Nil is returned."
@@ -360,8 +360,8 @@
           (always-change-line mark line)
           (setf (mark-charpos mark)
                 (if charpos
-                    (min (line-length line) charpos)
-                    (min (line-length line) (mark-charpos mark))))
+                    (min (line-length buffer line) charpos)
+                    (min (line-length buffer line) (mark-charpos mark))))
           (return mark)))
       (do ((line (mark-line mark) (line-next line))
            (n n (1- n)))
@@ -370,8 +370,8 @@
           (change-line mark line)
           (setf (mark-charpos mark)
                 (if charpos
-                    (min (line-length line) charpos)
-                    (min (line-length line) (mark-charpos mark))))
+                    (min (line-length buffer line) charpos)
+                    (min (line-length buffer line) (mark-charpos mark))))
           (return mark)))))
 
 ;;; region-bounds  --  Public
@@ -424,7 +424,7 @@
                           (write-string open-chars stream  :start right-open-pos
                                                            :end p)))))
                 (t (let ((chars (line-chars line))
-                         (length (line-length line)))
+                         (length (line-length buffer line)))
                      (declare (simple-string chars))
                      (cond ((or (> charpos length) (< charpos 0))
                             (write-string "{bad mark}" stream))
@@ -453,7 +453,7 @@
                           (write-string open-chars stream :start p
                                                           :end line-cache-length)))))
                 (t (let ((chars (line-chars line))
-                         (length (line-length line)))
+                         (length (line-length buffer line)))
                      (declare (simple-string chars))
                      (cond ((or (> charpos length) (< charpos 0))
                             (write-string "{bad mark}" stream))
@@ -500,7 +500,7 @@
            (cond ((eq first-line last-line)
                   (let ((cs (mark-charpos start))
                         (ce (mark-charpos end))
-                        (len (line-length first-line)))
+                        (len (line-length buffer first-line)))
                     (with-buffer-globals (buffer)
                       (cond
                         ((or (< cs 0) (> ce len))

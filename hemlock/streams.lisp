@@ -301,7 +301,7 @@
                   (region-end (hemlock-region-stream-region stream)))
            (let* ((buffer
                     (line-buffer (mark-line (hemlock-output-stream-mark stream)))))
-             (prog1 (next-character buffer mark) (mark-after mark))))
+             (prog1 (next-character buffer mark) (mark-after buffer mark))))
           (t :eof))))
 
 (defmethod stream-listen ((stream hemlock-region-stream))
@@ -317,7 +317,7 @@
              (line-buffer (mark-line (hemlock-output-stream-mark stream)))))
       (unless (char= char (previous-character buffer mark))
         (error "Unreading something not read: ~S" char))
-      (mark-before mark))
+      (mark-before buffer mark))
     nil))
 
 (defmethod stream-clear-input ((stream hemlock-region-stream))

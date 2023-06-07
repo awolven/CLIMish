@@ -69,6 +69,7 @@
 	(event-chain)
 	(result)
 	(p nil)
+	#+NIL
 	(#+CCL *debugger-hook* #+SBCL sb-ext:*invoke-debugger-hook* #'gui-debug-condition))
 
 
@@ -79,11 +80,10 @@
       (handler-bind
 
 	  ((editor-error #'(lambda (c)
-			     #+sbcl
 			     (mapcar (lambda (buffer)
-				       (sb-thread:release-mutex (buffer-lock buffer) :if-not-owner :force))
+				       (bt:release-lock (buffer-lock buffer)))
 				     hi::*buffer-list*)
-			     (hi::clear-echo-area)
+			     (clear-echo-area)
 			     (let ((string (editor-error-format-string c)))
 			       (when string
 				 (apply #'message string

@@ -91,7 +91,8 @@
          (sleep 0.1) ;; for in-process maybe some kind of (%command-loop) thingy?
          (go maybe-get-char))
      exit)
-    (character-offset (hemlock-character-io-stream-mark stream) 1)
+    (character-offset (hemlock-character-io-stream-buffer stream)
+		      (hemlock-character-io-stream-mark stream) 1)
     maybe-character))
 
 (defmethod stream-read-char ((stream hemlock-interactive-character-io-stream))
@@ -112,7 +113,8 @@
   (let ((maybe-character (next-character (hemlock-character-io-stream-buffer stream)
 					 (hemlock-character-io-stream-mark stream))))
     (when maybe-character
-      (character-offset (hemlock-character-io-stream-mark stream) 1))
+      (character-offset (hemlock-character-io-stream-buffer stream)
+			(hemlock-character-io-stream-mark stream) 1))
     maybe-character))
 
 (defmethod stream-read-char-no-hang ((stream hemlock-interactive-character-io-stream))
@@ -140,7 +142,8 @@
   (if (eql (hi::mark-position (hemlock-character-io-stream-mark stream))
            (hi::mark-position (buffer-start-mark (hemlock-character-io-stream-buffer stream))))
       (error "Nothing to unread")
-        (character-offset (hemlock-character-io-stream-mark stream) -1))
+      (character-offset (hemlock-character-io-stream-buffer stream)
+			(hemlock-character-io-stream-mark stream) -1))
   (values))
 
 (defmethod stream-unread-char ((stream hemlock-interactive-character-io-stream) character)

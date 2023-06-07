@@ -77,7 +77,7 @@
   (let ((buffer (undo-info-buffer *undo-info*))
         (cleanup (undo-info-cleanup *undo-info*))
         (method-undo (undo-info-method-undo *undo-info*)))
-    (if (not (eq buffer (current-buffer)))
+    (if (not (eq buffer (window-buffer window)))
         (editor-error "Undo info is for buffer ~S." (buffer-name buffer)))
     (when (prompt-for-y-or-n window :prompt (format nil "Undo the last ~A? "
                                              (undo-info-name *undo-info*))

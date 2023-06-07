@@ -123,8 +123,8 @@
            (when (eq key :ambiguous)
              (let ((point (buffer-point *echo-area-buffer*)))
                (move-mark point (region-start *parse-input-region*))
-               (unless (character-offset point ambig)
-                 (buffer-end point)))))
+               (unless (character-offset *echo-area-buffer* point ambig)
+                 (buffer-end point *echo-area-buffer*)))))
          (when (and (or (eq key :ambiguous) (eq key :none))
                     (value beep-on-ambiguity))
            (editor-error))))
@@ -260,7 +260,7 @@
   "Signal an editor-error if we would nuke the prompt,
   otherwise do a normal delete."
   (with-mark ((tem (buffer-point *echo-area-buffer*)))
-    (unless (character-offset tem (- (or p 1))) (editor-error))
+    (unless (character-offset *echo-area-buffer* tem (- (or p 1))) (editor-error))
     (when (mark< tem *parse-starting-mark*) (editor-error))
     (delete-previous-character-command window p)))
 
@@ -280,7 +280,7 @@
   "Kills any input so far."
   "Kills *parse-input-region*."
   (declare (ignore p))
-  (if (end-line-p (buffer-point *echo-area-buffer*))
+  (if (end-line-p *echo-area-buffer* (buffer-point *echo-area-buffer*))
       (kill-region *echo-area-buffer* *parse-input-region* :kill-backward)
       (ring-push (delete-and-save-region *echo-area-buffer* *parse-input-region*)
                  *kill-ring*)))

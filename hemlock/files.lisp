@@ -38,7 +38,7 @@
 
 ;;; Write-File:
 
-(defun write-file (region pathname &key append
+(defun write-file (buffer region pathname &key append
                           (keep-backup (value hemlock::keep-backup-files))
                           access)
   "Writes the characters in region to the file named by pathname.  This writes
@@ -59,13 +59,12 @@
                           :element-type 'character
                           :external-format :utf-8 ;fixme?
                                    :if-exists if-exists-action)
-      (let ((buffer (line-buffer (mark-line (region-start region)))))
-        (with-buffer-globals (buffer)
-          (.close-line.)
-          (fast-write-file region file))
-        (hemlock-ext:set-file-permissions pathname access)))))
+      (with-buffer-globals (buffer)
+        (.close-line.)
+        (fast-write-file buffer region file))
+      (hemlock-ext:set-file-permissions pathname access))))
 
-(defun fast-write-file (region file)
+(defun fast-write-file (buffer region file)
   (let* ((start (region-start region))
          (start-line (mark-line start))
          (start-charpos (mark-charpos start))
@@ -77,12 +76,12 @@
         (write-string (line-chars start-line) file
                       :start start-charpos :end end-charpos)
         ;; multiple lines
-        (let* ((first-length (- (line-length start-line) start-charpos))
+        (let* ((first-length (- (line-length buffer start-line) start-charpos))
                (length (+ first-length end-charpos 1)))
           ;; count number of octets to be written
           (do ((line (line-next start-line) (line-next line)))
               ((eq line end-line))
-            (incf length (1+ (line-length line))))
+            (incf length (1+ (line-length buffer line))))
           ;;
           (write-sequence (line-chars start-line) file :start start-charpos :end (+ start-charpos first-length))
           (write-char #\newline file)
@@ -90,7 +89,7 @@
             (do ((line (line-next start-line)
                        (line-next line)))
                 ((eq line end-line))
-              (let ((end (+ offset (line-length line))))
+              (let ((end (+ offset (line-length buffer line))))
                 (write-sequence (line-chars line) file :start 0 :end (- end offset))
                 (write-char #\newline file)
                 (setf offset (1+ end))))

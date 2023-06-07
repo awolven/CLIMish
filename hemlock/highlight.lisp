@@ -40,7 +40,7 @@
         (multiple-value-bind
             (start end)
             (funcall (value open-paren-finder-function)
-                     (current-point))
+                     (buffer-point (window-buffer window)))
           (if (and start end)
               (set-open-paren-font-marks start end)
               (kill-open-paren-font-marks))))))
@@ -90,20 +90,20 @@
     (when (value highlight-active-region)
       (cond ((region-active-p (window-buffer window))
              (cond ((not *active-region-font-marks*)
-                    (set-active-region-font-marks))
-                   ((check-active-region-font-marks))
+                    (set-active-region-font-marks (window-buffer window)))
+                   ((check-active-region-font-marks (window-buffer window)))
                    (t (kill-active-region-font-marks)
-                      (set-active-region-font-marks))))
+                      (set-active-region-font-marks (window-buffer window)))))
             (*active-region-font-marks*
              (kill-active-region-font-marks))))))
 ;;;
 
 
-(defun set-active-region-font-marks ()
+(defun set-active-region-font-marks (current-buffer)
   (flet ((stash-a-mark (m &optional (font *active-region-highlight-font*))
            (push (font-mark (mark-line m) (mark-charpos m) font)
                  *active-region-font-marks*)))
-    (let* ((region (current-region (current-buffer) nil nil))
+    (let* ((region (current-region current-buffer nil nil))
            (start (region-start region))
            (end (region-end region)))
       (with-mark ((mark start))
@@ -156,14 +156,14 @@
 ;;; previous line, and the last font mark changes from the highlighting font to
 ;;; the default font.
 ;;;
-(defun check-active-region-font-marks ()
-  (let* ((region (current-region (current-buffer) nil nil))
+(defun check-active-region-font-marks (current-buffer)
+  (let* ((region (current-region current-buffer nil nil))
          (end (region-end region)))
     (with-mark ((mark (region-start region)))
       (let ((first-active-mark (car *active-region-font-marks*))
             (last-active-mark (last *active-region-font-marks*)))
         (if (and (mark/= mark end)
-                 (eq (current-buffer)
+                 (eq current-buffer
                      (line-buffer (mark-line first-active-mark)))
                  (mark= first-active-mark mark))
             (let ((marks (cdr *active-region-font-marks*)))

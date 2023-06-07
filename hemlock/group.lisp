@@ -184,7 +184,7 @@
         (do ((won (find-pattern buffer (buffer-point buffer) *last-search-pattern*)
                   (find-pattern buffer (buffer-point buffer) *last-search-pattern*)))
             ((not won))
-          (character-offset (buffer-point buffer) won)
+          (character-offset buffer (buffer-point buffer) won)
           (command-case
               (:prompt "Group Search: "
                :help "Type a character indicating the action to perform."
@@ -227,7 +227,7 @@
                                           :help "Replacement string")))
       (do-active-group
           window
-       (unless (query-replace-function
+       (unless (query-replace-function window
                 nil target replacement "Group Query Replace on previous file")
          (return nil)))
       (message "Replacement done in all files in group ~S."

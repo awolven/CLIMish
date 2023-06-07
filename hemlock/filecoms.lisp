@@ -224,7 +224,7 @@
                                    :help "The name of the file to write the region to. "
                                    :default (buffer-default-pathname buffer)
                                    :must-exist nil))))
-      (write-file region pn)
+      (write-file buffer region pn)
       (message "~A written." (namestring (truename pn))))))
 
 
@@ -300,7 +300,7 @@
           (setf (buffer-modified buffer) t)
           (setf (buffer-pathname buffer) buffer-pn)
           (message "Reverted to checkpoint file ~A." (namestring revert-pn)))
-        (unless (line-offset point lines)
+        (unless (line-offset buffer point lines)
           (buffer-end point))))))
 
 ;;; REVERT-PATHNAME -- Internal
@@ -524,7 +524,7 @@
               (insert-character buffer end #\newline)
               (message "Added newline at EOF."))))))
     (setv pathname-defaults pathname)
-    (write-file (buffer-region buffer) pathname)
+    (write-file buffer (buffer-region buffer) pathname)
     (let ((tn (truename pathname)))
       (message "~A written." (namestring tn))
       (setf (buffer-modified buffer) nil)
@@ -617,7 +617,7 @@
                                  "Name of a file to backup the current buffer in."
                                  :default (buffer-default-pathname buffer)
                                  :must-exist nil)))
-      (write-file (buffer-region buffer) file)
+      (write-file buffer (buffer-region buffer) file)
       (message "~A written." (namestring (truename file))))))
 
 

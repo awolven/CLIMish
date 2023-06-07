@@ -72,8 +72,7 @@
       (if (and p (> p 1))
           (hi::.insert-string. .point. (make-string p :initial-element char))
           (hi::.insert-character. .point. char)))
-    (hi::update-all-buffer-windows
-     buffer )))
+    (mapcar #'krma.gui:redraw-buffer (buffer-windows buffer))))
 
 #+MOVED
 (defcommand "Forward Character" (window p)
@@ -177,7 +176,7 @@
 ;;;
 ;;;    Move a mark forward/backward some words.
 ;;;
-(defun word-offset (mark offset)
+(defun word-offset (buffer mark offset)
   "Move Mark by Offset words."
   (if (minusp offset)
       (do ((cnt offset (1+ cnt)))
@@ -192,9 +191,9 @@
       (do ((cnt offset (1- cnt)))
           ((zerop cnt) mark)
         (cond
-          ((null (find-attribute mark :word-delimiter #'zerop))
+          ((null (find-attribute buffer mark :word-delimiter #'zerop))
            (return nil))
-          ((null (find-attribute mark :word-delimiter))
+          ((null (find-attribute buffer mark :word-delimiter))
            (return nil))))))
 
 #+MOVED
@@ -405,14 +404,14 @@
 (defcommand "Scroll Next Window Down" (window p)
   "Do a \"Scroll Window Down\" on the next window."
   "Do a \"Scroll Window Down\" on the next window."
-  (let ((win (next-window window)))
+  (let ((win (krma.gui::next window)))
     (when (eq win window) (editor-error "Only one window."))
     (scroll-window-down-command p win)))
 
 (defcommand "Scroll Next Window Up" (window p)
   "Do a \"Scroll Window Up\" on the next window."
   "Do a \"Scroll Window Up\" on the next window."
-  (let ((win (next-window window)))
+  (let ((win (krma.gui::next window)))
     (when (eq win window) (editor-error "Only one window."))
     (scroll-window-up-command p win)))
 
@@ -450,7 +449,7 @@
     (let* ((buffer (window-buffer window))
            (point (buffer-point buffer)))
       (hi::center-window-on-mark window point)
-      (krma.gui::redraw-buffer window))))
+      (krma.gui:redraw-buffer window))))
 
 
 

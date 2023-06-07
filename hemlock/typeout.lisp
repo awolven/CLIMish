@@ -11,11 +11,11 @@
 
 
 
-(defcommand "Dismiss Typeout" (p)
+(defcommand "Dismiss Typeout" (window p)
   "Close the Typeout Buffer" ""
   (declare (ignore p))
   (hlet ((hemlock::ask-for-new-buffer nil))
-    (hemlock::kill-buffer-command nil (buffer-name *current-buffer*))))
+    (hemlock::kill-buffer-command nil (buffer-name (window-buffer window)))))
 
 #+NIL
 (bind-key "Dismiss Typeout" #k"q" :mode "Typeout")
@@ -72,7 +72,7 @@
               (push (cons buf stream) *random-typeout-buffers*)
               stream))
            ((member buffer *random-typeout-buffers* :key #'car)
-            (delete-region (buffer-region buffer))
+            (delete-region buffer (buffer-region buffer))
             (let* ((pair (assoc buffer *random-typeout-buffers*))
                    (stream (cdr pair)))
               (setf *random-typeout-buffers*
