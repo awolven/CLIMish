@@ -214,8 +214,9 @@
 			 (setq dis-lines (cdr dis-lines))
 			 (setq offset 0)
 			 (setq i 0))
-		       (return-from find-dis-line
-			 (values (cdr dis-lines) (+ offset i)))
+		       (let ((count (count #\Tab (hi::line-string (hi::window-buffer window) (hi::dis-line-line (cadr dis-lines))))))
+			 (return-from find-dis-line
+			   (values (cdr dis-lines) (+ offset i (* 7 count)))))
 
 		  when (wrapped-line? window (cdr dis-lines))
 		    do (setq dis-lines (cdr dis-lines))
@@ -223,9 +224,11 @@
 		       (decf offset (hi::window-width window))
 	     
 		  when (eql (cdr dis-lines) hi::the-sentinel)
-		    do (return-from find-dis-line (values dis-lines offset))))
+		    do (let ((count (count #\Tab (hi::line-string (hi::window-buffer window) (hi::dis-line-line (cadr dis-lines))))))
+			 (return-from find-dis-line (values dis-lines (+ offset (* count 7)))))))
 
-	  (values (cdr dis-lines) offset)))))
+	  (let ((count (count #\Tab (hi::line-string (hi::window-buffer window) (hi::dis-line-line (cadr dis-lines))))))
+	    (values (cdr dis-lines) (+ offset (* 7 count))))))))
 
 (defun draw-active-region-closure-generator (window scene)
   #'(lambda ()
@@ -406,7 +409,7 @@
 			     (let* ((color (lookup-text-color (or text-color-key 0)))
 				    (xval (float (+ (* x space-width) xp)))
 				    (yval (float (+ (* y font-size) -2 yp))))
-			       (krma::draw-data-add-text draw-data group font color
+			       (krma::draw-data-add-text-primitive draw-data group nil font color
 							 xval yval (subseq string start end)
 							 0 layer)))))
 		    (do ((change (hi::dis-line-font-changes dl) (hi::font-change-next change)))

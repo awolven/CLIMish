@@ -90,22 +90,22 @@
    (translation
     (:noticer (node-set-model-matrix self))
     (vec3 0 0 0))
-   (rotation
+   (orientation
     (:noticer (node-set-model-matrix self))
     (quat 0 0 0 1))
    (scene :defaulting))
   
   :attributes
-  ((matrix (let* ((rotation (the rotation))
-		  (w (qw rotation))
-		  (vx (qx rotation))
-		  (vy (qy rotation))
-		  (vz (qz rotation))
+  ((matrix (let* ((orientation (the orientation))
+		  (w (qw orientation))
+		  (vx (qx orientation))
+		  (vy (qy orientation))
+		  (vz (qz orientation))
 		  (translation (the translation))
 		  (x (vx translation))
 		  (y (vy translation))
 		  (z (vz translation)))
-	     (mat4 (list (- 1.0d0 (* 2.0d0 vy vy) (* 2.0d0 vz vz))
+	     (mat4 (- 1.0d0 (* 2.0d0 vy vy) (* 2.0d0 vz vz))
 			 (+ (* 2.0d0 vx vy) (* 2.0d0 w vz))
 			 (- (* 2.0d0 vx vz) (* 2.0d0 w vy))
 			 x
@@ -120,7 +120,7 @@
 			 (- 1.0d0 (* 2.0d0 vx vx) (* 2.0d0 vy vy))
 			 z
 				     
-			 0.0 0.0 0.0 1.0))))
+			 0.0 0.0 0.0 1.0)))
    
    (global-matrix (if (null (the superior))
 		      (the matrix)
@@ -135,15 +135,6 @@
 				 (the children)))))
 
 
-#+NIL
-(defmethod initialize-instance :around ((self node-mixin) &rest initargs)
-  (declare (ignore initargs))
-
-  (call-next-method)
-  (the node-children)
-  ;;(rm-draw-node self)
-  self)
-
 (defobject group-owner-mixin (group-mixin)
   :slots
   ((group :initform (new-group) :accessor object-group))
@@ -152,7 +143,7 @@
   ((translation
     (:noticer (group-set-model-matrix-recursively self))
     (vec3 0 0 0))
-   (rotation
+   (orientation
     (:noticer (group-set-model-matrix-recursively self))
     (quat 0 0 0 1))))
 

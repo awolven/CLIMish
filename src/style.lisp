@@ -27,9 +27,9 @@
    (title-bar-height (* (the title-bar-height-mm) (the px-per-mm-height)))
    (default-window-border-size-mm 1/4)
    (default-window-border-size (* (the default-window-border-size-mm) (the px-per-mm-width)))
-   (default-initial-window-height-mm 70)
+   (default-initial-window-height-mm 100)
    (default-initial-window-height (* (the default-initial-window-height-mm) (the px-per-mm-height)))
-   (default-initial-window-width-mm 90)
+   (default-initial-window-width-mm 140)
    (default-initial-window-width (* (the default-initial-window-width-mm) (the px-per-mm-width)))
    
    (current-font (the roboto-font (bmfonts 2.75) bmfont))

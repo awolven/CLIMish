@@ -159,10 +159,11 @@
   (display-prompt-nicely)
   (let* ((start-buffer (window-buffer start-window))
          (point (buffer-point *echo-area-buffer*)))
-    (move-mark *parse-starting-mark* point)
-    (insert-string *echo-area-buffer* point (or *parse-default-string* *parse-default*))
     (unless (eq *echo-area-window* start-window)
       (clui::focus-window *echo-area-window*))
+    (move-mark *parse-starting-mark* point)
+    (insert-string *echo-area-buffer* point (or *parse-default-string* *parse-default*))
+    (krma.gui:redraw-buffer *echo-area-window*)
     (unwind-protect
          (progn
            (recursive-edit nil))

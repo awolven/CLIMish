@@ -192,6 +192,38 @@
 (define-gesture "Editor Error Test" :global #k"Ctrl-x" #k"Ctrl-e")
 (define-gesture "Debugger Test" :global #k"Pause")
 
+
+(define-gesture "Dired" :global #k"Ctrl-x" #k"Ctrl-Meta-d")
+
+(define-gesture "Dired Delete File and Down Line" "Dired" #k"d")
+(define-gesture "Dired Delete File with Pattern" "Dired" #k"Shift-d")
+(define-gesture "Dired Delete File" "Dired" #k"Ctrl-d")
+(define-gesture "Dired Delete File" "Dired" #k"Delete")
+(define-gesture "Dired Delete File" "Dired" #k"k")
+
+(define-gesture "Dired Undelete File and Down Line" "Dired" #k"u")
+(define-gesture "Dired Undelete File with Pattern" "Dired" #k"Shift-u")
+(define-gesture "Dired Undelete File" "Dired" #k"Ctrl-u")
+
+(define-gesture "Dired Expunge Files" "Dired" #k"Shift-1")
+(define-gesture "Dired Update Buffer" "Dired" #k"Hyper-u")
+(define-gesture "Dired Edit File" "Dired" #k"Spacebar")
+(define-gesture "Dired Edit File" "Dired" #k"e")
+(define-gesture "Dired Edit File" "Dired" #k"Enter")
+(define-gesture "Dired Edit File" "Dired" #k"Ctrl-m")
+(define-gesture "Dired Up Directory" "Dired" #k"Shift-6")
+(define-gesture "Dired Quit" "Dired" #k"q")
+(define-gesture "Dired Help" "Dired" #k"Shift-/")
+(define-gesture "Dired Help" "Dired" #k"F1")
+
+(define-gesture "Dired Copy File" "Dired" #k"c")
+(define-gesture "Dired Copy with Wildcard" "Dired" #k"Shift-c")
+(define-gesture "Dired Rename File" "Dired" #k"r")
+(define-gesture "Dired Rename with Wildcard" "Dired" #k"Shift-r")
+
+(define-gesture "Next Line" "Dired" #k"n")
+(define-gesture "Previous Line" "Dired" #k"p")
+
 (when (boundp 'krma::*app*)
   (mapcar #'rebuild-command-table
 	  (remove-if-not #'(lambda (item)

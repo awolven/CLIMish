@@ -131,7 +131,7 @@
                        (editor-error "No entries for ~A." full-name))
                      (push (cons full-name buffer) *pathnames-to-dired-buffers*)
                      buffer)))))
-      (or (hemlock::find-window-named current-window "Dired") (make-instance 'krma.gui::text-editor-window :buffer b)))))
+      b)))
 
 ;;; INITIALIZE-DIRED-BUFFER gets a dired in the buffer and defines some
 ;;; variables to make it usable as a dired buffer.  If there are no file

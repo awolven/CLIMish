@@ -498,12 +498,12 @@
    (resize-borders :type (if (the resizable?) 'resize-border 'null-object)
 		   :aggregate (:indices (the border-indices))
 		   border-size 6
-		   base-layer 11)
+		   base-layer (+ (the layer) 11))
 
    (border :type 'border
 	   :aggregate (:indices (the border-indices))
 	   border-size 2
-	   base-layer 13)
+	   base-layer (+ (the layer) 13))
 
    (horizontal-scrollbar :type (if (the scrollbar-x?) 'scrollbar 'null-object)
 			 axis :horizontal)

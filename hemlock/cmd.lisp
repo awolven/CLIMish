@@ -544,17 +544,12 @@ BOOL CreateProcessW(
          (go maybe-output)))))
 
 
-(progn
-
 (hemlock::defcommand "CMD" (window p)
     "Start a CMD.EXE shell"
     "Start a CMD.EXE shell"
   (declare (ignore p))
   (let ((buffer (make-buffer "CMD"))
 	(current-buffer (window-buffer window)))
-    (if (eq window *echo-area-window*)
-	(change-to-buffer buffer (setq window (krma.gui::find-or-create-text-editor-window-for-buffer buffer)))
-	(change-to-buffer buffer window))
     (setf (buffer-undo-p buffer) nil)
     (setf (buffer-minor-mode buffer current-buffer "Interactive-Character-Stream") t)
     (setf (buffer-minor-mode buffer current-buffer "Save") nil)
@@ -562,9 +557,7 @@ BOOL CreateProcessW(
       (bt:make-thread #'(lambda ()
                           (hi::cmdline stream))
                       :name "CMD"))
-    (krma.gui::focus-window window)))
-  
-)
+    (krma.gui::find-or-create-text-editor-window-for-buffer buffer)))
 
 #+WIN32
 (cffi:defcfun (PeekNamedPipe "PeekNamedPipe") :bool

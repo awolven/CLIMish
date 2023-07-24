@@ -2,7 +2,7 @@
   :description "A platform independent gui library."
   :depends-on (:clui-with-krma
 	       :adhoc
-	       :3d-vectors :3d-matrices :3d-quaternions
+	       :3d-math
 	       :trivial-gray-streams
 	       :bordeaux-threads
 	       :iterate
