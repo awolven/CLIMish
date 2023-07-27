@@ -91,7 +91,7 @@
    (:file "hemlock/killcoms")
    (:file "hemlock/command")
    
-   #+NIL(:file "hemlock/undo")
+   (:file "hemlock/undo")
 
    (:file "hemlock/searchcoms")
    (:file "hemlock/filecoms")

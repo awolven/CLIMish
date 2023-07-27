@@ -158,16 +158,17 @@
     "Moves forward one word.
   With prefix argument, moves the point forward over that many words."
     "Moves the point forward p words."
-  (with-buffer-globals ((hi::view-buffer view))
-    (cond ((word-offset .point. (or p 1)))
+  (let* ((buffer (hi::view-buffer view))
+	 (point (buffer-point buffer)))
+    (cond ((word-offset buffer point (or p 1)))
           ((and p (minusp p))
-           (buffer-start .point. .buffer.)
+           (buffer-start point buffer)
            (editor-error "No previous word."))
           (t
-           (buffer-end .point. .buffer.)
-           (editor-error "No next word."))))
-  (setf (last-command-type) nil)
-  (krma.gui::redraw-buffer view))
+           (buffer-end point buffer)
+           (editor-error "No next word.")))
+    (setf (last-command-type) nil)
+    (krma.gui::redraw-buffer view)))
 
 (defcommand "Backward Word" (view p)
     "Moves forward backward word.

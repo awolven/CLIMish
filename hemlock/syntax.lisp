@@ -518,7 +518,7 @@
            (cond
              ((null line)
               (if end-wins
-                  (return (line-end mark prev))
+                  (return (line-end buffer mark prev))
                   (return nil)))
              ((eq line open-line)
               (when (cache-find-attribute buffer 0 charpos char-set mask)

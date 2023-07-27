@@ -239,7 +239,7 @@
 		     (not (the iconified?))
 		     (typep self 'text-editor-view-mixin))
 	    (let ((buffer (window-buffer self)))
-	      (when (hemlock::region-active-p buffer)
+	      (when (hemlock::buffer-active-region-p buffer)
 		(with-buffer-globals (buffer)
 		  (with-slots (hi::the-sentinel) self
 		    (let* ((font (the font))

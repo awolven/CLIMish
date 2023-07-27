@@ -116,9 +116,9 @@
 ;;;
 ;;; FIND-LISP-CHAR
 
-(defmacro find-lisp-char (mark)
+(defmacro find-lisp-char (buffer mark)
   "Move MARK to next :LISP-SYNTAX character, if one isn't found, return NIL."
-  `(find-attribute ,mark :lisp-syntax
+  `(find-attribute ,buffer ,mark :lisp-syntax
                    #'(lambda (x)
                        (member x '(:open-paren :close-paren :newline :comment
                                                :char-quote :string-quote)))))
@@ -318,7 +318,7 @@
 
     (unless (lisp-info-ending-quoted line-info)
       (loop
-        (find-lisp-char mark)
+        (find-lisp-char buffer mark)
         (ecase (character-attribute :lisp-syntax (next-character buffer mark))
 
           (:open-paren

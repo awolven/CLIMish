@@ -104,9 +104,10 @@
 	   ;; code will continue to wait until it either gets a gesture that matches or C-g is sent
        
 	 GET (setq event (get-next-event window))
+	   (unless event (go GET))
 	   (setf (window-last-event window) event)
 	   (setq event-id (input-event-id event))
-       
+
 	 CHECK 
        
 	   (cond ((characterp event-id)
