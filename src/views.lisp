@@ -237,14 +237,46 @@
       (multiple-value-bind (x y) (clui:window-position resize-window)
 	(multiple-value-bind (width height) (clui:window-size resize-window)
 	  (ecase (resize-mode resize-window)
-	    (:north (resize-window resize-window x (clui::pointer-event-y event) width (max (+ (- y (clui::pointer-event-y event)) height) 20)))
-	    (:northwest (resize-window resize-window (clui::pointer-event-x event) (clui::pointer-event-y event) (max (+ width (- x (clui::pointer-event-x event))) 20) (max (+ (- y (clui::pointer-event-y event)) height) 20)))
-	    (:northeast (resize-window resize-window x (clui::pointer-event-y event) (max (- (clui::pointer-event-x event) x) 20) (max (+ (- y (clui::pointer-event-y event)) height) 20)))
-	    (:south (resize-window resize-window x y width (max (+ (- (clui::pointer-event-y event) y)) 20)))
-	    (:southwest (resize-window resize-window (clui::pointer-event-x event) y (max (+ width (- x (clui::pointer-event-x event))) 20) (max (+ (- (clui::pointer-event-y event) y)) 20)))
-	    (:southeast (resize-window resize-window x y (max (- (clui::pointer-event-x event) x) 20) (max (+ (- (clui::pointer-event-y event) y)) 20)))
-	    (:east (resize-window resize-window x y (max (- (clui::pointer-event-x event) x) 20) height))
-	    (:west (resize-window resize-window (clui::pointer-event-x event) y (max (+ width (- x (clui::pointer-event-x event))) 20) height)))))))
+	    (:north (resize-window resize-window
+				   x
+				   (clui::pointer-event-y event)
+				   width
+				   (max (+ (- y (clui::pointer-event-y event)) height) 20)))
+	    (:northwest (resize-window resize-window
+				       (clui::pointer-event-x event)
+				       (clui::pointer-event-y event)
+				       (max (+ width (- x (clui::pointer-event-x event))) 20)
+				       (max (+ (- y (clui::pointer-event-y event)) height) 20)))
+	    (:northeast (resize-window resize-window
+				       x
+				       (clui::pointer-event-y event)
+				       (max (- (clui::pointer-event-x event) x) 20)
+				       (max (+ (- y (clui::pointer-event-y event)) height) 20)))
+	    (:south (resize-window resize-window
+				   x
+				   y
+				   width
+				   (max (+ (- (clui::pointer-event-y event) y)) 20)))
+	    (:southwest (resize-window resize-window
+				       (clui::pointer-event-x event)
+				       y
+				       (max (+ width (- x (clui::pointer-event-x event))) 20)
+				       (max (+ (- (clui::pointer-event-y event) y)) 20)))
+	    (:southeast (resize-window resize-window
+				       x
+				       y
+				       (max (- (clui::pointer-event-x event) x) 20)
+				       (max (+ (- (clui::pointer-event-y event) y)) 20)))
+	    (:east (resize-window resize-window
+				  x
+				  y
+				  (max (- (clui::pointer-event-x event) x) 20)
+				  height))
+	    (:west (resize-window resize-window
+				  (clui::pointer-event-x event)
+				  y
+				  (max (+ width (- x (clui::pointer-event-x event))) 20)
+				  height)))))))
   
   (let ((drag-window (window-to-drag self)))
     (when drag-window

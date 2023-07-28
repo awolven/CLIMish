@@ -40,9 +40,11 @@
 		 (when p (editor-error "No next line.")))))
 	(unless (move-to-column buffer point target) (line-end buffer point))
 	(setf (last-command-type) :line-motion))
-      (unless (displayed-p point window)
-	(hi::center-window-on-mark window point))
-      (krma.gui:redraw-buffer window))))
+      (if (not (displayed-p point window))
+	  (progn
+	    (hi::center-window-on-mark window point)
+	    (krma.gui:redraw-buffer window))
+	  (update-window-image window)))))
 
 (defcommand "Previous Line" (window p)
     "Moves the point to the previous line.

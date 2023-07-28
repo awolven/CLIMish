@@ -33,7 +33,7 @@
          (*standard-output* stream)
          (*standard-input* stream)
          (*error-output* stream)
-         (*trace-output* #+sbcl sb-sys::*stdout* #-sbcl *trace-output*)
+         (*trace-output* stream)
          (*debug-io* stream)
          (*query-io* stream)
          (.form. nil))

@@ -70,7 +70,7 @@
 (defun draw-cursor-closure-generator (window scene)
   #'(lambda ()
       (let ((time (get-internal-real-time)))
-	(when (evenp (floor time (* 0.5 internal-time-units-per-second)))
+	(when (evenp (floor time (* 0.425 internal-time-units-per-second)))
 	  (let ((self (focused-window window)))
 	    (when self
 	      (unless (the iconified?)
@@ -164,9 +164,11 @@
 
 (defun mark-to-cursorpos (mark window)
   (multiple-value-bind (dis-lines offset) (find-dis-line window mark)
-    (unless (or (null dis-lines) (eql dis-lines (slot-value window 'hi::the-sentinel)))
-      (unless (and offset (minusp offset))
-	(values (or offset 0) (hi::dis-line-position (car dis-lines)))))))
+    (if dis-lines
+	(unless (eql dis-lines (slot-value window 'hi::the-sentinel))
+	  (unless (and offset (minusp offset))
+	    (values (or offset 0) (hi::dis-line-position (car dis-lines)))))
+	(values 0 0))))
 
 (defun find-dis-line (window mark)
   ;; this function has to be resilient to broken windows
@@ -181,6 +183,9 @@
 	   (charpos (hi::mark-charpos mark))
 	   (offset charpos)
 	   (i 0))
+
+      (unless dis-lines
+	(return-from find-dis-line nil))
     
       (when (eql (cdr dis-lines) hi::the-sentinel) ;; there are no lines
 	(return-from find-dis-line nil))
@@ -403,6 +408,8 @@
 		       (text-color-key 0))
 		  (setq last-line-seen? (eq dl last-line))
 		  (flet ((buffer-view-add-string (x y font text-color-key string start end)
+			   (unless x (setq x 0))
+			   (unless y (setq y 0))
 			   (unless end (setq end length))
 			   (unless start (setq start 0))
 			   (when (< start end)
