@@ -217,7 +217,7 @@
   (let ((point (buffer-point buffer))
         (num (or p 1)))
     (with-mark ((mark point :temporary))
-      (if (word-offset mark num)
+      (if (word-offset buffer mark num)
           (if (minusp num)
               (kill-region buffer (region mark point) :kill-backward)
               (kill-region buffer (region point mark) :kill-forward))
@@ -351,8 +351,10 @@
                                  (region (copy-mark mark) (copy-mark point))))
              (setf (last-command-type) :unkill))
             (t (editor-error)))
-      (deactivate-region buffer)))
-  (krma.gui:redraw-buffer window))
+      (deactivate-region buffer))
+    (unless (displayed-p point window)
+      (hi::bottom-window-on-mark window point))
+    (krma.gui:redraw-buffer window)))
 ;;;
 (push :unkill *ephemerally-active-command-types*)
 

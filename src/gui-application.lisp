@@ -811,7 +811,7 @@
 
 (in-package :krma.gui)
 
-(defmethod initialize-instance :after ((app application) &rest initargs)
+(defmethod initialize-instance :after ((app application-mixin) &rest initargs)
   (declare (ignore initargs))
 
 

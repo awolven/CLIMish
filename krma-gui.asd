@@ -1,6 +1,6 @@
 (defsystem krma-gui
   :description "A platform independent gui library."
-  :depends-on (:clui-with-krma
+  :depends-on (:krma
 	       :adhoc
 	       :3d-math
 	       :trivial-gray-streams

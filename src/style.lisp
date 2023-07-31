@@ -111,8 +111,7 @@
 
 
 
-(defun lerp (a b s)
-  (map 'vector #'+ a (map 'vector #'(lambda (x) (* x s)) (map 'vector #'- a b))))
+
 
 (defun saturate (float)
   (when (minusp float) (return-from saturate 0.0f0))

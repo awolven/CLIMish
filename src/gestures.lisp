@@ -83,6 +83,7 @@
 
 (define-gesture "Confirm Line of Input" "Interactive-Character-Stream" #k"Enter")
 (define-gesture "Mousewheel Scroll" 'text-editor-window-mixin #k"MouseWheel")
+
 (define-gesture "Beginning of Buffer" 'text-editor-window-mixin #k"Ctrl-Home")
 (define-gesture "End of Buffer" 'text-editor-window-mixin #k"Ctrl-End")
 (define-gesture "Scroll Window Up" 'text-editor-window-mixin #k"PageUp")

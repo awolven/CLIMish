@@ -202,10 +202,10 @@
     "Use mousewheel to scroll."
     "Use mousewheel to scroll."
   (declare (ignore p))
-  (let* ((last-event (krma.gui::window-last-event (clui::window-parent (adhoc:send window adhoc::root))))
-	 (offset (clui::pointer-wheel-event-yoffset last-event)))
-    (scroll-window window (- (* 2 (round offset))))
-    (krma.gui:redraw-buffer window)))
+  (let ((last-event (krma.gui::window-last-event (clui::window-parent (adhoc:send window adhoc::root)))))
+    (let* ((offset (clui::pointer-wheel-event-yoffset last-event)))
+      (scroll-window window (- (* 2 (round offset))))
+      (krma.gui:redraw-buffer window))))
 
 (defcommand "Cycle Windows" (window p)
     "Focus next window"

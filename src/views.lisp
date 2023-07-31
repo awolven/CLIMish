@@ -11,6 +11,28 @@
    (last-event :initform nil :accessor window-last-event)
    (command-loop-go-semaphore :initform (bt:make-semaphore :name "command-loop-go-semaphore") :accessor command-loop-go-semaphore)))
 
+(defclass krma-gui-window (krma-gui-window-mixin)
+  ())
+
+
+(defmethod initialize-instance :after ((window krma-gui-window) &rest initargs)
+  (declare (ignore initargs))
+  (multiple-value-bind (width height) (window-framebuffer-size window)
+    (setf (krma::window-viewports window)
+	  (list (krma::make-viewport
+		 :x 0 :y 0
+		 :width width
+		 :height height
+		 :2d-camera (krma::make-camera
+			     :proj-matrix (mortho-vulkan 0 width height 0 0 krma::+select-box-2d-depth+)
+			     :view-matrix (mlookat (vec3 0 0 krma::+select-box-2d-depth+) (vec3 0 0 0) (vec3 0 1 0)))
+		 :3d-camera (krma::make-camera
+			     :proj-matrix (mperspective-vulkan
+					   45 (/ width height)
+					   krma::*default-znear* krma::*default-zfar*)
+			     :view-matrix (mlookat (vec3 0 0 1500) (vec3 0 0 0) (vec3 0 1 0)))))))
+  (values))
+
 (defmethod handle-event :after ((window krma-gui-window-mixin) (event clui::window-resize-event-mixin))
   ;; if window-framebuffer-size is already correct for krma-gui-window
   ;; then bashing this attribute will cause the echo area size and position to recompute
@@ -20,12 +42,12 @@
   (values))
 
 #+win32
-(defclass win32::krma-gui-window (krma-gui-window-mixin win32:krma-enabled-window-mixin) ())
+(defclass win32::krma-gui-window (krma-gui-window win32:krma-enabled-window-mixin) ())
 
-(defclass x11::krma-gui-window (krma-gui-window-mixin x11:krma-enabled-window-mixin) ())
+(defclass x11::krma-gui-window (krma-gui-window x11:krma-enabled-window-mixin) ())
 
 #+cocoa
-(defclass cocoa::krma-gui-window (krma-gui-window-mixin cocoa:krma-enabled-window-mixin) ())
+(defclass cocoa::krma-gui-window (krma-gui-window cocoa:krma-enabled-window-mixin) ())
 
 #+win32
 (defmethod clui::get-a-win32-window-class ((display win32:desktop-with-krma-mixin) errorp &rest initargs
@@ -225,11 +247,7 @@
   (lparallel.queue:push-queue event (input-event-queue self))
   (values))
 
-(defmethod clui:handle-event :after ((self title-bar) (event clui::pointer-button-release-event-mixin))
 
-  (setf (window-to-drag (clui::window-parent (the root))) nil)
-  
-  (values))
 
 (defmethod clui:handle-event :after ((self krma-gui-window-mixin) (event clui::pointer-motion-event-mixin))
   (let ((resize-window (window-to-resize self)))
@@ -400,6 +418,12 @@
 					(if (the close-button?)
 					    8 4)				
 					(* 2 (the style frame-padding-x))))))))
+
+(defmethod clui:handle-event :after ((self title-bar) (event clui::pointer-button-release-event-mixin))
+
+  (setf (window-to-drag (clui::window-parent (the root))) nil)
+  
+  (values))
 
 (defmethod rm-draw-node ((self title-bar))
   (let* ((scene (the scene))
@@ -683,17 +707,7 @@
 	((eq next self))
     (unless (send next iconified?)
       (setf (send next focused?) t)
-      (return)))
-  #+NIL
-  (let ((scene (the scene)))
-    (let ((siblings (remove self (krma::node-children scene))))
-      (setq siblings (sort siblings #'> :key #'(lambda (self) (the z-index))))
-      (loop for window in siblings
-	    unless (send window iconified?)
-	      do ;; focus the first window 
-		 (setf (send window focused?) t)
-		 (return)))
-    (values)))
+      (return))))
 
 (defmethod clui:focus-window ((self homemade-window-mixin))
   (unless (eq self (focused-window (clui::window-parent (the root))))
@@ -1147,10 +1161,11 @@
 (defmethod clui:handle-event ((window krma-window-mixin) (event clui::pointer-button-press-event-mixin))
   ;;(call-next-method)
   (let* ((hovered (krma::most-specifically-hovered-2d (krma::krma-select-box-2d (clui::window-display window)) 0 0)))
-    (when hovered
-      (let ((object (krma::object-from-id hovered)))
-	(when object
-	  (clui:handle-event object event))))
+    (if hovered
+	(let ((object (krma::object-from-id hovered)))
+	  (when object
+	    (clui:handle-event object event)))
+	(focus-window *echo-area-window*))
     (values)))
 
 (defobject popup-window-mixin (homemade-window-mixin))
@@ -1170,5 +1185,4 @@
 			  'parent (main-window app)
 			  'scene (application-scene app))))
     w))
-
 

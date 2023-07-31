@@ -18,10 +18,7 @@
 (defmethod rm-erase-node-recursively (self)
   (values))
 
-(defmethod rm-erase-node-recursively ((self node-mixin))
-  (rm-erase-node self)
-  (mapcar #'rm-erase-node-recursively (the node-children))
-  (values))
+
 
 (defun rm-draw-node-recursively (self)
   "Draws a node and all of it's descendants."
@@ -37,10 +34,6 @@
 (defmethod rm-redraw-node-recursively (self)
   (values))
 
-(defmethod rm-redraw-node-recursively ((self node-mixin))
-  (rm-redraw-node self)
-  (mapcar #'rm-redraw-node-recursively (the node-children))
-  (values))
 
 (defobject group-mixin ()
   :inputs
@@ -68,11 +61,6 @@
 (defmethod forget-object-recursively (thing)
   (declare (ignore thing))
   (values))	   
-
-(defmethod forget-object-recursively ((self node-mixin))
-  (forget-object self)
-  (mapcar #'forget-object-recursively (the node-children))
-  (values))
 
 (defun node-set-model-matrix (self)
   (let ((scene (the scene))
@@ -106,21 +94,21 @@
 		  (y (vy translation))
 		  (z (vz translation)))
 	     (mat4 (- 1.0d0 (* 2.0d0 vy vy) (* 2.0d0 vz vz))
-			 (+ (* 2.0d0 vx vy) (* 2.0d0 w vz))
-			 (- (* 2.0d0 vx vz) (* 2.0d0 w vy))
-			 x
+		   (+ (* 2.0d0 vx vy) (* 2.0d0 w vz))
+		   (- (* 2.0d0 vx vz) (* 2.0d0 w vy))
+		   x
 				     
-			 (- (* 2.0d0 vx vy) (* 2.0d0 w vz))
-			 (- 1.0d0 (* 2.0d0 vx vx) (* 2.0d0 vz vz))
-			 (+ (* 2.0d0 vy vz) (* 2.0d0 w vx))
-			 y
+		   (- (* 2.0d0 vx vy) (* 2.0d0 w vz))
+		   (- 1.0d0 (* 2.0d0 vx vx) (* 2.0d0 vz vz))
+		   (+ (* 2.0d0 vy vz) (* 2.0d0 w vx))
+		   y
 				     
-			 (+ (* 2.0d0 vx vz) (* 2.0d0 w vy))
-			 (- (* 2.0d0 vy vz) (* 2.0d0 w vx))
-			 (- 1.0d0 (* 2.0d0 vx vx) (* 2.0d0 vy vy))
-			 z
+		   (+ (* 2.0d0 vx vz) (* 2.0d0 w vy))
+		   (- (* 2.0d0 vy vz) (* 2.0d0 w vx))
+		   (- 1.0d0 (* 2.0d0 vx vx) (* 2.0d0 vy vy))
+		   z
 				     
-			 0.0 0.0 0.0 1.0)))
+		   0.0 0.0 0.0 1.0)))
    
    (global-matrix (if (null (the superior))
 		      (the matrix)
@@ -133,6 +121,21 @@
    (node-children (remove-if-not #'(lambda (child)
 				     (typep child 'node-mixin))
 				 (the children)))))
+
+(defmethod rm-erase-node-recursively ((self node-mixin))
+  (rm-erase-node self)
+  (mapcar #'rm-erase-node-recursively (the node-children))
+  (values))
+
+(defmethod rm-redraw-node-recursively ((self node-mixin))
+  (rm-redraw-node self)
+  (mapcar #'rm-redraw-node-recursively (the node-children))
+  (values))
+
+(defmethod forget-object-recursively ((self node-mixin))
+  (forget-object self)
+  (mapcar #'forget-object-recursively (the node-children))
+  (values))
 
 
 (defobject group-owner-mixin (group-mixin)

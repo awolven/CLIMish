@@ -3,7 +3,7 @@
 (defvar *global-command-table* (make-hash-table :test #'eq))
 
 (defmethod get-command-table (class)
-  (loop for class in (class-precedence-list class)
+  (loop for class in (compute-class-precedence-list class)
      when (slot-exists-p class 'command-table)
        do (return (slot-value class 'command-table))))
 
