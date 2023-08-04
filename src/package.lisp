@@ -2,7 +2,7 @@
   (:use :cl :clui :krma :3dm
 	:hemlock-interface)
 
-  (:import-from :3dm.f
+  (:import-from :3dm.d
 		#:vec2
 		#:vec3
 		#:vec4
@@ -19,8 +19,8 @@
 
   (:export #:redraw-buffer)
 
-  (:export #:orientation
-	   #:translation
+  (:export #:rotation
+	   #:origin
 	   #:node-mixin
 	   #:matrix
 	   #:global-matrix

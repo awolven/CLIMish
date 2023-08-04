@@ -67,7 +67,13 @@
   (declare (ignore initargs))
   (find-class 'cocoa::krma-gui-window errorp))
 
-(defmethod transform-coordinate ((vec vec2) (node node-mixin))
+(defmethod transform-coordinate ((vec 3dm.f:vec2) (node node-mixin))
+  (transform-coordinate (vec3 (vx vec) (vy vec) 0) node))
+
+(defmethod transform-coordinate ((vec 3dm.d::vec2) (node node-mixin))
+  (transform-coordinate (vec3 (vx vec) (vy vec) 0) node))
+
+(defmethod transform-coordinate ((vec 3dm.rat::vec2) (node node-mixin))
   (transform-coordinate (vec3 (vx vec) (vy vec) 0) node))
 
 (defun font-size (font)
@@ -751,7 +757,7 @@
   (let* ((dx (- x (the x)))
 	 (dy (- y (the y)))
 	 (vec3 (vec3 dx dy 0)))
-    (setf (the translation) vec3)
+    (setf (the origin) vec3)
     (values)))      
   
 (defmethod clui:window-size ((self view-mixin))
@@ -1179,7 +1185,7 @@
 (defun make-test-window (&optional (app *app*))
   
   (let ((w (make-instance 'homemade-window
-			  'translation (vec3 25 50 0)
+			  'origin (vec3 25 50 0)
 			  'width 300
 			  'height 200
 			  'parent (main-window app)
