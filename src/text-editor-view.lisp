@@ -134,20 +134,24 @@
 			   (macrolet ((%fcwa (str start end)
 					`(hi::%sp-reverse-find-character-with-attribute
 					  ,str ,start ,end hi::*losing-character-mask* hi::losing-char)))
-			      (loop
+			     (loop
+			       with count = -1
 			       with losing = nil
 			       with start = (- end size-guess)
 			       ;; sanity check
+			       when (> count 1000)
+				 do (return)
 			       when (< start 0)
 				 do (return size-guess)
 			       do (setq losing (%fcwa line-string start end))
 				  (if losing
 				      (progn (setq end losing)
+					     (incf count)
 					     (when (<= end start)
 					       (return size-guess))
 					     (let ((str (hi::get-rep (char line-string losing))))
 					       (when (functionp str)
-						 (setq str (funcall str losing)))
+						 (setq str (funcall str 0)))
 					       (let ((len (hi::strlen str)))
 						 (decf size-guess (1- len))
 						 (incf start (1- len)))))
@@ -291,41 +295,51 @@
 		     `(hi::%sp-find-character-with-attribute
 		       ,str ,start ,end hi::*losing-character-mask* hi::losing-char)))
 	  (loop
+	    with xpos = 0
 	    with start = 0
 	    with losing = nil
+	    with last-losing = 0
 	    with count = -1
+	    when (>= count 1000)
+	      do (return)
 	    when (>= start charpos)
 	      do (return)
 	    do (setq losing (%fcwa line-string start charpos))
 	       (if losing
 		   (progn (incf count)
 			  (setq start (1+ losing))
+			  (incf xpos (- losing last-losing))
+			  (setq last-losing losing)
 			  (let ((str (hi::get-rep (char line-string losing))))
 			    (when (functionp str)
-			      (setq str (funcall str losing)))
+			      (setq str (funcall str (mod xpos (hi::window-width window)))))
 			    (let ((len (hi::strlen str)))
-			      ;;(if (zerop count)
-				  (incf total (1- len))
-			      #+NIL(incf total len))));;)
+			      (incf xpos (1- len))
+			      (incf total (1- len))
+			      )))
 		   (return)))))
 
       (incf charpos total)
 
       (setq offset charpos)
 
-      (flet ((return-charpos ()
-	       (return-from find-dis-line (values (cdr dis-lines) (+ offset i)))))
+      (labels ((return-charpos ()
+		 (return-from find-dis-line (values (cdr dis-lines) (+ offset i)))))
 
 	(if (wrapped-line? window (cdr dis-lines))
 	    
 	    (progn
-	      (loop while (cdr dis-lines)
+	      (loop with count = -1
+		    while (cdr dis-lines)
+
+		    when (> (incf count) 1000)
+		      do (return-charpos)
 	  
 		    when (null (cdr dis-lines))
 		      ;; window image is bogus
-		      do (return-from find-dis-line (values dis-lines offset))
+		      do (return-from find-dis-line (values dis-lines (+ offset i)))
 
-		    when (< offset (hi::dis-line-length (cadr dis-lines)))
+		    when (< (+ offset i) (hi::dis-line-length (cadr dis-lines)))
 		      do (when (and (wrapped-line? window (cdr dis-lines))
 				    (= (+ offset i) (1- (hi::window-width window))))
 			   ;; special case for when cursor would
@@ -337,7 +351,8 @@
 			     (return-from find-dis-line (values dis-lines offset)))
 			 
 			   (setq offset 0)
-			   (setq i 0))
+			   (setq i 0)
+			   )
 			 ;; todo: get this properly accounting for character attributes so that this function is correct *always*
 		       
 			 (return-charpos)
@@ -348,7 +363,7 @@
 			 (decf offset (hi::window-width window))
 
 		    when (null (cdr dis-lines))
-		      do (return-from find-dis-line (values dis-lines offset))
+		      do (return-from find-dis-line (values dis-lines (+ offset i)))
 	     
 		    when (eql (cdr dis-lines) hi::the-sentinel)
 		       		   
