@@ -248,8 +248,8 @@
            (,fer-sure-parse-sym ,fer-sure-parse))
        (with-mark ((top ,mark-sym)
                    (bottom ,mark-sym))
-         (funcall (value parse-start-function) top)
-         (funcall (value parse-end-function) bottom)
+         (funcall (value parse-start-function) .buffer. top)
+         (funcall (value parse-end-function) .buffer. bottom)
          (parse-over-block .buffer. (mark-line top) (mark-line bottom) ,fer-sure-parse-sym)))))
 
 (defun pre-command-parse-check (buffer mark &optional (fer-sure-parse nil))
@@ -805,7 +805,7 @@
 
 
 
-(macrolet ((frob (step end)
+(macrolet ((frob (buffer step end)
              `(let ((min (value minimum-lines-parsed))
                     (max (value maximum-lines-parsed))
                     (goal (value defun-parse-goal))
@@ -816,7 +816,7 @@
                     ((null line)
                      (,end mark))
                   (declare (fixnum count))
-                  (when (char= (line-character (line-buffer line) line 0) #\()
+                  (when (char= (line-character buffer line 0) #\()
                     (setq last-defun line)
                     (decf goal)
                     (when (and (<= goal 0) (>= count min))
@@ -830,11 +830,11 @@
 
 	       
 
-  (defun start-of-parse-block (mark)
-    (frob line-previous buffer-start))
+  (defun start-of-parse-block (buffer mark)
+    (frob buffer line-previous buffer-start))
 
-  (defun end-of-parse-block (mark)
-    (frob line-next buffer-end)))
+  (defun end-of-parse-block (buffer mark)
+    (frob buffer line-next buffer-end)))
 
 (defvar *special-forms* (make-hash-table :test #'equal))
 
@@ -1242,8 +1242,8 @@
     (with-buffer-globals (buffer)
       (with-mark ((m1 start)
                   (m2 end))
-        (funcall (value parse-start-function) m1)
-        (funcall (value parse-end-function) m2)
+        (funcall (value parse-start-function) buffer m1)
+        (funcall (value parse-end-function) buffer m2)
         (parse-over-block buffer (mark-line m1) (mark-line m2)))
     (let* ((first-line (mark-line start))
            (last-line (mark-line end))

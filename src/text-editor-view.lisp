@@ -100,14 +100,14 @@
 	
 	(if (and (<= y (hi::dis-line-position (car last-lines)))
 		 (<= x (hi::window-width window)))
-
+	    
 	    (with-slots (hi::the-sentinel) window
 
 	      (labels ((line-exists? (this)
 			 (and this
 			      (not (eql this hi::the-sentinel))
 			      (not (eql this (hi::window-first-line window)))))
-
+		       
 		       (continuing-wrapped-line? (this prev)
 			 (and (line-exists? prev)
 			      (eq (hi::dis-line-line (car prev))
@@ -117,8 +117,7 @@
 		      (line)
 		      (line-string)
 		      (charpos)
-		      (reverse-lines)
-		      (i 0))
+		      (offset))
 
 		  (unless (cdr dis-lines)
 		    (return-from cursorpos-to-mark nil)) ;; window image is bogus
@@ -126,103 +125,75 @@
 		  (when (eql (cdr dis-lines) hi::the-sentinel) ;; there are no lines
 		    (return-from cursorpos-to-mark nil))
 
-		  (flet ((dis-line-size (line-string end size-guess)
-			   ;; size of dis line in characters (where character width does not necessarily = 1)
-			   (print 'size)
-			   (print (if (not (plusp size-guess))
-			       0
+		  (flet ((actual-mark-position (position line-string)
 			   (macrolet ((%fcwa (str start end)
-					`(hi::%sp-reverse-find-character-with-attribute
-					  ,str ,start ,end hi::*losing-character-mask* hi::losing-char)))
+					`(hi::%sp-find-character-with-attribute
+					  ,str ,start ,end hi::*losing-character-mask* hi::losing-char))
+				      (return-pos ()
+					`(if (< position total)
+					     (return count)
+					     (return (- position total)))))
 			     (loop
-			       with count = -1
+			       with xpos = 0
+			       with total = 0
+			       with start = 0
 			       with losing = nil
-			       with start = (- end size-guess)
-			       ;; sanity check
-			       when (> count 1000)
-				 do (return)
-			       when (< start 0)
-				 do (return size-guess)
-			       do (setq losing (%fcwa line-string start end))
+			       with last-losing = 0
+			       with count = -1
+			       when (>= count 1000)
+				 do (return-pos)
+			       when (>= start (length line-string))
+				 do (return-pos)
+			       do (setq losing (%fcwa line-string start (length line-string)))
 				  (if losing
-				      (progn (setq end losing)
-					     (incf count)
-					     (when (<= end start)
-					       (return size-guess))
+				      (progn (incf count)
+					     (when (>= losing (- position total))
+					       (return-pos))
+					     (setq start (1+ losing))
+					     (incf xpos (- losing last-losing))
+					     (incf xpos total)
 					     (let ((str (hi::get-rep (char line-string losing))))
+					       (setq last-losing losing)
 					       (when (functionp str)
-						 (setq str (funcall str 0)))
+						 (setq str (funcall str (mod xpos (hi::window-width window)))))
 					       (let ((len (hi::strlen str)))
-						 (decf size-guess (1- len))
-						 (incf start (1- len)))))
-				      (return size-guess))))))))
+						 (if (zerop count)
+						     (incf total len)
+						     (incf total (1- len))
+						     ))))
+				      (return-pos))))))
 
 		    (setq line (hi::dis-line-line (cadr dis-lines)))
 		    (setq line-string (line-string (window-buffer window) line))
-		    (setq charpos (hi::strlen line-string))
 
 		    (tagbody
 
-		     start
+		     check
+
+		       (if (continuing-wrapped-line? (cdr dis-lines) dis-lines)
+			   (progn (incf offset (1- (hi::window-width window))))
+			   (setq offset 0))
+
+		       (when (= y (hi::dis-line-position (cadr dis-lines)))
+			 (setq charpos (actual-mark-position (+ offset x) line-string))
+			 (go exit))
 		       
-		       (when (wrapped-line? window (cdr dis-lines))
-			 (push (cadr dis-lines) reverse-lines)
-			 (setq dis-lines (cdr dis-lines))
-			 (go wrapped-line))
+		       (setq dis-lines (cdr dis-lines))
+
+		       (unless (cdr dis-lines)
+			 (go exit))
+
+		       (when (eql (cdr dis-lines) hi::the-sentinel)
+			 (go exit))
+		       
+		       (setq line (hi::dis-line-line (cadr dis-lines)))
+		       (setq line-string (line-string (window-buffer window) line))
 		       
 		       (go check)
 		       
-		     wrapped-line
-		       (when (continuing-wrapped-line? (cdr dis-lines) dis-lines)
-			 (push (cadr dis-lines) reverse-lines)
-			 (when (not (wrapped-line? window (cdr dis-lines)))
-			   (go unwind-wrapped))
-			 (setq dis-lines (cdr dis-lines))
-			 (unless (cdr dis-lines)
-			   (go unwind-wrapped))
-			 (when (eql (cdr dis-lines) hi::the-sentinel)
-			   (go unwind-wrapped))
-			 (go wrapped-line))
-
-		     check
-		       (when (= y (hi::dis-line-position (cadr dis-lines)))
-			 (decf charpos (dis-line-size line-string charpos (- (hi::dis-line-length (cadr dis-lines)) x)))
-			 (go exit))
-
-		     next
-		       (setq dis-lines (cdr dis-lines))
-		       (unless (cdr dis-lines)
-			 (setq charpos 0)
-			 (go exit))
-		       (when (eql (cdr dis-lines) hi::the-sentinel)
-			 (setq charpos 0)
-			 (go exit))
-		       (setq line (hi::dis-line-line (cadr dis-lines)))
-		       (setq line-string (line-string (window-buffer window) line))
-		       (setq charpos (hi::strlen line-string))
-		       (go start)
-
-		     unwind-wrapped
-		       (loop for dl in reverse-lines
-			     with count = 0
-			     when (> (incf count) 100)
-			       do (go exit)
-			     do (if (= y (hi::dis-line-position dl))
-				    (progn (decf charpos (dis-line-size line-string charpos (- (hi::dis-line-length dl) x)))
-					   ;; we won
-					   (go exit))
-				    ;; prepare to win
-				    (progn (decf charpos (dis-line-size line-string charpos (hi::dis-line-length dl)))
-					   (incf i)))
-			     finally (setq reverse-lines ())
-				     (setq i 0)
-				     ;; we lost
-				     (go next))
 		     exit)
-		    (print charpos)
-		    (print (hi::dis-line-position (cadr dis-lines)))
 		    
-		    (hi::internal-make-mark line (max (+ charpos i) 0) :temporary)))))
+		    (hi::internal-make-mark line charpos :temporary)))))
 	    
 	    (copy-mark (window-display-end window))))))
 
@@ -333,6 +304,7 @@
 		    while (cdr dis-lines)
 
 		    when (> (incf count) 1000)
+		      ;; runaway bug or runaway wrapped line
 		      do (return-charpos)
 	  
 		    when (null (cdr dis-lines))
@@ -340,21 +312,34 @@
 		      do (return-from find-dis-line (values dis-lines (+ offset i)))
 
 		    when (< (+ offset i) (hi::dis-line-length (cadr dis-lines)))
-		      do (when (and (wrapped-line? window (cdr dis-lines))
-				    (= (+ offset i) (1- (hi::window-width window))))
-			   ;; special case for when cursor would
-			   ;; be displayed on #\! line-wrap char
-			   (setq dis-lines (cdr dis-lines))
+		      do (cond ((and (wrapped-line? window (cdr dis-lines))
+				     (= (+ offset i) (1- (hi::window-width window))))
+				;; special case for when cursor would
+				;; be displayed on #\! line-wrap char
+				(setq dis-lines (cdr dis-lines))
 
-			   (when (or (null (cdr dis-lines))
-				     (eql (cdr dis-lines) hi::the-sentinel)) ;; this is unexpected
-			     (return-from find-dis-line (values dis-lines offset)))
+				(when (or (null (cdr dis-lines))
+					  (eql (cdr dis-lines) hi::the-sentinel)) ;; this is unexpected
+				  (return-from find-dis-line (values dis-lines offset)))
 			 
-			   (setq offset 0)
-			   (setq i 0)
-			   )
-			 ;; todo: get this properly accounting for character attributes so that this function is correct *always*
+				(setq offset 0)
+				(setq i 0)))
 		       
+			 (return-charpos)
+
+		    when (and (not (wrapped-line? window (cdr dis-lines)))
+			      (= (+ offset i) (hi::window-width window)))
+		      ;; special case where end of line is exactly up to window width
+		      ;; we want the cursor to display on the next line
+		      ;; not out in space off the window
+		      do (setq dis-lines (cdr dis-lines))
+
+			 (when (or (null (cdr dis-lines))
+				   (eql (cdr dis-lines) hi::the-sentinel)) ;; this is unexpected
+			   (return-from find-dis-line (values dis-lines offset)))
+			 
+			 (setq offset 0)
+			 (setq i 0)
 			 (return-charpos)
 
 		    when (wrapped-line? window (cdr dis-lines))
