@@ -194,7 +194,7 @@
          (old-region (region start end))
          (undo-region (delete-and-save-region old-region)))
     (ninsert-region end new-region)
-    (make-region-undo :twiddle "Unix Filter Region" old-region undo-region)))
+    (make-region-undo (window-buffer window) :twiddle "Unix Filter Region" old-region undo-region)))
 
 (defun unix-filter-region (region command args)
   "Passes the region REGION as standard input to the program COMMAND

@@ -182,12 +182,12 @@
       (do ((cnt offset (1+ cnt)))
           ((zerop cnt) mark)
         (cond
-          ((null (reverse-find-attribute mark :word-delimiter #'zerop))
+          ((null (reverse-find-attribute buffer mark :word-delimiter #'zerop))
            (return nil))
-          ((reverse-find-attribute mark :word-delimiter))
+          ((reverse-find-attribute buffer mark :word-delimiter))
           (t
            (move-mark
-            mark (buffer-start-mark (line-buffer (mark-line mark)))))))
+            mark (buffer-start-mark buffer)))))
       (do ((cnt offset (1- cnt)))
           ((zerop cnt) mark)
         (cond
@@ -280,15 +280,17 @@
   "Sets the current region from point to the end of the buffer."
   "Sets the current region from point to the end of the buffer."
   (declare (ignore p))
-  (with-buffer-globals ((window-buffer window))
-    (push-buffer-mark .buffer. (buffer-end (copy-mark .point.) .buffer.) t)))
+  (let* ((buffer (window-buffer window))
+         (point (buffer-point buffer)))
+    (buffer-end (copy-mark point) buffer)))
 
 (defcommand "Mark to Beginning of Buffer" (window p)
   "Sets the current region from the beginning of the buffer to point."
   "Sets the current region from the beginning of the buffer to point."
   (declare (ignore p))
-  (with-buffer-globals ((window-buffer window))
-    (push-buffer-mark .buffer. (buffer-start (copy-mark .point.) .buffer.) t)))
+  (let* ((buffer (window-buffer window))
+         (point (buffer-point buffer)))
+    (buffer-start (copy-mark point) buffer)))
 
 
 #+MOVED

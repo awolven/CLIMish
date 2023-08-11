@@ -36,7 +36,7 @@
         ((listp font)
          t)))
 
-(defun font-mark (line charpos font &optional (kind :right-inserting))
+(defun font-mark (buffer line charpos font &optional (kind :right-inserting))
   "Returns a font on line at charpos with font.  Font marks must be permanent
    marks."
   (unless (or (eq kind :right-inserting) (eq kind :left-inserting))
@@ -44,42 +44,41 @@
   (unless (valid-font-p font)
     (error "Invalid font: ~S" font))
   (let ((new (internal-make-font-mark line charpos kind font)))
-    (new-font-mark new line)
+    (new-font-mark buffer new line)
     (push new (line-marks line))
     new))
 
-(defun delete-font-mark (font-mark)
+(defun delete-font-mark (buffer font-mark)
   "Deletes a font mark."
   (check-type font-mark font-mark)
   (let ((line (mark-line font-mark)))
     (when line
       (setf (line-marks line) (delq font-mark (line-marks line)))
-      (nuke-font-mark font-mark line)
+      (nuke-font-mark buffer font-mark line)
       (setf (mark-line font-mark) nil))))
 
-(defun delete-line-font-marks (line)
+(defun delete-line-font-marks (buffer line)
   "Deletes all font marks on line."
   (dolist (m (line-marks line))
     (when (fast-font-mark-p m)
-      (delete-font-mark m))))
+      (delete-font-mark buffer m))))
 
-(defun move-font-mark (font-mark new-position)
+(defun move-font-mark (buffer font-mark new-position)
   "Moves font mark font-mark to location of mark new-position."
   (check-type font-mark font-mark)
   (let ((old-line (mark-line font-mark))
         (new-line (mark-line new-position)))
-    (nuke-font-mark font-mark old-line)
+    (nuke-font-mark buffer font-mark old-line)
     (move-mark font-mark new-position)
-    (new-font-mark font-mark new-line)
+    (new-font-mark buffer font-mark new-line)
     font-mark))
 
-(defun nuke-font-mark (mark line)
-  (new-font-mark mark line))
+(defun nuke-font-mark (buffer mark line)
+  (new-font-mark buffer mark line))
 
-(defun new-font-mark (mark line)
+(defun new-font-mark (buffer mark line)
   (declare (ignore mark))
-  (let ((buffer (line-%buffer line))
-        (number (line-number line)))
+  (let ((number (line-number line)))
     (when (bufferp buffer)
       (dolist (w (buffer-windows buffer))
         (setf (window-tick w) (1- (buffer-modified-tick buffer)))

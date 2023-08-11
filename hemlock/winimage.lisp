@@ -364,10 +364,10 @@
                            ;; any dis-line which displayed such a line.
 
                            (cond
-                             ((neq (line-%buffer old-line) .buffer.)
+                             ((or (null old-line) (neq (line-%buffer old-line) .buffer.))
                               (do ((ptr (cdr current) (cdr ptr))
                                    (prev current ptr))
-                                  ((eq (line-%buffer (dis-line-line (car ptr))) .buffer.)
+                                  ((and (dis-line-line (car ptr)) (eq (line-%buffer (dis-line-line (car ptr))) .buffer.))
                                    (setq delta (- pos (1+ (dis-line-position (car prev)))))
                                    (shiftf (cdr trail) (cdr prev) spare-lines current ptr)))
                               (setq cc (car current)  old-line (dis-line-line cc)))
@@ -549,7 +549,10 @@
                                 (unless (eq current the-sentinel)
                                   (setf (dis-line-old-chars (car current)) :another-unique-thing)))
                               (let ((start-charpos (mark-charpos display-start)))
-                                (move-mark (window-old-start window) display-start)
+                                ;;(unless (mark-line display-start)
+                                  ;;(error "display-start has no mark-line!!!"))
+                                ;;(unless (mark-is-dead-p display-start)
+                                  (move-mark (window-old-start window) display-start);;)
                                 ;;(window changed line offset trail current width)
                                 (maybe-change-window changed line start-charpos trail current width)))))
                       (t
@@ -593,7 +596,12 @@
                     (when (eq window (krma.gui::focused-window (clui::window-parent window)))
                       ;; maybe also, when the focused-window is set we could also move buffer-point
                       ;; to the window-point.
-                      (move-mark (window-point window) (buffer-point (window-buffer window)))) 
+                      ;;(unless (mark-line (buffer-point (window-buffer window)))
+                        ;;(error "buffer point has no mark line"))
+                      ;;(unless (mark-is-dead-p (buffer-point (window-buffer window)))
+                      (move-mark (window-point window) (buffer-point (window-buffer window)))
+                      ;;)
+                    )
 
                   
                     ))))))))))

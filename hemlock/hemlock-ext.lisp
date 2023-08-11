@@ -354,6 +354,10 @@
                               t)))
                    (t
                     (setf files good-files)))
+             (setq files (mapcar #'(lambda (s) (if (char= #\/ (char s (1- (length s))))
+                                                   (subseq s 0 (1- (length s)))
+                                                   s))
+                                 files))
              (let ((common (file-namestring (car files))))
                (dolist (file (cdr files))
                  (let ((name (file-namestring file)))
@@ -363,31 +367,30 @@
                      (unless (char= (schar common i) (schar name i))
                        (setf common (subseq common 0 i))
                        (return)))))
-               (values (merge-pathnames common pathname)
-                       nil)))))))
+               (let ((retval (merge-pathnames common pathname)))
+                 #+NIL
+                 (if (and (probe-file retval)
+                          (eq (osicat:file-kind retval) :directory))
+                     (setq retval (osicat:pathname-as-directory retval)))
+               
+                 (values retval
+                         nil))))))))
 
 ;;; COMPLETE-FILE-DIRECTORY-ARG -- Internal.
 ;;;
 #-(or cmu scl)
 (defun complete-file-directory (pathname defaults)
-  #+NOTYET
   (let* ((namestring
           (namestring
-           (merge-pathnames pathname (directory-namestring defaults))))
-         (directory
-          (if (eq (iolib.os::get-file-kind namestring t) :directory)
-              namestring
-              (iolib.pathnames:file-path-directory namestring :namestring t))))
+           (merge-pathnames (file-namestring pathname) (probe-file (directory-namestring pathname))))))
+    
     (delete-if-not (lambda (candidate)
                      (search namestring candidate))
                    (append
                     (when (probe-file namestring)
                       (list namestring))
-                    (mapcar (lambda (f)
-                              (iolib.pathnames:file-path-namestring
-                               (iolib.pathnames:merge-file-paths
-                                f directory)))
-                            (iolib.os:list-directory directory))))))
+                    (mapcar #'namestring
+                            (directory (concatenate 'string (namestring (directory-namestring pathname)) "*.*")))))))
 
 ;;; Ambiguous-Files  --  Public
 ;;;

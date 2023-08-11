@@ -34,7 +34,6 @@
 (defmethod rm-redraw-node-recursively (self)
   (values))
 
-
 (defobject group-mixin ()
   :inputs
   ((group :defaulting)))
@@ -76,10 +75,10 @@
   :inputs
   ((visible? t)
    (origin
-    (:noticer (node-set-model-matrix self))
+    (:noticer (krma-set-model-matrix-recursively self))
     (vec3 0 0 0))
    (rotation
-    (:noticer (node-set-model-matrix self))
+    (:noticer (krma-set-model-matrix-recursively self))
     (quat 0 0 0 1))
    (scene :defaulting))
 
@@ -114,6 +113,17 @@
 				     (typep child 'node-mixin))
 				 (the children)))))
 
+(defmethod add-to-scene (node &optional (scene (application-scene *app*)))
+  (push node (krma::node-children scene))
+  (rm-redraw-node-recursively node)
+  (values))  
+
+(defun remove-from-scene (node &optional (scene (application-scene *app*)))
+  (rm-erase-node-recursively node)
+  (setf (krma::node-children scene)
+	(remove node (krma::node-children scene)))
+  (values))
+
 (defmethod rm-erase-node-recursively ((self node-mixin))
   (rm-erase-node self)
   (mapcar #'rm-erase-node-recursively (the node-children))
@@ -131,15 +141,7 @@
 
 (defobject group-owner-mixin (group-mixin)
   :slots
-  ((group :initform (new-group) :accessor object-group))
-
-  :inputs
-  ((origin
-    (:noticer (krma-set-model-matrix-recursively self))
-    (vec3 0 0 0))
-   (rotation
-    (:noticer (krma-set-model-matrix-recursively self))
-    (quat 0 0 0 1))))
+  ((group :initform (new-group) :accessor object-group)))
 
 (defmethod initialize-instance ((self group-owner-mixin) &rest initargs)
   (declare (ignore initargs))
@@ -203,6 +205,16 @@
   (setf (the origin) (v+ (the origin) vec))
   (values))
 
+(defun adhoc::adhoc-redefinition-hook ()
+  (when (boundp '*app*)
+    (loop for node in (krma::node-children (krma::application-scene *app*))
+	  do (rm-redraw-node-recursively node))))
+
+(defun touch-instance-recursively (self)
+  (the superior)
+  (mapcar #'touch-instance-recursively (the children))
+  (values))
+
 (defmethod update-instance-for-redefined-class :after ((self node-mixin)
 						       added-slots discarded-slots plist &rest initargs)
   (declare (ignore added-slots discarded-slots plist initargs))
@@ -213,8 +225,8 @@
   ;; so an rm-draw-recursively will generate the new children and draw them
 
   ;; retained mode has it's advantages wrt lower cpu load, but drawing/erasing/redrawing is more complicated
-  (rm-redraw-node self)
-  (mapcar #'rm-draw-node-recursively (the node-children))
+  ;;(rm-redraw-node self)
+  ;;(mapcar #'rm-draw-node-recursively (the node-children))
   (values))
 
 (defgeneric transform-coordinate (coordinate node)

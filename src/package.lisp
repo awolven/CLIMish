@@ -66,6 +66,8 @@
 	   #:vertical-scrollbar
 	   #:node-parent
 	   #:node-children
+	   #:add-to-scene
+	   #:remove-from-scene
 	   #:window-parent
 	   #:rm-draw-node
 	   #:rm-redraw-node

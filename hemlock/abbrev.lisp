@@ -208,7 +208,8 @@
          (mode (if (hemlock-bound-p 'mode-abbrev-table)
                    (gethash (string-downcase word)
                             (value mode-abbrev-table))))
-         (end-word (reverse-find-attribute (copy-mark (current-point)
+         (end-word (reverse-find-attribute (window-buffer window)
+                                           (copy-mark (current-point)
                                                       :right-inserting)
                                            :word-delimiter #'zerop))
          (result (if mode mode glob)))
@@ -237,12 +238,12 @@
 
 ;;; This function returns the n words immediately before the mark supplied.
 
-(defun prev-word (n mark)
-  (let* ((mark-1 (reverse-find-attribute (copy-mark mark :temporary)
+(defun prev-word (buffer n mark)
+  (let* ((mark-1 (reverse-find-attribute buffer (copy-mark mark :temporary)
                                          :word-delimiter #'zerop))
          (mark-2 (copy-mark mark-1)))
     (dotimes (x n (region-to-string (region mark-2 mark-1)))
-      (reverse-find-attribute (mark-before mark-2) :word-delimiter))))
+      (reverse-find-attribute buffer (mark-before mark-2) :word-delimiter))))
 
 
 

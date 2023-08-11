@@ -110,7 +110,7 @@
                 (undo-region (copy-region ,buffer region)))
            (check-region-query-size ,current-window region)
            (filter-region ,buffer ,function-sym region)
-           (make-region-undo :twiddle ,name-sym region undo-region))))))
+           (make-region-undo buffer :twiddle ,name-sym region undo-region))))))
 
 (defcommand "Uppercase Region" (window p)
   "Uppercase words from point to mark."
@@ -589,7 +589,8 @@
               (let* ((buffer (window-buffer window))
                      (point (buffer-point buffer)))
                 (move-mark point m)
-                (push-buffer-mark buffer m t))
+                (push-buffer-mark buffer (copy-mark point))
+                (deactivate-region buffer))
               
               (update-window-image window)
               (supply-generic-pointer-move-function #'(lambda ()
@@ -601,9 +602,7 @@
 (defun point-to-here-move-action (window)
   (when (typep window 'krma.gui::text-editor-view-mixin)
     (let ((last-event (krma.gui::window-last-event (clui::window-parent window))))
-      (when (or (typep last-event 'clui::pointer-button-press-event-mixin)
-                (typep last-event 'clui::pointer-motion-event-mixin))
-        (let* ((pixel-x (clui::pointer-event-x last-event))
+      (let* ((pixel-x (clui::pointer-event-x last-event))
                (pixel-y (clui::pointer-event-y last-event))
                (buffer-view (adhoc:send window krma.gui::buffer-view))
                (coord (krma.gui::untransform-global-coordinate
@@ -617,10 +616,12 @@
                    (m (cursorpos-to-mark x y window))
                    (buffer (window-buffer window)))
               (unless m (editor-error))
+              (when (typep last-event 'clui::pointer-motion-event-mixin)
+                ;; don't push the buffer mark until we have alread moved just a little
+                (push-buffer-mark buffer (pop-buffer-mark buffer) t))
               (move-mark (buffer-point buffer) m)
-              (activate-region buffer)
               (update-window-image window)
-              )))))))
+              ))))))
 
 (defun point-to-here-up-action (window)
   (when (typep window 'krma.gui::text-editor-view-mixin)
@@ -642,7 +643,6 @@
                    (buffer (window-buffer window)))
               (unless m (editor-error))
               (move-mark (buffer-point buffer) m)
-              (activate-region buffer)
               (update-window-image window))))
         (setf (last-command-type) nil)
         (setf *generic-pointer-up-fun* nil)
@@ -843,7 +843,7 @@
     (with-mark ((m point))
       (unless (page-offset buffer point -1)
         (editor-error "No such page."))
-      (push-buffer-mark (copy-mark m) t)
+      (push-buffer-mark buffer (copy-mark m) t)
       (line-start (move-mark (window-display-start window) point)))))
 
 (defun page-offset (buffer mark n)
@@ -851,7 +851,7 @@
    If a :page-delimiter is the immediately next character after mark in the
    appropriate direction, then skip it before starting."
   (cond ((plusp n)
-         (find-attribute mark :page-delimiter #'zerop)
+         (find-attribute buffer mark :page-delimiter #'zerop)
          (dotimes (i n mark)
            (unless (next-character buffer mark) (return nil))
            (loop
@@ -861,12 +861,12 @@
                (return (if (= i (1- n)) mark)))
              (when (= (mark-charpos mark) 1) (return)))))
         (t
-         (reverse-find-attribute mark :page-delimiter #'zerop)
+         (reverse-find-attribute buffer mark :page-delimiter #'zerop)
          (prog1
           (dotimes (i (- n) mark)
             (unless (previous-character buffer mark) (return nil))
             (loop
-              (unless (reverse-find-attribute mark :page-delimiter)
+              (unless (reverse-find-attribute buffer mark :page-delimiter)
                 (return-from page-offset nil))
               (mark-before buffer mark)
               (when (= (mark-charpos mark) 0) (return))))

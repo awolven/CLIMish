@@ -25,7 +25,7 @@
            (,character-sym ,character))
        (declare (type character ,character-sym))
        (let* ((line (mark-line ,mark-sym))
-              (buffer (line-%buffer line)))
+              (buffer .buffer.))
          (modifying-buffer buffer
            (modifying-line .buffer. line ,mark-sym)
            (cond ((char= ,character-sym #\newline)
@@ -41,7 +41,7 @@
                     (setf (line-chars line) new-chars)
                     (setf (line-next line) new-line)
                     (if next (setf (line-previous next) new-line))
-                    (number-line new-line)
+                    (number-line .buffer. new-line)
                     (setq open-line new-line  left-open-pos 0)))
                  (t
                   (if (= right-open-pos left-open-pos)
@@ -141,7 +141,7 @@
           (let* ((line (mark-line ,mark-sym))
                  (next (line-next line))
                  (charpos (mark-charpos ,mark-sym))
-                 (buffer (line-%buffer line))
+                 (buffer .buffer.)
                  (old-chars (line-chars line)))
             (declare (simple-string old-chars))
             (modifying-buffer buffer
@@ -184,7 +184,7 @@
                       (when next
                         (setf (line-previous next) new-line)
                         (if (<= (line-number next) number)
-                            (renumber-region-containing new-line)))
+                            (renumber-region-containing .buffer. new-line)))
                       ;;fix up the marks
                       (maybe-move-some-marks (this-charpos line new-line) charpos
                         (+ last-charpos (- this-charpos charpos)))))
@@ -215,14 +215,12 @@
           (if (eq first-line open-line) (.close-line.))
           (insert-string .buffer. ,mark-sym (line-chars first-line) first-charpos last-charpos))
          (t
-          (when (bufferp (line-%buffer first-line))
-            (error "Region is linked into Buffer ~S." (line-%buffer first-line)))
           (.close-line.)
           (let* ((line (mark-line ,mark-sym))
                  (second-line (line-next first-line))
                  (next (line-next line))
                  (charpos (mark-charpos ,mark-sym))
-                 (buffer (line-%buffer line))
+                 (buffer .buffer.)
                  (old-chars (line-chars line)))
             (declare (simple-string old-chars))
             (modifying-buffer buffer ;; now we're modifying a potentially different buffer
@@ -259,9 +257,11 @@
                      (setf (line-previous next) last-line)
                      (if (<= (line-number next) number)
                          ;; this renumber stuff could be what is slowing down scrolling
-                         (renumber-region-containing last-line))))
+                         (renumber-region-containing .buffer. last-line))))
                 (when (line-marks line)
                   (dolist (m (line-marks line))
+                    (when (eq m .point.)
+                      (error "killing buffer-point"))
                     (setf (mark-line m) nil))
                   (setf (line-marks line) nil))
 

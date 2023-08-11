@@ -16,7 +16,9 @@
 ;;;; Marks.
 
 (defclass mark ()
-  ((line :initarg :line :accessor mark-line :documentation "pointer to line")
+  ((line :initarg :line
+         :accessor mark-line
+         :documentation "pointer to line")
    (charpos
     :initarg :charpos
     :accessor mark-charpos
@@ -27,17 +29,29 @@
   (:documentation
    "A Hemlock mark object.  See Hemlock Command Implementor's Manual for details."))
 
+(defmethod mark-is-dead-p (mark)
+  (or (null (mark-line mark))
+      (null (mark-charpos mark))))
+
 (defun markp (object)
   "Returns true if its argument is a Hemlock mark object, false otherwise."
   (typep object 'mark))
 
 (defun internal-make-mark (line charpos %kind)
+  (unless line
+    (error "Attempt to make a mark without a line."))
+  (unless charpos
+    (error "Attempt to make a mark without a charpos."))
   (make-instance 'mark :line line :charpos charpos :%kind %kind))
 
 (defclass font-mark (mark)
   ((font :initarg :font :accessor font-mark-font)))
 
 (defun internal-make-font-mark (line charpos %kind font)
+  (unless line
+    (error "Attempt to make a mark without a line."))
+  (unless charpos
+    (error "Attempt to make a mark without a charpos."))
   (make-instance 'font-mark :line line :charpos charpos :%kind %kind :font font))
 
 (defun font-mark-p (object)

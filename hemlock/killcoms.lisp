@@ -56,7 +56,7 @@
   (when deactivate-region (deactivate-region buffer))
   (let ((point (buffer-point buffer))
         (mark (current-mark buffer)))
-    (when (mark-line mark)
+    (unless (hi::mark-is-dead-p mark)
       (if (mark< mark point) (region mark point) (region point mark)))))
 
 
@@ -109,10 +109,10 @@
   "Pushes mark into buffer's mark ring, ensuring that the mark is in the right
    buffer and :right-inserting.  Optionally, the current region is made active.
    This never deactivates the current region.  Mark is returned."
-  (cond ((eq (line-buffer (mark-line mark)) buffer)
-         (setf (mark-kind mark) :right-inserting)
-         (ring-push mark (variable-value 'buffer-mark-ring :buffer buffer)))
-        (t (error "Mark not in the current buffer.")))
+  (when (eq mark (buffer-point buffer))
+    (error "cannot push-buffer-mark of buffer-point of buffer!!!"))
+  (setf (mark-kind mark) :right-inserting)
+  (ring-push mark (variable-value 'buffer-mark-ring :buffer buffer))
   (when activate-region (activate-region buffer))
   mark)
 
@@ -291,7 +291,7 @@
         (with-mark ((m (buffer-point buffer)))
           (cond ((zerop (mark-charpos m))
                  (mark-before buffer m)
-                 (unless (reverse-find-attribute m :space #'zerop)
+                 (unless (reverse-find-attribute buffer m :space #'zerop)
                    (buffer-start m buffer)))
                 (t
                  (line-start m)))
@@ -311,7 +311,7 @@
       ;; handle case when the current line is blank
       (when (blank-line-p buffer (mark-line point))
         ;; back up to last non-whitespace character
-        (reverse-find-attribute beg-mark :whitespace #'zerop)
+        (reverse-find-attribute buffer beg-mark :whitespace #'zerop)
         (when (previous-character buffer beg-mark)
           ;; that is, we didn't back up to the beginning of the buffer
           (unless (same-line-p beg-mark end-mark)
@@ -347,13 +347,14 @@
                     (mark (copy-mark point)))
                (push-buffer-mark buffer mark)
                (insert-string buffer point string)
-               (make-region-undo :delete "Yank"
+               (make-region-undo buffer
+                                 :delete "Yank"
                                  (region (copy-mark mark) (copy-mark point))))
              (setf (last-command-type) :unkill))
             (t (editor-error)))
       (deactivate-region buffer))
-    (unless (displayed-p point window)
-      (hi::bottom-window-on-mark window point))
+    ;; displayed-p is giving a poor result here, so we're not going to check
+    (hi::center-window-on-mark window point)
     (krma.gui:redraw-buffer window)))
 ;;;
 (push :unkill *ephemerally-active-command-types*)
@@ -373,6 +374,7 @@
             (t (delete-region buffer (region mark point))
                (rotate-ring *kill-ring* (or p 1))
                (insert-string buffer point (ring-ref *kill-ring* 0))
-               (make-region-undo :delete "Yank"
+               (make-region-undo buffer
+                                 :delete "Yank"
                                  (region (copy-mark mark) (copy-mark point)))
                (setf (last-command-type) :unkill))))))

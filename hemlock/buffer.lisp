@@ -1,4 +1,4 @@
-(in-package :hemlock-internals)
+s(in-package :hemlock-internals)
 
 (declaim (special ;;*current-buffer* ; because it is defined too late --amb
                   *global-variable-names* ; defined in main.lisp --amb
@@ -646,8 +646,6 @@
     (setf (buffer-variables buffer) (make-string-table))
 
     (sub-set-buffer-modeline-fields buffer modeline-fields)
-
-    (setf (line-%buffer (mark-line (region-start region))) buffer)
 
     (push buffer *buffer-list*)
 

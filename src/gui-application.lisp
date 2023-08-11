@@ -806,8 +806,79 @@
    Scrolling off the end optionally deletes the buffer."
 		      :current-buffer initial-buffer)
 
-	     (defmode "Lisp Listener" :major-p nil :current-buffer initial-buffer)
-	     )
+  (defmode "Lisp Listener" :major-p nil :current-buffer initial-buffer)
+
+  (defconstant completion-table-size 991)
+
+  (defvar *completions* (make-array completion-table-size :initial-element nil))
+
+  (defvar default-lisp-wordchars
+    '(#\~ #\! #\@ #\$ #\% #\^ #\& #\+ #\= #\: #\< #\> #\. #\/ #\?))
+
+  (defattribute "Completion Wordchar"
+  "1 for characters we consider to be constituents of words.")
+
+  (defvar default-other-wordchars
+  '(#\- #\* #\' #\_))
+
+  (do-alpha-chars (char :both)
+  (setf (character-attribute :completion-wordchar char) 1))
+
+  (dolist (char '(#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9))
+  (setf (character-attribute :completion-wordchar char) 1))
+
+  (dolist (char default-other-wordchars)
+  (setf (character-attribute :completion-wordchar char) 1))
+  
+  (dolist (char default-lisp-wordchars)
+  (shadow-attribute initial-buffer :completion-wordchar char 1 "Lisp"))
+
+  (shadow-attribute initial-buffer :completion-wordchar #\' 0 "Lisp")
+
+  (defhvar "Completion Bucket Size"
+  "This limits the number of completions saved for a particular combination of
+   the first three letters of any word."
+    :current-buffer initial-buffer
+    :value 20)
+
+  (defhvar "Completion Database Filename"
+  "The file that \"Save Completions\" and \"Read Completions\" will
+   respectively write and read the completion database to and from."
+    :current-buffer initial-buffer
+    :value nil)
+
+  (defhvar "Completion Function" ""
+    :value 'completion-complete-word
+    :current-buffer initial-buffer)
+
+  (defhvar "Completion Function" ""
+    :mode "Lisp" :value 'complete-symbol
+    :current-buffer initial-buffer)
+
+  (defhvar "Completion Function" ""
+    :mode "Editor" :value #'(lambda ()
+			      (editor-complete-symbol (krma.gui::focused-window (clui::window-parent *echo-area-window*))))
+    :current-buffer initial-buffer)
+
+  (defmode "Completion" :transparent-p t :precedence 10.0
+  :documentation
+  "This is a minor mode that saves words greater than three characters in length,
+   allowing later completion of those words.  This is very useful for often
+   long identifiers used in Lisp code.  All words with the same first three
+   letters are in one list sorted by most recently used.  \"Completion Bucket
+   Size\" limits the number of completions saved in each list."
+    :current-buffer initial-buffer)
+
+  (defmode "Completelist" :major-p t
+    :documentation "Completelist mode presents a list of completions."
+    :current-buffer initial-buffer)
+
+  (defhvar "Compile Buffer File Confirm"
+  "When set, \"Compile Buffer File\" prompts before doing anything."
+    :value nil
+    :current-buffer initial-buffer)
+  
+  )
 
 (in-package :krma.gui)
 

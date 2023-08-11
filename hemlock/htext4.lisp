@@ -36,7 +36,7 @@
             (last-line (mark-line end))
             (first-charpos (mark-charpos start))
             (last-charpos (mark-charpos end))
-            (buffer (line-%buffer first-line)))
+            (buffer .buffer.))
        (unless (and (eq first-line last-line)
                     (= first-charpos last-charpos))
          (modifying-buffer buffer
@@ -168,7 +168,7 @@
             (last-line (mark-line end))
             (first-charpos (mark-charpos start))
             (last-charpos (mark-charpos end))
-            (buffer (line-%buffer first-line)))
+            (buffer .buffer.))
        (cond
          ((and (eq first-line last-line)
                (= first-charpos last-charpos))
@@ -370,7 +370,7 @@
             (end-line (mark-line end))
             (last (mark-charpos end))
             (marks ())
-            (buffer (line-%buffer start-line)))
+            (buffer .buffer.))
        (modifying-buffer buffer
          (.modifying-line. end-line end)
          (cond ((eq start-line end-line)
@@ -601,7 +601,7 @@
              (t
               (setf ,region-sym (hi::delete-and-save-region .buffer. ,region-sym))
               (ring-push ,region-sym hemlock::*kill-ring*)))
-       (make-region-undo :insert "kill" (hi::copy-region .buffer. ,region-sym) insert-mark)
+       (make-region-undo .buffer. :insert "kill" (hi::copy-region .buffer. ,region-sym) insert-mark)
        (setf (last-command-type) ,current-type-sym))))
 
 (defmethod kill-region (buffer region current-type)

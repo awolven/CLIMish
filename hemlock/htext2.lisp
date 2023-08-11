@@ -57,17 +57,15 @@
 
 
 
-(defun string-to-region (string)
+(defun string-to-region (buffer string)
   "Returns a region containing the characters in the given String."
   (let* ((string (if (simple-string-p string)
                      string (coerce string 'simple-string)))
          (end (length string)))
     (declare (simple-string string))
     (do* ((index 0)
-          (buffer (make-instance 'disembodied-buffer
-                                 :id (incf *disembodied-buffer-counter*)))
           (previous-line)
-          (line (make-line :%buffer buffer))
+          (line (make-line))
           (first-line line))
          (())
       (let ((right-index (position #\newline string :start index :end end)))
@@ -196,7 +194,7 @@
                   (setf (line-next line) new)
                   (when next (setf (line-previous next) new))
                   (setq right-open-pos line-cache-length)
-                  (number-line new)))
+                  (number-line .buffer new)))
                (t
                 (setf (char (the simple-string open-chars) right-open-pos)
                       ,character-sym))))
@@ -278,6 +276,12 @@
 
 (defun move-mark (mark new-position)
   "Changes the Mark to point to the same position as New-Position."
+  (when (mark-is-dead-p mark)
+    (warn "move-mark: mark is dead"))
+  (when (mark-is-dead-p new-position)
+    (warn "move-mark: new-position mark is dead"))
+  (unless (mark-line new-position)
+    (error "attempt to move mark to new-position which has no mark-line"))
   (let ((line (mark-line new-position)))
     (change-line mark line))
   (setf (mark-charpos mark) (mark-charpos new-position))
@@ -384,7 +388,7 @@
   "Set the start and end of Region to the marks Start and End."
   (let ((sl (mark-line start))
         (el (mark-line end)))
-    (when (or (neq (line-%buffer sl) (line-%buffer el))
+    (when (or #+NIL(neq (line-%buffer sl) (line-%buffer el))
               (> (line-number sl) (line-number el))
               (and (eq sl el) (> (mark-charpos start) (mark-charpos end))))
       (error "Marks ~S and ~S cannot be made into a region." start end))
@@ -413,7 +417,7 @@
         (let ((line (mark-line mark))
               (charpos (mark-charpos mark)))
           (unless (typep stream 'hemlock::hemlock-character-io-stream)
-            (with-buffer-globals ((line-%buffer line))
+            (with-buffer-globals (buffer)
               (cond
                 ((eq line open-line)
                  (cond ((< charpos left-open-pos)
@@ -437,8 +441,7 @@
   (with-buffer-globals (buffer)
     (if (mark-line mark)
         (let* ((line (mark-line mark))
-               (charpos (mark-charpos mark))
-               (buffer (line-%buffer line)))
+               (charpos (mark-charpos mark)))
           (unless (typep stream 'hemlock::hemlock-character-io-stream)
             (with-buffer-globals (buffer)
               (cond
@@ -461,11 +464,13 @@
                             (write-string chars stream :start charpos :end length)))))))))
         (write-string "{deleted mark}" stream))))
 
+#+NIL
 (defmethod print-object ((structure line) stream)
   (write-string "#<Hemlock Line \"" stream)
   (%print-whole-line (line-%buffer structure) structure stream)
   (write-string "\">" stream))
 
+#+NIL
 (defmethod print-object ((object mark) stream)
   (print-unreadable-object (object stream :type t :identity t)
     (let ((buffer (line-%buffer (mark-line object))))
@@ -477,6 +482,7 @@
 
 (defvar *print-region* 10
   "The number of lines to print out of a region, or NIL if none.")
+
 
 (defun %print-hregion (region stream d)
   (declare (ignore d))
@@ -493,7 +499,7 @@
 
         (cond
           ((not (and (linep first-line) (linep last-line)
-                     (eq (line-%buffer first-line) (line-%buffer last-line))
+                     ;;(eq (line-%buffer first-line) (line-%buffer last-line))
                      (mark<= start end)))
            (write-string "{bad region}" stream))
           (*print-region*

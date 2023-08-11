@@ -42,16 +42,16 @@
             (funcall (value open-paren-finder-function)
                      (buffer-point (window-buffer window)))
           (if (and start end)
-              (set-open-paren-font-marks start end)
+              (set-open-paren-font-marks (window-buffer window) start end)
               (kill-open-paren-font-marks))))))
 ;;;
 
 
-(defun set-open-paren-font-marks (start end)
+(defun set-open-paren-font-marks (buffer start end)
   (if *open-paren-font-marks*
       (flet ((maybe-move (dst src)
                (unless (mark= dst src)
-                 (move-font-mark dst src))))
+                 (move-font-mark buffer dst src))))
         (declare (inline maybe-move))
         (maybe-move (region-start *open-paren-font-marks*) start)
         (maybe-move (region-end *open-paren-font-marks*) end))

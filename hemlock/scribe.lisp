@@ -140,7 +140,7 @@
   "Inserts a the bracket it is bound to and then shows the matching bracket."
   "Inserts a the bracket it is bound to and then shows the matching bracket."
   (declare (ignore p))
-  (scribe-insert-paren (current-point)
+  (scribe-insert-paren (window-buffer window) (buffer-point (window-buffer window))
                        (hemlock-ext:key-event-char *last-key-event-typed*)))
 
 
@@ -331,7 +331,7 @@
             (with-mark ((command-start word-start :left-inserting)
                         (command-end word-end :left-inserting))
               ;; Move command-end from word-end to open-paren of command.
-              (balance-paren (mark-after command-end))
+              (balance-paren (window-buffer current-window) (mark-after command-end))
               (if (funcall (value extend-scribe-directive-function)
                            command-string command-end command-start word-start)
                   (let ((region (delete-and-save-region
@@ -461,10 +461,10 @@
 
 ;;;; Bracket matching.
 
-(defun scribe-insert-paren (mark bracket-char)
+(defun scribe-insert-paren (buffer mark bracket-char)
   (insert-character mark bracket-char)
   (with-mark ((m mark))
-    (if (balance-paren m)
+    (if (balance-paren buffer m)
         (when (value paren-pause-period)
           (unless (show-mark m (current-window) (value paren-pause-period))
             (clear-echo-area)
@@ -474,14 +474,14 @@
 ;;; BALANCE-PAREN moves the mark to the matching open paren character, or
 ;;; returns nil.  The mark must be after the closing paren.
 ;;;
-(defun balance-paren (mark)
+(defun balance-paren (buffer mark)
   (with-mark ((m mark))
-    (when (rev-scan-char m :scribe-syntax (or :open-paren :close-paren))
+    (when (rev-scan-char buffer m :scribe-syntax (or :open-paren :close-paren))
       (mark-before m)
       (let ((paren-count 1)
             (first-paren (next-character m)))
         (loop
-          (unless (rev-scan-char m :scribe-syntax (or :open-paren :close-paren))
+          (unless (rev-scan-char buffer m :scribe-syntax (or :open-paren :close-paren))
             (return nil))
           (if (test-char (previous-character m) :scribe-syntax :open-paren)
               (setq paren-count (1- paren-count))

@@ -518,9 +518,20 @@
   (declare (ignore p))
   (let* ((buffer (window-buffer window)))
     (if buffer
-        (if (region-active-p buffer)
-            (editor-compile-region window buffer (current-region buffer))
-            (editor-compile-region window buffer (defun-region buffer (buffer-point buffer)) t))
+        ;;(if (region-active-p buffer)
+        ;;  (editor-compile-region window buffer (current-region buffer))
+        (let ((region (defun-region buffer (buffer-point buffer)))
+              (saved (copy-mark (buffer-point buffer))))
+          (unwind-protect (progn
+                            (move-mark (buffer-point buffer) (region-start region))
+                            (push-buffer-mark buffer (region-end region) t)
+                            (update-window-image window)
+                            (editor-compile-region window buffer region t)
+                            (sleep 0.1))
+            (move-mark (buffer-point buffer) saved)
+            (pop-buffer-mark buffer)
+            (update-window-image window)
+            (adhoc::adhoc-redefinition-hook)))
         (editor-error "No current buffer"))))
 
 #+NIL
@@ -695,52 +706,73 @@
     (with-output-to-window (*error-output* "Compiler Warnings")
       (in-lisp (compile-file (namestring pn) #+cmu :error-file #+cmu nil)))))
 
-#+NIL
+
 (defun older-or-non-existent-fasl-p (pathname &optional definitely)
   (let ((obj-pn (probe-file (compile-file-pathname pathname))))
     (or definitely
         (not obj-pn)
         (< (file-write-date obj-pn) (file-write-date pathname)))))
 
-#+NIL
+
 (defcommand "Editor Compile Buffer File" (window p)
-  "Compile the file in the current buffer in the editor Lisp if its associated
+    "Compile the file in the current buffer in the editor Lisp if its associated
    binary file (of type .fasl) is older than the source or doesn't exist.  When
    the binary file is up to date, the user is asked if the source should be
    compiled anyway.  When the prefix argument is supplied, compile the file
    without checking the binary file.  When \"Compile Buffer File Confirm\" is
    set, this command will ask for confirmation when it otherwise would not."
-  "Compile the file in the current buffer in the editor Lisp if the fasl file
+    "Compile the file in the current buffer in the editor Lisp if the fasl file
    isn't up to date.  When p, always do it."
-  (let* ((buf (current-buffer))
+  (let* ((buffer (window-buffer window))
+         (buf buffer)
          (pn (buffer-pathname buf)))
-    (unless pn (editor-error "Buffer has no associated pathname."))
-    (cond ((buffer-modified buf)
-           (when (or (not (value compile-buffer-file-confirm))
-                     (prompt-for-y-or-n
-                      window
-                      :default t :default-string "Y"
-                      :prompt (list "Save and compile file ~A? "
-                                    (namestring pn))))
-             (write-buffer-file buf pn)
-             (with-output-to-window (*error-output* "Compiler Warnings")
-               (in-lisp (compile-file (namestring pn) #+cmu :error-file #+cmu nil)))))
-          ((older-or-non-existent-fasl-p pn p)
-           (when (or (not (value compile-buffer-file-confirm))
-                     (prompt-for-y-or-n
-                      window
-                      :default t :default-string "Y"
-                      :prompt (list "Compile file ~A? " (namestring pn))))
-             (with-output-to-window (*error-output* "Compiler Warnings")
-               (in-lisp (compile-file (namestring pn) #+cmu :error-file #+cmu nil)))))
-          (t (when (or p
+    (macrolet ((with-visual-feedback (() &body body)
+                 `(let ((region (buffer-region buffer))
+                        (saved (copy-mark (buffer-point buffer))))
+                    (unwind-protect (progn
+                                      (move-mark (buffer-point buffer) (region-start region))
+                                      (push-buffer-mark buffer (region-end region) t)
+                                      (update-window-image window)
+                                      ,@body
+                                      (sleep 0.1))
+                      (move-mark (buffer-point buffer) saved)
+                      (pop-buffer-mark buffer)
+                      (update-window-image window)
+                      (adhoc::adhoc-redefinition-hook)))))
+      (unless pn (editor-error "Buffer has no associated pathname."))
+      (cond ((buffer-modified buf)
+             (when (or (not (value compile-buffer-file-confirm))
                        (prompt-for-y-or-n
                         window
                         :default t :default-string "Y"
-                        :prompt
-                        "Fasl file up to date, compile source anyway? "))
-               (with-output-to-window (*error-output* "Compiler Warnings")
-                 (in-lisp (compile-file (namestring pn) #+cmu :error-file #+cmu nil))))))))
+                        :prompt (list "Save and compile file ~A? "
+                                      (namestring pn))))
+               (write-buffer-file window buf pn)
+               (with-visual-feedback ()
+                 (with-pop-up-display (*error-output* #+NIL "Compiler Warnings" :current-window window)
+                   (in-lisp buffer (load (compile-file (namestring pn) #+cmu :error-file #+cmu nil)))))
+               (clear-echo-area)))
+            ((older-or-non-existent-fasl-p pn p)
+             (when (or (not (value compile-buffer-file-confirm))
+                       (prompt-for-y-or-n
+                        window
+                        :default t :default-string "Y"
+                        :prompt (list "Compile file ~A? " (namestring pn))))
+               (with-visual-feedback ()
+                 (with-pop-up-display (*error-output* #+NIL "Compiler Warnings" :current-window window)
+                   (in-lisp buffer (load (compile-file (namestring pn) #+cmu :error-file #+cmu nil)))))
+               (clear-echo-area)))
+            (t (with-visual-feedback ()
+                   (with-pop-up-display (*error-output* #+NIL "Compiler Warnings" :current-window window)
+                     (in-lisp buffer (load (compile-file (namestring pn) #+cmu :error-file #+cmu nil)))))
+               (clear-echo-area)
+               #+OLD(when (or p
+                         (prompt-for-y-or-n
+                          window
+                          :default t :default-string "Y"
+                          :prompt
+                          "Fasl file up to date, compile source anyway? "))
+                 ))))))
 #+NIL
 (defcommand "Editor Compile Group" (p)
   "Compile each file in the current group which needs it in the editor Lisp.
@@ -866,23 +898,23 @@
 ;;; the point is within the symbol name.  This also tries to ignore :prefix
 ;;; characters such as quotes, commas, etc.
 ;;;
-#+NIL
-(defun mark-symbol (mark1 mark2)
-  (pre-command-parse-check mark1)
+
+(defun mark-symbol (buffer mark1 mark2)
+  (pre-command-parse-check buffer mark1)
   (with-mark ((tmark1 mark1)
               (tmark2 mark1))
-    (cond ((and (form-offset tmark1 1)
-                (form-offset (move-mark tmark2 tmark1) -1)
+    (cond ((and (form-offset buffer tmark1 1)
+                (form-offset buffer (move-mark tmark2 tmark1) -1)
                 (or (mark= mark1 tmark2)
-                    (and (find-attribute tmark2 :lisp-syntax
+                    (and (find-attribute buffer tmark2 :lisp-syntax
                                          #'(lambda (x) (not (eq x :prefix))))
                          (mark= mark1 tmark2))))
-           (form-offset mark2 1))
+           (form-offset buffer mark2 1))
           (t
-           (form-offset mark1 -1)
-           (find-attribute mark1 :lisp-syntax
+           (form-offset buffer mark1 -1)
+           (find-attribute buffer mark1 :lisp-syntax
                            #'(lambda (x) (not (eq x :prefix))))
-           (form-offset (move-mark mark2 mark1) 1)))))
+           (form-offset buffer (move-mark mark2 mark1) 1)))))
 
 
 (defcommand "Editor Describe" (window p)
@@ -921,4 +953,4 @@
            (region (region start end))
            (undo-region (copy-region region)))
       (filter-region fun region)
-      (make-region-undo :twiddle "Filter Region" region undo-region))))
+      (make-region-undo (window-buffer window) :twiddle "Filter Region" region undo-region))))

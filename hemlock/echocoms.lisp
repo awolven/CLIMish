@@ -99,7 +99,9 @@
     (when result
       (delete-region *echo-area-buffer* *parse-input-region*)
       (insert-string *echo-area-buffer* (region-start *parse-input-region*)
-                     (namestring result)))
+                     (namestring result))
+      (krma.gui::redraw-buffer *echo-area-window*))
+    #+NIL
     (when (and (not win) (value beep-on-ambiguity))
       (editor-error))))
 

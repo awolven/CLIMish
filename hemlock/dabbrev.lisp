@@ -59,10 +59,10 @@
         *seen-dabbrevs* nil
         *dabbrev-continuation* nil))
 
-(defun start-of-dabbrev-prefix (mark)
+(defun start-of-dabbrev-prefix (buffer mark)
   "Move Mark to the beginning of the word containing it. Returns NIL if
    there is no matching word."
-  (or (reverse-find-attribute mark :lisp-syntax #'not-constituent-p)
+  (or (reverse-find-attribute buffer mark :lisp-syntax #'not-constituent-p)
       (or (start-line-p mark)
           (line-start mark))))
 

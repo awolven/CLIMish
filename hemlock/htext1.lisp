@@ -229,17 +229,21 @@
     `(let* ((,mark-sym ,mark)
             (,new-line-sym ,new-line)
             (old-line (mark-line ,mark-sym)))
+       (when (null ,new-line-sym)
+         (error "attempt to call always-change-line with no new line"))
        (when ,new-line-sym
          (when old-line
            (when (not (eq (mark-%kind ,mark-sym) :temporary))
              (do ((scan (line-marks old-line) (cdr scan))
                   (prev () scan))
-                 ((eq (car scan) ,mark-sym)
+                 ((or (null scan)
+                      (eq (car scan) ,mark-sym))
                   (if prev
                       (setf (cdr prev) (cdr scan))
                       (setf (line-marks old-line) (cdr scan)))
-                  (setf (cdr scan) (line-marks ,new-line-sym)
-                        (line-marks ,new-line-sym) scan)))))
+                  (when scan
+                    (setf (cdr scan) (line-marks ,new-line-sym)))
+                  (setf (line-marks ,new-line-sym) scan)))))
          (setf (mark-line ,mark-sym) ,new-line-sym)))))
 
 
@@ -249,18 +253,22 @@
     `(let* ((,mark-sym ,mark)
             (,new-line-sym ,new-line)
             (old-line (mark-line ,mark-sym)))
+       (when (null ,new-line-sym)
+         (error "attempt to call change-line with no new line"))
        (when ,new-line-sym
          (when old-line
            (unless (or (eq (mark-%kind ,mark-sym) :temporary)
                        (eq old-line ,new-line-sym))
              (do ((scan (line-marks old-line) (cdr scan))
                   (prev () scan))
-                 ((eq (car scan) ,mark-sym)
+                 ((or (null scan)
+                      (eq (car scan) ,mark-sym))
                   (if prev
                       (setf (cdr prev) (cdr scan))
                       (setf (line-marks old-line) (cdr scan)))
-                  (setf (cdr scan) (line-marks ,new-line-sym)
-                        (line-marks ,new-line-sym) scan)))))
+                  (when scan
+                    (setf (cdr scan) (line-marks ,new-line-sym)))
+                  (setf (line-marks ,new-line-sym) scan)))))
          (setf (mark-line ,mark-sym) ,new-line-sym)))))
 
 
@@ -365,6 +373,7 @@
         (line-length* line))
       (error "~S is not a line!" line)))
 
+#+NIL
 (defun line-buffer (line)
   "Returns the buffer with which the Line is associated.  If the line is
   not in any buffer then Nil is returned."
@@ -390,7 +399,7 @@
         (line-sym (gensym "SET-LINE-STRING_LINE")))
     `(let* ((,string-sym ,string)
             (,line-sym ,line)
-            (buffer (line-%buffer ,line-sym)))
+            (buffer .buffer.))
        (modifying-buffer buffer
          (unless (simple-string-p ,string-sym)
            (setq ,string-sym (coerce ,string-sym 'simple-string)))
@@ -496,8 +505,7 @@
   "Returns a region constructed from the marks Start and End."
   (let ((l1 (mark-line start))
         (l2 (mark-line end)))
-    (unless (eq (line-%buffer l1) (line-%buffer l2))
-      (error "Can't make a region with lines of different buffers."))
+    
     (unless (if (eq l1 l2)
                 (<= (mark-charpos start) (mark-charpos end))
                 (< (line-number l1) (line-number l2)))
@@ -514,16 +522,16 @@
   ((buffer-lock :reader hi::buffer-lock :initform (bt:make-recursive-lock))
    (id :initarg :id)
    ;; "globals"
-   (open-line :initform nil)
-   (open-chars :initform (make-string 200))
-   (left-open-pos :initform 0)
-   (right-open-pos :initform 0)
-   (line-cache-length :accessor buffer-line-cache-length :initform 200)
+   ;;(open-line :initform nil)
+   ;;(open-chars :initform (make-string 200))
+   ;;(left-open-pos :initform 0)
+   ;;(right-open-pos :initform 0)
+   ;;(line-cache-length :accessor buffer-line-cache-length :initform 200)
 
-   (*internal-temp-region* :initform (let ((line (make-line :chars "" :number 0)))
-                                       (internal-make-region (mark line 0 :right-inserting)
-                                                             (mark line 0 :left-inserting))))
-   (*internal-temp-mark* :initform (internal-make-mark nil nil :temporary))
+   ;;(*internal-temp-region* :initform (let ((line (make-line :chars "" :number 0)))
+     ;;                                  (internal-make-region (mark line 0 :right-inserting)
+       ;;                                                      (mark line 0 :left-inserting))))
+   ;;(*internal-temp-mark* :initform nil)
 
    (last-was-undo-p :initform nil)
    (this-is-undo-p :initform nil)
@@ -541,12 +549,12 @@
 (defun make-empty-region ()
   "Returns a region with start and end marks pointing to the start of one empty
   line.  The start mark is right-inserting and the end mark is left-inserting."
-  (let* ((line (make-line :chars ""  :number 0
-                          :%buffer (make-instance 'disembodied-buffer
-                                                  :id (incf *disembodied-buffer-counter*))))
-         (start (mark line 0 :right-inserting))
-         (end (mark line 0 :left-inserting)))
-    (internal-make-region start end)))
+  (let* ((line (make-line :chars ""  :number 0)))
+    (when (null line)
+      (break))
+    (let ((start (mark line 0 :right-inserting))
+          (end (mark line 0 :left-inserting)))
+      (internal-make-region start end))))
 
 ;;; Line-Increment is the default difference for line numbers when we don't
 ;;; know any better.
@@ -569,9 +577,9 @@
 
 ;;; Renumber-Region-Containing renumbers the region containing the given line.
 
-(defun renumber-region-containing (line)
+(defun renumber-region-containing (buffer line)
   (cond ((line-buffer line)
-         (renumber-region (buffer-region (line-%buffer line))))
+         (renumber-region (buffer-region buffer)))
         (t
          (do ((line line (line-previous line))
               (number 0 (- number line-increment)))
@@ -585,14 +593,14 @@
 
 ;;; Number-Line numbers a newly created line.  The line has to have a previous
 ;;; line.
-(defun number-line (line)
+(defun number-line (buffer line)
   (let ((prev (line-number (line-previous line)))
         (next (line-next line)))
     (if (null next)
         (setf (line-number line) (+ prev line-increment))
         (let ((new (+ prev (truncate (- (line-number next) prev) 2))))
           (if (= new prev)
-              (renumber-region-containing line)
+              (renumber-region-containing buffer line)
               (setf (line-number line) new))))))
 
 
@@ -719,6 +727,7 @@
 
 (defun mark< (mark1 mark2)
   "Returns T if Mark1 points to a character before Mark2, Nil otherwise."
+  #+NIL
   (if (not (eq (line-%buffer (mark-line mark1))
                (line-%buffer (mark-line mark2))))
       (error "Marks in different buffers have no relation."))
@@ -728,6 +737,7 @@
 
 (defun mark<= (mark1 mark2)
   "Returns T if Mark1 points to a character at or before Mark2, Nil otherwise."
+  #+NIL
   (if (not (eq (line-%buffer (mark-line mark1))
                (line-%buffer (mark-line mark2))))
       (error "Marks in different buffers have no relation."))
@@ -737,6 +747,7 @@
 
 (defun mark> (mark1 mark2)
   "Returns T if Mark1 points to a character after Mark2, Nil otherwise."
+  #+NIL
   (if (not (eq (line-%buffer (mark-line mark1))
                (line-%buffer (mark-line mark2))))
       (error "Marks in different buffers have no relation."))
@@ -746,6 +757,7 @@
 
 (defun mark>= (mark1 mark2)
   "Returns T if Mark1 points to a character at or after Mark2, Nil otherwise."
+  #+NIL
   (if (not (eq (line-%buffer (mark-line mark1))
                (line-%buffer (mark-line mark2))))
       (error "Marks in different buffers have no relation."))
@@ -765,28 +777,33 @@
 
 (defun line< (line1 line2)
   "Returns T if Line1 comes before Line2, NIL otherwise."
+  #+NIL
   (if (neq (line-%buffer line1) (line-%buffer line2))
       (error "Lines in different buffers have no relation."))
   (< (line-number line1) (line-number line2)))
 
 (defun line<= (line1 line2)
   "Returns T if Line1 comes before or is the same as Line2, NIL otherwise."
+  #+NIL
   (if (neq (line-%buffer line1) (line-%buffer line2))
       (error "Lines in different buffers have no relation."))
   (<= (line-number line1) (line-number line2)))
 
 (defun line>= (line1 line2)
   "Returns T if Line1 comes after or is the same as Line2, NIL otherwise."
+  #+NIL
   (if (neq (line-%buffer line1) (line-%buffer line2))
       (error "Lines in different buffers have no relation."))
   (>= (line-number line1) (line-number line2)))
 
 (defun line> (line1 line2)
   "Returns T if Line1 comes after Line2, NIL otherwise."
+  #+NIL
   (if (neq (line-%buffer line1) (line-%buffer line2))
       (error "Lines in different buffers have no relation."))
   (> (line-number line1) (line-number line2)))
 
+#+NIL
 (defun lines-related (line1 line2)
   "Returns T if an order relation exists between Line1 and Line2."
   (eq (line-%buffer line1) (line-%buffer line2)))

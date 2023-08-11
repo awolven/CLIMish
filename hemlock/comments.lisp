@@ -194,7 +194,7 @@
 ;;; CHANGE-COMMENT-LINE closes any comment on the current line, deleting
 ;;; an empty comment.  After offsetting by lines, a comment is either
 ;;; aligned or created.
-(defun change-comment-line (mark column start begin end lines)
+(defun change-comment-line (buffer mark column start begin end lines)
   (with-mark ((tmark1 mark :left-inserting)
               (tmark2 mark))
     (let ((start-len (to-line-comment mark start))
@@ -210,7 +210,7 @@
                ;; even though comment is blank, the line might not be blank
                ;; after it in languages that have comment terminators.
                (when (blank-after-p tmark1)
-                 (reverse-find-attribute mark :whitespace #'zerop)
+                 (reverse-find-attribute buffer mark :whitespace #'zerop)
                  (if (not (same-line-p mark tmark1))
                      (line-start mark (mark-line tmark1)))
                  (delete-region (region mark tmark1))))
@@ -237,25 +237,25 @@
 
 ;;; KILL-COMMENT assumes a comment is the last thing on a line, so it does
 ;;; not deal with comment-end.  The Tao of EMACS.
-(defun kill-comment (mark start times)
+(defun kill-comment (buffer mark start times)
   (with-mark ((tmark mark :left-inserting))
     (if (= times 1)
         (when (to-line-comment mark start)
           (with-mark ((u-start mark)
-                      (u-end (line-end (move-mark tmark mark))))
-            (rev-scan-char u-start :whitespace nil)
-            (let ((undo-region (copy-region (region u-start u-end))))
-              (ring-push (delete-and-save-region (region mark tmark))
+                      (u-end (line-end buffer (move-mark tmark mark))))
+            (rev-scan-char buffer u-start :whitespace nil)
+            (let ((undo-region (copy-region buffer (region u-start u-end))))
+              (ring-push (delete-and-save-region buffer (region mark tmark))
                          *kill-ring*)
-              (delete-horizontal-space mark)
-              (make-region-undo :insert "Kill Comment" undo-region
+              (delete-horizontal-space buffer mark)
+              (make-region-undo buffer :insert "Kill Comment" undo-region
                                 (copy-mark mark :left-inserting)))))
-        (let* ((kill-region (delete-and-save-region (region mark tmark)))
+        (let* ((kill-region (delete-and-save-region buffer (region mark tmark)))
                (insert-mark (region-end kill-region))
                ;; don't delete u-start and u-end since undo stuff handles that.
                (u-start (line-start (copy-mark mark :left-inserting)))
                (u-end (copy-mark mark :left-inserting))
-               (undo-region (copy-region (region u-start
+               (undo-region (copy-region buffer (region u-start
                                                  (if (line-offset u-end times)
                                                      (line-start u-end)
                                                      (buffer-end u-end)))))
@@ -263,12 +263,12 @@
                 (%do-comment-lines (n times) mark
                   (when (to-line-comment mark start)
                     (line-end (move-mark tmark mark))
-                    (ninsert-region insert-mark
-                                    (delete-and-save-region (region mark tmark)))
-                    (insert-character insert-mark #\newline)
-                    (delete-horizontal-space mark)))))
+                    (ninsert-region buffer insert-mark
+                                    (delete-and-save-region buffer (region mark tmark)))
+                    (insert-character buffer insert-mark #\newline)
+                    (delete-horizontal-space buffer mark)))))
           (ring-push kill-region *kill-ring*)
-          (make-region-undo :twiddle "Kill Comment"
+          (make-region-undo buffer :twiddle "Kill Comment"
                             (region u-start u-end) undo-region)
           (unless n-times-p
             (buffer-end mark)

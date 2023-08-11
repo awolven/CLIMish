@@ -816,19 +816,19 @@
 ;;; displayed on the first character of a word as being in that word instead of
 ;;; before it.
 ;;;
-(defun spell-previous-word (mark end-p)
+(defun spell-previous-word (buffer mark end-p)
   (with-mark ((point mark)
               (mark mark))
     (cond ((or end-p
                (zerop (character-attribute :spell-word-character
                                            (next-character point))))
-           (unless (reverse-find-attribute mark :spell-word-character)
+           (unless (reverse-find-attribute buffer mark :spell-word-character)
              (return-from spell-previous-word nil))
            (move-mark point mark)
-           (reverse-find-attribute point :spell-word-character #'zerop))
+           (reverse-find-attribute buffer point :spell-word-character #'zerop))
           (t
-           (find-attribute mark :spell-word-character #'zerop)
-           (reverse-find-attribute point :spell-word-character #'zerop)))
+           (find-attribute buffer mark :spell-word-character #'zerop)
+           (reverse-find-attribute buffer point :spell-word-character #'zerop)))
     (cond ((and (> (- (mark-charpos mark) (mark-charpos point)) 2)
                 (char= (char-upcase (previous-character mark)) #\S)
                 (char= (prog1 (previous-character (mark-before mark))

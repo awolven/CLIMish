@@ -300,7 +300,7 @@
     (cond ((mark< mark
                   (region-end (hemlock-region-stream-region stream)))
            (let* ((buffer
-                    (line-buffer (mark-line (hemlock-output-stream-mark stream)))))
+                    (line-buffer (mark-line (hemlock-region-stream-mark stream)))))
              (prog1 (next-character buffer mark) (mark-after buffer mark))))
           (t :eof))))
 
@@ -314,7 +314,7 @@
                    (region-start (hemlock-region-stream-region stream)))
       (error "Nothing to unread."))
     (let* ((buffer
-             (line-buffer (mark-line (hemlock-output-stream-mark stream)))))
+             (line-buffer (mark-line (hemlock-region-stream-mark stream)))))
       (unless (char= char (previous-character buffer mark))
         (error "Unreading something not read: ~S" char))
       (mark-before buffer mark))

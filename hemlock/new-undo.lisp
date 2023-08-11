@@ -66,14 +66,14 @@
 ;; and fro. Further these new kind of buffer positions are passed
 ;; around as (buffer line-number character-position) triples.
 
-(defun mark-position (mark)
+(defun mark-position (buffer mark)
   (let ((line-no 0)
         (line (mark-line mark)))
     (do ()
         ((null (line-previous line)))
       (incf line-no)
       (setf line (line-previous line)))
-    (list (line-buffer (mark-line mark))
+    (list buffer
           line-no (mark-charpos mark))))
 
 (defun position-mark (buffer line-no char-pos)
@@ -104,7 +104,7 @@
   (cond ((buffer-undo-p buffer)
          (unless *insert-noted-p*
            (push `(insert-string ,buffer
-                                 ,(mark-position mark)
+                                 ,(mark-position buffer mark)
                                  ,(string character))
                  (buffer-undo-list buffer))
            (update-tag-line-number buffer mark))
@@ -119,7 +119,7 @@
   (cond ((and buffer (buffer-undo-p buffer))
          (unless *insert-noted-p*
            (push `(insert-string ,buffer
-                                 ,(mark-position mark)
+                                 ,(mark-position buffer mark)
                                  ,(subseq string start end))
                  (buffer-undo-list buffer))
            (update-tag-line-number buffer mark))
@@ -134,7 +134,7 @@
   (cond ((and buffer (buffer-undo-p buffer))
          (unless *insert-noted-p*
            (push `(insert-string ,buffer
-                                 ,(mark-position mark)
+                                 ,(mark-position buffer mark)
                                  ,(region-to-string buffer region))
                  (buffer-undo-list buffer))
            (update-tag-line-number buffer mark))
@@ -150,7 +150,7 @@
   (cond ((and buffer (buffer-undo-p buffer))
          (unless *insert-noted-p*
            (push `(insert-region ,buffer
-                                 ,(mark-position mark)
+                                 ,(mark-position buffer mark)
                                  ,(region-to-string buffer region))
                  (buffer-undo-list buffer))
              (update-tag-line-number buffer mark))
@@ -204,7 +204,7 @@
 (defmethod delete-and-save-region :around (buffer region)
   (let ((mark (region-start region)))
     (cond ((buffer-undo-p buffer)
-           (let ((pos (mark-position mark))
+           (let ((pos (mark-position buffer mark))
                  (matter (call-next-method)))
              (push `(delete-region ,buffer ,pos ,(region-to-string buffer matter))
                    (buffer-undo-list buffer))
@@ -282,7 +282,7 @@
   (setf (slot-value buffer 'this-is-undo-p) nil)
   (when (and buffer (buffer-undo-p buffer))
     (push (list :command command) (buffer-undo-list buffer))
-    (push (list 'point-position (mark-position (buffer-point buffer)))
+    (push (list 'point-position (mark-position buffer (buffer-point buffer)))
           (buffer-undo-list buffer)))
   nil)
 

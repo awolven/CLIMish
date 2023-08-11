@@ -210,8 +210,8 @@
          (region (region start end)))
     (setv pathname-defaults pn)
     (push-buffer-mark buffer (copy-mark end))
-    (read-file pn end)
-    (make-region-undo :delete "Insert File" region)))
+    (read-file buffer pn end)
+    (make-region-undo buffer :delete "Insert File" region)))
 
 (defcommand "Write Region" (window p &optional pathname)
   "Writes the current region to a file. "
@@ -466,7 +466,7 @@
          (pathname (pathname pathname))
          (probed-pathname (probe-file pathname)))
     (cond (probed-pathname
-           (read-file probed-pathname point)
+           (read-file buffer probed-pathname point)
            (setf (buffer-write-date buffer) (file-write-date probed-pathname)))
           (t
            (message "(New File)")
@@ -880,7 +880,7 @@
 
         (push-buffer-mark buffer (copy-mark point))
         (insert-region buffer point region)
-        (make-region-undo :delete "Insert Buffer" save))))
+        (make-region-undo buffer :delete "Insert Buffer" save))))
 
 
 

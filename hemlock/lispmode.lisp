@@ -85,8 +85,8 @@
 (defmacro scan-char (buffer mark attribute values)
   `(find-attribute ,buffer ,mark ',attribute ,(attr-predicate values)))
 
-(defmacro rev-scan-char (mark attribute values)
-  `(reverse-find-attribute ,mark ',attribute ,(attr-predicate values)))
+(defmacro rev-scan-char (buffer mark attribute values)
+  `(reverse-find-attribute ,buffer ,mark ',attribute ,(attr-predicate values)))
 
 (defmacro test-char (char attribute values)
   `(let ((x (character-attribute ',attribute ,char)))
@@ -137,7 +137,7 @@
   "Expand to a form that scans either backward or forward according to Forwardp."
   (if forwardp
       `(scan-char ,buffer ,mark ,@forms)
-      `(rev-scan-char ,mark ,@forms)))
+      `(rev-scan-char ,buffer ,mark ,@forms)))
 ;;;
 ;;; DIRECTION-CHAR
 
@@ -728,7 +728,7 @@
                     ((top-level-offset buffer mark1 1)
                      (form-offset buffer (move-mark mark2 mark1) 1)))))
     (when winp
-      (when (blank-after-p buffer mark2) (line-offset mark2 1 0))
+      (when (blank-after-p buffer mark2) (line-offset buffer mark2 1 0))
       mark2)))
 
 (defun inside-defun-p (buffer mark)
@@ -1223,7 +1223,8 @@
     (pre-command-parse-check buffer point)
     (with-mark ((m point))
       (unless (form-offset buffer m 1) (editor-error))
-      (lisp-indent-region window buffer (region point m) "Indent Form"))))
+      (lisp-indent-region window buffer (region point m) "Indent Form"))
+    (krma.gui::redraw-buffer window)))
 
 ;;; LISP-INDENT-REGION -- Internal.
 ;;;
@@ -1262,7 +1263,7 @@
             (parse-lisp-line-info buffer bol line-info prev-line-info)
             (setq prev-line-info line-info))
           (when (eq line last-line) (return nil))))
-      (make-region-undo :twiddle undo-text buf-region undo-region)))))
+      (make-region-undo buffer :twiddle undo-text buf-region undo-region)))))
 
 ;;; INDENT-FOR-LISP -- Internal.
 ;;;
@@ -1291,8 +1292,10 @@
       (if (minusp count)
           (end-of-defun-command window (- count))
           (unless (top-level-offset buffer point (- count))
-            (editor-error))))
-  (update-window-image window))
+            (editor-error)))
+    (unless (displayed-p point window)
+      (hi::center-window-on-mark window point))
+    (krma.gui:redraw-buffer window)))
     
 
 ;;; "End of Defun", with a positive p (the normal case), does something weird.
@@ -1383,7 +1386,7 @@
     (with-mark ((m point))
       (pre-command-parse-check buffer m)
       (let ((count (or p 1))
-            (mark (push-buffer-mark (copy-mark m) t)))
+            (mark (push-buffer-mark buffer (copy-mark m) t)))
         (if (form-offset buffer m count)
             (move-mark mark m)
             (editor-error))))
@@ -1529,7 +1532,8 @@
               (unless (form-offset buffer s2 -1) (editor-error))
               (ninsert-region buffer s1 (delete-and-save-region buffer (region s2 e2)))
               (ninsert-region buffer s2 (delete-and-save-region buffer (region s1 e1)))
-              (move-mark point s2)))))))
+              (move-mark point s2)))))
+    (krma.gui::redraw-buffer window)))
 
 
 (defcommand "Insert ()" (window count)
@@ -1557,7 +1561,8 @@
           (t
            (insert-character buffer point #\()
            (insert-character buffer point #\))
-           (mark-before buffer point)))))
+           (mark-before buffer point)))
+    (krma.gui::redraw-buffer window)))
 
 
 (defcommand "Move Over )" (window p)
@@ -1583,7 +1588,7 @@
                             (delete-horizontal-space buffer m))
                            (t
                             (move-mark point m)
-                            (reverse-find-attribute point :whitespace #'zerop)
+                            (reverse-find-attribute buffer point :whitespace #'zerop)
                             (delete-region buffer (region point m))))
                      (cond ((not p)
                             ;; Move to the previous line if current is empty
@@ -1597,7 +1602,8 @@
                             (move-mark point m)
                             (insert-character buffer m #\space)))))
                   (t
-                   (editor-error "Could not find closing paren.")))))))))
+                   (editor-error "Could not find closing paren.")))))
+        (update-window-image window)))))
 
 
 (defcommand "Forward Up List" (window p)
@@ -1644,7 +1650,7 @@
                                    (mark-after buffer m))
                         (editor-error))))
             (t
-             (unless (and (rev-scan-char m :lisp-syntax :close-paren)
+             (unless (and (rev-scan-char buffer m :lisp-syntax :close-paren)
                           (mark-before buffer m))
                (editor-error))))
       (move-mark point m))))
@@ -1719,7 +1725,7 @@
       (delete-characters buffer mark -1)
       (mark-before buffer mark)
       ;; Save undo.
-      (make-region-undo :twiddle "Fill Lisp Comment Paragraph"
+      (make-region-undo buffer :twiddle "Fill Lisp Comment Paragraph"
                         string-region undo-region))))
 
 ;;; FILL-LISP-COMMENT-OR-INDENTED-TEXT -- Internal.
@@ -1760,7 +1766,7 @@
            (region (region start1 end2))
            (undo-region (copy-region buffer region)))
       (fill-region region prefix)
-      (make-region-undo :twiddle "Fill Lisp Comment Paragraph"
+      (make-region-undo buffer :twiddle "Fill Lisp Comment Paragraph"
                         region undo-region))))
 
 ;;; FILL-LISP-COMMENT-PARAGRAPH-PREFIX -- Internal.
@@ -1825,19 +1831,24 @@
     (let* ((buffer (window-buffer win))
            (point (buffer-point buffer)))
       (insert-character buffer point #\))
+      (krma.gui::redraw-buffer window)
       (pre-command-parse-check buffer point)
       (when (valid-spot buffer point nil)
         (with-mark ((m point))
           (if (list-offset buffer m -1)
-              (let ((pause (value paren-pause-period)))
+              (let ((pause 0.4 #+NIL(value paren-pause-period)))
+
                 (if pause
                     (unless (show-mark m win pause)
+                                              (break)
+
                       (clear-echo-area)
                       (message "~A" (line-string buffer (mark-line m))))
                     (unless (displayed-p m win)
                       (clear-echo-area)
                       (message "~A" (line-string buffer (mark-line m))))))
-              (editor-error)))))))
+              (editor-error))))
+      (krma.gui::redraw-buffer window))))
 
 ;;; Since we use paren highlighting in Lisp mode, we do not want paren
 ;;; flashing too.

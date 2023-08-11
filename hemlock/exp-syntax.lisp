@@ -337,7 +337,7 @@
           (t
            ;; work to do, but first remove old font marks
            (dolist (fm font-marks)
-             (hi::delete-font-mark fm))
+             (hi::delete-font-mark buffer fm))
            (setf font-marks nil)
            ;; now do the highlighting
            (let ((state prev-to)
@@ -350,7 +350,7 @@
                     (setf state (step** state ch))
                     (let ((font (state-font state)))
                       (unless (eq font last-font)
-                        (push (font-mark line p font) font-marks)
+                        (push (font-mark buffer line p font) font-marks)
                         (setf last-font font)))))
              (setf state (step** state #\newline))
              ;; hack
@@ -358,10 +358,10 @@
                (when (and (eql 0 (search "(def" s))
                           (setf p1 (position #\space s))
                           (setf p2 (position #\space s :start (1+ p1))))
-                 (push (font-mark line 1 +def-fg-color+) font-marks)
-                 (push (font-mark line p1 0) font-marks)
-                 (push (font-mark line (1+ p1) +name-fg-color+) font-marks)
-                 (push (font-mark line p2 0) font-marks)))
+                 (push (font-mark buffer line 1 +def-fg-color+) font-marks)
+                 (push (font-mark buffer line p1 0) font-marks)
+                 (push (font-mark buffer line (1+ p1) +name-fg-color+) font-marks)
+                 (push (font-mark buffer line p2 0) font-marks)))
              (make-syntax-info (line-signature line)
                                prev-to
                                state
@@ -405,7 +405,7 @@
 
 
 (defun recompute-tags-up-to (buffer end-line)
-  (let* ((level (buffer-tag-line-number (line-buffer end-line)))
+  (let* ((level (buffer-tag-line-number buffer))
          (start-line
           (iter (for line initially end-line then prev)
                 (for prev = (line-previous line))

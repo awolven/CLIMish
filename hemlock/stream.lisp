@@ -139,8 +139,8 @@
 
 (defmethod stream-unread-char ((stream hemlock-character-io-stream) character)
   (declare (ignore character))
-  (if (eql (hi::mark-position (hemlock-character-io-stream-mark stream))
-           (hi::mark-position (buffer-start-mark (hemlock-character-io-stream-buffer stream))))
+  (if (eql (hi::mark-position (hemlock-character-io-stream-buffer stream) (hemlock-character-io-stream-mark stream))
+           (hi::mark-position (hemlock-character-io-stream-buffer stream) (buffer-start-mark (hemlock-character-io-stream-buffer stream))))
       (error "Nothing to unread")
       (character-offset (hemlock-character-io-stream-buffer stream)
 			(hemlock-character-io-stream-mark stream) -1))
@@ -183,8 +183,8 @@
 (defmethod stream-start-line-p ((stream hemlock-character-io-stream))
   ;; maybe needs previous-character buffer-end-mark #\newline
   (let ((buffer (hemlock-character-io-stream-buffer stream)))
-    (or (eql (hi::mark-position (hemlock-character-io-stream-mark stream))
-             (hi::mark-position (buffer-start-mark buffer)))
+    (or (eql (hi::mark-position buffer (hemlock-character-io-stream-mark stream))
+             (hi::mark-position buffer (buffer-start-mark buffer)))
         (eq (previous-character (hemlock-character-io-stream-buffer stream)
 				(hemlock-character-io-stream-mark stream)) #\Newline))))
 

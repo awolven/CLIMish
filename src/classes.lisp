@@ -225,7 +225,7 @@
     :initform (make-empty-region))
 
    (*internal-temp-mark*
-    :initform (internal-make-mark nil nil :temporary))
+    :initform nil)
 
    (last-was-undo-p
     :initform nil)

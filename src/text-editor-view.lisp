@@ -114,35 +114,112 @@
 				  (hi::dis-line-line (car this))))))
 
 		(let ((dis-lines (hi::window-first-line window))
-		      (offset 0))
+		      (line)
+		      (line-string)
+		      (charpos)
+		      (reverse-lines)
+		      (i 0))
+
+		  (unless (cdr dis-lines)
+		    (return-from cursorpos-to-mark nil)) ;; window image is bogus
 
 		  (when (eql (cdr dis-lines) hi::the-sentinel) ;; there are no lines
 		    (return-from cursorpos-to-mark nil))
-		
-		  (loop while dis-lines
+
+		  (flet ((dis-line-size (line-string end size-guess)
+			   ;; size of dis line in characters (where character width does not necessarily = 1)
+			   (print 'size)
+			   (print (if (not (plusp size-guess))
+			       0
+			   (macrolet ((%fcwa (str start end)
+					`(hi::%sp-reverse-find-character-with-attribute
+					  ,str ,start ,end hi::*losing-character-mask* hi::losing-char)))
+			      (loop
+			       with losing = nil
+			       with start = (- end size-guess)
+			       ;; sanity check
+			       when (< start 0)
+				 do (return size-guess)
+			       do (setq losing (%fcwa line-string start end))
+				  (if losing
+				      (progn (setq end losing)
+					     (when (<= end start)
+					       (return size-guess))
+					     (let ((str (hi::get-rep (char line-string losing))))
+					       (when (functionp str)
+						 (setq str (funcall str losing)))
+					       (let ((len (hi::strlen str)))
+						 (decf size-guess (1- len))
+						 (incf start (1- len)))))
+				      (return size-guess))))))))
+
+		    (setq line (hi::dis-line-line (cadr dis-lines)))
+		    (setq line-string (line-string (window-buffer window) line))
+		    (setq charpos (hi::strlen line-string))
+
+		    (tagbody
+
+		     start
+		       
+		       (when (wrapped-line? window (cdr dis-lines))
+			 (push (cadr dis-lines) reverse-lines)
+			 (setq dis-lines (cdr dis-lines))
+			 (go wrapped-line))
+		       
+		       (go check)
+		       
+		     wrapped-line
+		       (when (continuing-wrapped-line? (cdr dis-lines) dis-lines)
+			 (push (cadr dis-lines) reverse-lines)
+			 (when (not (wrapped-line? window (cdr dis-lines)))
+			   (go unwind-wrapped))
+			 (setq dis-lines (cdr dis-lines))
+			 (unless (cdr dis-lines)
+			   (go unwind-wrapped))
+			 (when (eql (cdr dis-lines) hi::the-sentinel)
+			   (go unwind-wrapped))
+			 (go wrapped-line))
+
+		     check
+		       (when (= y (hi::dis-line-position (cadr dis-lines)))
+			 (decf charpos (dis-line-size line-string charpos (- (hi::dis-line-length (cadr dis-lines)) x)))
+			 (go exit))
+
+		     next
+		       (setq dis-lines (cdr dis-lines))
+		       (unless (cdr dis-lines)
+			 (setq charpos 0)
+			 (go exit))
+		       (when (eql (cdr dis-lines) hi::the-sentinel)
+			 (setq charpos 0)
+			 (go exit))
+		       (setq line (hi::dis-line-line (cadr dis-lines)))
+		       (setq line-string (line-string (window-buffer window) line))
+		       (setq charpos (hi::strlen line-string))
+		       (go start)
+
+		     unwind-wrapped
+		       (loop for dl in reverse-lines
+			     with count = 0
+			     when (> (incf count) 100)
+			       do (go exit)
+			     do (if (= y (hi::dis-line-position dl))
+				    (progn (decf charpos (dis-line-size line-string charpos (- (hi::dis-line-length dl) x)))
+					   ;; we won
+					   (go exit))
+				    ;; prepare to win
+				    (progn (decf charpos (dis-line-size line-string charpos (hi::dis-line-length dl)))
+					   (incf i)))
+			     finally (setq reverse-lines ())
+				     (setq i 0)
+				     ;; we lost
+				     (go next))
+		     exit)
+		    (print charpos)
+		    (print (hi::dis-line-position (cadr dis-lines)))
 		    
-			when (null (cdr dis-lines))
-			  ;; window image is bogus
-			  do (return-from cursorpos-to-mark nil)
-			     
-			do (if (continuing-wrapped-line? (cdr dis-lines) dis-lines)
-			       (incf offset (1- (hi::window-width window)))
-			       (setq offset 0))
-		       
-			do (setq dis-lines (cdr dis-lines))
-
-			when (eql (cdr dis-lines) hi::the-sentinel)
-			  do (return)
-		       
-			when (= y (hi::dis-line-position (car dis-lines)))
-			  do (return))
-
-		  (let ((buf-line (hi::dis-line-line (car dis-lines))))
-		    (hi::internal-make-mark
-		      buf-line
-		      (min (+ x offset) (hi::dis-line-end (car dis-lines)))
-		      :temporary)))))
-
+		    (hi::internal-make-mark line (max (+ charpos i) 0) :temporary)))))
+	    
 	    (copy-mark (window-display-end window))))))
 
 (defun wrapped-line? (window dis-lines)
@@ -163,12 +240,11 @@
 	   (hi::dis-line-line (car this)))))
 
 (defun mark-to-cursorpos (mark window)
-  (multiple-value-bind (dis-lines offset) (find-dis-line window mark)
-    (if dis-lines
-	(unless (eql dis-lines (slot-value window 'hi::the-sentinel))
-	  (unless (and offset (minusp offset))
-	    (values (or offset 0) (hi::dis-line-position (car dis-lines)))))
-	(values 0 0))))
+  (multiple-value-bind (dis-lines x) (find-dis-line window mark)
+    (let ((y 0))
+      (when dis-lines
+	(setq y (hi::dis-line-position (car dis-lines))))
+      (values x y))))  
 
 (defun find-dis-line (window mark)
   ;; this function has to be resilient to broken windows
@@ -181,15 +257,20 @@
 	   (the-sentinel (slot-value window 'hi::the-sentinel))
 	   (line (hi::mark-line mark))
 	   (charpos (hi::mark-charpos mark))
-	   (offset charpos)
+	   (offset 0)
+	   (total 0)
 	   (i 0))
 
       (unless dis-lines
-	(return-from find-dis-line nil))
+	(return-from find-dis-line (values nil 0))) ;; window image is corrupt
     
-      (when (eql (cdr dis-lines) hi::the-sentinel) ;; there are no lines
-	(return-from find-dis-line nil))
+      (when (eql dis-lines hi::the-sentinel) ;; there are no lines, pathological case
+	(return-from find-dis-line (values nil 0)))
 
+      (when (eql (cdr dis-lines) hi::the-sentinel) ;; there are no lines, normal case
+	(return-from find-dis-line (values nil 0)))
+
+      ;; find first dis-line with line as it's dis-line-line
       (tagbody
        check
 	 (when (or (null (cdr dis-lines)) ;; invalid window image
@@ -203,37 +284,77 @@
        
        exit)
 
-      (if (wrapped-line? window (cdr dis-lines))
-	  (progn
-	    (loop while (cdr dis-lines)
+      ;; compute the offset into the line taking into account character print representation length
+      (let ((line-string (line-string (window-buffer window) line)))
+	(setq charpos (min charpos (length line-string)))
+	(macrolet ((%fcwa (str start end)
+		     `(hi::%sp-find-character-with-attribute
+		       ,str ,start ,end hi::*losing-character-mask* hi::losing-char)))
+	  (loop
+	    with start = 0
+	    with losing = nil
+	    with count = -1
+	    when (>= start charpos)
+	      do (return)
+	    do (setq losing (%fcwa line-string start charpos))
+	       (if losing
+		   (progn (incf count)
+			  (setq start (1+ losing))
+			  (let ((str (hi::get-rep (char line-string losing))))
+			    (when (functionp str)
+			      (setq str (funcall str losing)))
+			    (let ((len (hi::strlen str)))
+			      ;;(if (zerop count)
+				  (incf total (1- len))
+			      #+NIL(incf total len))));;)
+		   (return)))))
+
+      (incf charpos total)
+
+      (setq offset charpos)
+
+      (flet ((return-charpos ()
+	       (return-from find-dis-line (values (cdr dis-lines) (+ offset i)))))
+
+	(if (wrapped-line? window (cdr dis-lines))
+	    
+	    (progn
+	      (loop while (cdr dis-lines)
 	  
-		  when (null (cdr dis-lines))
-		    ;; window image is bogus
-		    do (return-from find-dis-line nil)
+		    when (null (cdr dis-lines))
+		      ;; window image is bogus
+		      do (return-from find-dis-line (values dis-lines offset))
 
-		  when (< offset (hi::dis-line-length (cadr dis-lines)))
-		    do (when (and (wrapped-line? window (cdr dis-lines))
-				  (= (+ offset i) (1- (hi::window-width window))))
-			 ;; special case for when cursor would
-			 ;; be displayed on #\! line-wrap char
-			 (setq dis-lines (cdr dis-lines))
-			 (setq offset 0)
-			 (setq i 0))
-		       (let ((count (count #\Tab (hi::line-string (hi::window-buffer window) (hi::dis-line-line (cadr dis-lines))))))
-			 (return-from find-dis-line
-			   (values (cdr dis-lines) (+ offset i (* 7 count)))))
+		    when (< offset (hi::dis-line-length (cadr dis-lines)))
+		      do (when (and (wrapped-line? window (cdr dis-lines))
+				    (= (+ offset i) (1- (hi::window-width window))))
+			   ;; special case for when cursor would
+			   ;; be displayed on #\! line-wrap char
+			   (setq dis-lines (cdr dis-lines))
 
-		  when (wrapped-line? window (cdr dis-lines))
-		    do (setq dis-lines (cdr dis-lines))
-		       (incf i)
-		       (decf offset (hi::window-width window))
+			   (when (or (null (cdr dis-lines))
+				     (eql (cdr dis-lines) hi::the-sentinel)) ;; this is unexpected
+			     (return-from find-dis-line (values dis-lines offset)))
+			 
+			   (setq offset 0)
+			   (setq i 0))
+			 ;; todo: get this properly accounting for character attributes so that this function is correct *always*
+		       
+			 (return-charpos)
+
+		    when (wrapped-line? window (cdr dis-lines))
+		      do (setq dis-lines (cdr dis-lines))
+			 (incf i)
+			 (decf offset (hi::window-width window))
+
+		    when (null (cdr dis-lines))
+		      do (return-from find-dis-line (values dis-lines offset))
 	     
-		  when (eql (cdr dis-lines) hi::the-sentinel)
-		    do (let ((count (count #\Tab (hi::line-string (hi::window-buffer window) (hi::dis-line-line (cadr dis-lines))))))
-			 (return-from find-dis-line (values dis-lines (+ offset (* count 7)))))))
+		    when (eql (cdr dis-lines) hi::the-sentinel)
+		       		   
+		      do (return-charpos)))
 
-	  (let ((count (count #\Tab (hi::line-string (hi::window-buffer window) (hi::dis-line-line (cadr dis-lines))))))
-	    (values (cdr dis-lines) (+ offset (* 7 count))))))))
+	    (return-charpos))))))
 
 (defun draw-active-region-closure-generator (window scene)
   #'(lambda ()
@@ -297,7 +418,7 @@
 
 					  (flet ((draw (y x0 x1)
 						   (scene-draw-filled-2d-rectangle-list
-						    scene :cursor #xff770077
+						    scene :cursor #xff770033
 						    (list (+ (* x0 space-width) ox) (+ (* y font-size) oy)
 							  (+ (* x1 space-width) ox) (+ (* (1+ y) font-size) oy))
 						    0 (1+ (the buffer-view text layer)))))

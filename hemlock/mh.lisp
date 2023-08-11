@@ -1037,7 +1037,7 @@
 (defun read-mh-file (pathname buffer)
   (unless (probe-file pathname)
     (editor-error "No such message -- ~A" (namestring pathname)))
-  (read-file pathname (buffer-point buffer))
+  (read-file buffer pathname (buffer-point buffer))
   (setf (buffer-write-date buffer) (file-write-date pathname))
   (buffer-start (buffer-point buffer))
   (setf (buffer-modified buffer) nil))

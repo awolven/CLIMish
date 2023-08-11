@@ -698,7 +698,9 @@
   (if (the iconified?)
       (setf (the iconified?) nil) ;; will reenter %focus-window with (the iconified?) --> nil
       (let ((scene (the scene)))
-	(let ((siblings (remove self (krma::node-children scene))))
+	(let ((siblings (remove self (remove-if-not #'(lambda (node)
+							(typep node 'homemade-window-mixin))
+						    (krma::node-children scene)))))
 	  (setq siblings (sort siblings #'< :key #'(lambda (self) (the z-index))))
 	  (loop for i from 0
 		for sibling in siblings
@@ -777,11 +779,14 @@
 
   (let ((highest-z-index 0)
 	(os-window (window-parent (the root))))
-    
-    (when (krma::node-children (the scene))
-      (setq highest-z-index
-	    (loop for part in (krma::node-children (the scene))
-		  maximize (the-part z-index))))
+
+    (let ((siblings (remove-if-not #'(lambda (thing)
+				       (typep thing 'homemade-window-mixin))
+				   (krma::node-children (the scene)))))
+      (when siblings
+	(setq highest-z-index
+	      (loop for part in siblings
+		    maximize (the-part z-index)))))
 	
     (setf (the z-index) (1+ highest-z-index))
     (setf (krma::node-children (the scene)) (append (krma::node-children (the scene)) (list self)))

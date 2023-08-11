@@ -37,6 +37,7 @@
 (define-gesture "Previous Line" 'text-editor-window-mixin #k"UpArrow")
 (define-gesture "Previous Line" 'text-editor-window-mixin #k"Ctrl-p")
 (define-gesture "Insert Newline" 'text-editor-window-mixin #k"Enter")
+(define-gesture "Indent New Line" "Lisp" #k"Enter")
 (define-gesture "Save File" 'text-editor-window-mixin #k"C-x" #k"C-s")
 (define-gesture "Beginning of Line" 'text-editor-window-mixin #k"Home")
 (define-gesture "Beginning of Line" 'text-editor-window-mixin #k"Ctrl-a")
@@ -102,13 +103,24 @@
 (define-gesture "Backward Kill Form" "Lisp" #k"Ctrl-Meta-Backspace")
 (define-gesture "Beginning of Defun" "Lisp" #k"Ctrl-Meta-a")
 (define-gesture "End of Defun" "Lisp" #k"Ctrl-Meta-e")
-(define-gesture "Forward List" "lisp" #k"Ctrl-Meta-n")
+(define-gesture "Forward List" "Lisp" #k"Ctrl-Meta-n")
 (define-gesture "Backward List" "Lisp" #k"Ctrl-Meta-p")
 (define-gesture "Forward Form" "Lisp" #k"Ctrl-Meta-f")
 (define-gesture "Backward Form" "Lisp" #k"Ctrl-Meta-b")
 (define-gesture "Mark Form" "Lisp" #k"Ctrl-Meta-Spacebar")
 (define-gesture "Mark Defun" "Lisp" #k"Ctrl-Meta-h")
 (define-gesture "Extract List" "Lisp " #k"Ctrl-Meta-x")
+(define-gesture "Indent Form" 'text-editor-window-mixin #k"Ctrl-Meta-q")
+
+(define-gesture "Indent Or Complete" 'text-editor-window-mixin #k"tab")
+(define-gesture "Indent Or Complete" 'echo-area-window-mixin #k"tab")
+(define-gesture "Indent" "Lisp" #k"tab")
+
+(define-gesture "Complete Field" 'echo-area-window-mixin #k"Tab")
+
+(define-gesture "Lisp Insert )" "Lisp" #k"Shift-0")
+(define-gesture "Insert ()" 'text-editor-window-mixin #k"Shift-Meta-9")
+(define-gesture "Move over )" 'text-editor-window-mixin #k"Shift-Meta-0")
 
 (define-gesture "Yank" 'text-editor-window-mixin #k"Ctrl-y")
 (define-gesture "Yank" 'echo-area-window-mixin #k"Ctrl-y")
@@ -224,6 +236,9 @@
 
 (define-gesture "Next Line" "Dired" #k"n")
 (define-gesture "Previous Line" "Dired" #k"p")
+
+(define-gesture "Editor Compile Defun" "Lisp" #k"Ctrl-c" #k"Ctrl-c")
+(define-gesture "Editor Compile Buffer File" "Lisp"  #k"Ctrl-c" #k"Ctrl-k")
 
 (when (boundp 'krma::*app*)
   (mapcar #'rebuild-command-table

@@ -124,7 +124,7 @@
           (let* ((region (region start end))
                  (undo-region (copy-region buffer region)))
             (fill-region region prefix column)
-            (make-region-undo :twiddle "Fill Paragraph" region undo-region)))))))
+            (make-region-undo buffer :twiddle "Fill Paragraph" region undo-region)))))))
 
 
 (defcommand "Fill Region" (window p)
@@ -192,7 +192,7 @@
    If arg is positive, then inserts that many spaces without filling."
   (if (> (mark-column buffer point) (value fill-column))
       (with-mark ((mark1 point :left-inserting))
-        (let ((not-all-blank (reverse-find-attribute mark1 :whitespace #'zerop))
+        (let ((not-all-blank (reverse-find-attribute buffer mark1 :whitespace #'zerop))
               (prefix (value fill-prefix))
               (column (value fill-column)))
           (cond ((and not-all-blank (mark= point mark1))
@@ -220,7 +220,7 @@
 ;;; clause is the usual case.
 
 (defun %auto-fill-word-past-column (current-window buffer point mark1 insertp prefix column)
-  (let ((point-moved-p (reverse-find-attribute point :whitespace)))
+  (let ((point-moved-p (reverse-find-attribute buffer point :whitespace)))
     (with-mark ((mark2 point :left-inserting))
       (cond ((or (not point-moved-p)
                  (%auto-fill-blank-before-p buffer point prefix))
@@ -278,7 +278,7 @@
   "is true if whitespace only precedes point except for the prefix."
   (or (blank-before-p buffer point)
       (with-mark ((temp point))
-        (reverse-find-attribute temp :whitespace #'zerop)
+        (reverse-find-attribute buffer temp :whitespace #'zerop)
         (<= (mark-column buffer temp) (length prefix)))))
 
 
@@ -291,7 +291,7 @@
 ;;; before column, then fill the line as a region.
 
 (defun %auto-fill-line-as-region-p (buffer point mark2 column)
-  (reverse-find-attribute mark2 :whitespace #'zerop)
+  (reverse-find-attribute buffer mark2 :whitespace #'zerop)
   (and (same-line-p mark2 point)
        (> (mark-column buffer mark2) column)))
 
@@ -301,7 +301,7 @@
   (when (line-offset buffer mark1 -1)
     (line-end buffer mark1)
     (move-mark mark2 mark1)
-    (unless (and (reverse-find-attribute mark1 :whitespace #'zerop)
+    (unless (and (reverse-find-attribute buffer mark1 :whitespace #'zerop)
                  (same-line-p mark1 mark2))
       (line-start mark1 (mark-line mark2)))
     (delete-region buffer (region mark1 mark2))))
@@ -378,7 +378,7 @@
                               (return))
                              (t (fill-region-aux buffer start tmark1
                                                  prefix prefix-len column))))))))
-        (make-region-undo :twiddle "Fill Region" region undo-region)))))
+        (make-region-undo buffer :twiddle "Fill Region" region undo-region)))))
 
 (defun fill-region (buffer region &optional
                            (prefix (value fill-prefix))
@@ -465,7 +465,7 @@
                                       prefix-length)
                    (delete-characters buffer fill-mark 1))))
           (t (move-mark fill-mark mark1)
-             (unless (and (reverse-find-attribute mark1 :whitespace #'zerop)
+             (unless (and (reverse-find-attribute buffer mark1 :whitespace #'zerop)
                           (same-line-p mark1 fill-mark))
                (line-start mark1 (mark-line fill-mark)))
              ;; forward find must move mark because of cond branch we are in.
@@ -486,7 +486,7 @@
 
 (defun fill-region-word-past-column (buffer point mark1 prefix)
   (with-mark ((mark2 (copy-mark point :left-inserting)))
-    (let ((point-moved-p (reverse-find-attribute point :whitespace))
+    (let ((point-moved-p (reverse-find-attribute buffer point :whitespace))
           (hack-for-fill-region :handled-normal-case))
       (cond ((or (not point-moved-p)
                  (%auto-fill-blank-before-p buffer point prefix))
@@ -632,7 +632,7 @@
 
 (defun fill-region-clear-eol (buffer fill-mark)
   (with-mark ((mark1 fill-mark :left-inserting))
-    (unless (and (reverse-find-attribute mark1 :whitespace #'zerop)
+    (unless (and (reverse-find-attribute buffer mark1 :whitespace #'zerop)
                  (same-line-p mark1 fill-mark))
       (line-start mark1 (mark-line fill-mark)))
     (delete-region buffer (region mark1 fill-mark))))

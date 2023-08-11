@@ -192,7 +192,7 @@
 ;;;    cleanup method has to check that mark-or-region is a mark since it won't
 ;;;    be unless there was a subsequent undo.
 ;;;
-(defun make-region-undo (kind name region &optional mark-or-region)
+(defun make-region-undo (buffer kind name region &optional mark-or-region)
   (case kind
     (:twiddle
      (save-for-undo name
@@ -207,7 +207,7 @@
        #'(lambda ()
            (let ((mark (region-start region)))
              (delete-mark mark-or-region)
-             (when (line-buffer (mark-line mark))
+             (when buffer
                (delete-mark mark)
                (delete-mark (region-end region)))))
        (make-delete-region-undo region mark-or-region)))

@@ -54,7 +54,7 @@
 
    (:file "hemlock/interp")
    (:file "src/event-queue")
-   (:file "hemlock/syntax")
+
    (:file "hemlock/htext2")
    (:file "hemlock/htext3")
    (:file "hemlock/htext4")
@@ -67,7 +67,9 @@
    #+NIL(:file "hemlock/screen")
 
    (:file "hemlock/linimage")
+      (:file "hemlock/syntax")
    (:file "hemlock/winimage")
+
 
 
    #+NIL(:file "hemlock/display")
@@ -106,6 +108,8 @@
    (:file "hemlock/fill")
    (:file "hemlock/text")
 
+
+
    (:file "hemlock/lispmode")
    (:file "hemlock/eval-server")
    (:file "hemlock/lispbuf")
@@ -131,5 +135,6 @@
    (:file "src/commands")
    (:file "src/debugger")
    (:file "src/gui-application")
+      (:file "hemlock/completion")
    (:file "src/gestures")))
 	  

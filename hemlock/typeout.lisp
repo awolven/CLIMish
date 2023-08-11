@@ -22,7 +22,7 @@
 
 (defun invoke-with-pop-up-display (current-window cont buffer-name height)
   (declare (ignore height))
-  (let* ((window (krma.gui::find-or-create-typeout-window buffer-name))
+  (let* ((window (krma.gui::find-or-create-typeout-window "Random Typeout"))
          (buf (window-buffer window)))
     (cond ((eq current-window *echo-area-window*)
            ;; Can't pop-up in the echo area window, so choose another.
@@ -37,8 +37,10 @@
            ;; Switch back to the echo window and buffer.
            (krma.gui::focus-window *echo-area-window*)
            (change-to-buffer *echo-area-buffer* current-window))
+          ((eq window current-window)
+           (break))
           (t
-           (change-to-buffer buf window)
+           ;;(change-to-buffer buf window)
            (with-output-to-mark (stream (buffer-point buf))
              (funcall cont stream))
            (krma.gui::rm-redraw-node-recursively window)

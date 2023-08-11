@@ -659,11 +659,11 @@
 (defun slave-symbol-at-point ()
   (parse-slave-symbol (symbol-string-at-point)))
 
-(defun symbol-string-at-point ()
-  (with-mark ((mark1 (current-point))
-              (mark2 (current-point)))
-    (mark-symbol mark1 mark2)
-    (region-to-string (region mark1 mark2))))
+(defun symbol-string-at-point (buffer)
+  (with-mark ((mark1 (buffer-point buffer))
+              (mark2 (buffer-point buffer)))
+    (mark-symbol buffer mark1 mark2)
+    (region-to-string buffer (region mark1 mark2))))
 
 ;;(defun canonicalize-slave-package-name (str)
 ;;  (cl-ppcre:regex-replace "^SB!" (canonical-case str) "SB-"))
@@ -948,9 +948,7 @@
                                       :prompt "File to compile: ")))
              (file-compile pn))))))
 
-(defhvar "Compile Buffer File Confirm"
-  "When set, \"Compile Buffer File\" prompts before doing anything."
-  :value nil)
+
 
 (defcommand "Compile Buffer File" (window p)
   "Compile the file in the current buffer if its associated binary file

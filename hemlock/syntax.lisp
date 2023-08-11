@@ -560,11 +560,10 @@
 
 ); eval-when (:compile-toplevel :execute)
 ;;;
-(defun reverse-find-attribute (mark attribute &optional (test #'not-zerop))
+(defun reverse-find-attribute (buffer mark attribute &optional (test #'not-zerop))
   "Find the previous character whose attribute value satisfies test."
   (let* ((charpos (mark-charpos mark))
          (line (mark-line mark))
-         (buffer (line-%buffer line))
          char-set mask end-wins)
     (declare (type (or character-set null) char-set)
              (type (or fixnum null) charpos))

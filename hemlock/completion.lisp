@@ -24,14 +24,9 @@
 ;;; Completion-Bucket-Size-Limit.  Strings are stored in the database in
 ;;; lowercase form always.
 
-(defconstant completion-table-size 991)
+;; this stuff was moved into gui application for initialization - akw
 
-(defvar *completions* (make-array completion-table-size :initial-element nil))
 
-(defhvar "Completion Bucket Size"
-  "This limits the number of completions saved for a particular combination of
-   the first three letters of any word."
-  :value 20)
 
 
 ;;; Mapping strings into buckets.
@@ -39,20 +34,7 @@
 ;;; The characters that are considered parts of "words" change from mode
 ;;; to mode.
 ;;;
-(defattribute "Completion Wordchar"
-  "1 for characters we consider to be constituents of words.")
 
-(defvar default-other-wordchars
-  '(#\- #\* #\' #\_))
-
-(do-alpha-chars (char :both)
-  (setf (character-attribute :completion-wordchar char) 1))
-
-(dolist (char '(#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9))
-  (setf (character-attribute :completion-wordchar char) 1))
-
-(dolist (char default-other-wordchars)
-  (setf (character-attribute :completion-wordchar char) 1))
 
 
 ;;; The difference between Lisp mode and the other modes is pretty radical in
@@ -60,13 +42,9 @@
 ;;; #\-, and #\_.  #\' is on by default too, but it's uninteresting in "Lisp"
 ;;; mode.
 ;;;
-(defvar default-lisp-wordchars
-  '(#\~ #\! #\@ #\$ #\% #\^ #\& #\+ #\= #\: #\< #\> #\. #\/ #\?))
 
-(dolist (char default-lisp-wordchars)
-  (shadow-attribute :completion-wordchar char 1 "Lisp"))
 
-(shadow-attribute :completion-wordchar #\' 0 "Lisp")
+
 
 (defmacro completion-char-p (char)
   `(= (the fixnum (character-attribute :completion-wordchar ,char)) 1))
@@ -178,20 +156,15 @@
 
 ;;;; Hemlock interface.
 
-(defmode "Completion" :transparent-p t :precedence 10.0
-  :documentation
-  "This is a minor mode that saves words greater than three characters in length,
-   allowing later completion of those words.  This is very useful for often
-   long identifiers used in Lisp code.  All words with the same first three
-   letters are in one list sorted by most recently used.  \"Completion Bucket
-   Size\" limits the number of completions saved in each list.")
+
 
 (defcommand "Completion Mode" (window p)
   "Toggles Completion Mode in the current buffer."
   "Toggles Completion Mode in the current buffer."
   (declare (ignore p))
-  (setf (buffer-minor-mode (current-buffer) "Completion")
-        (not (buffer-minor-mode (current-buffer) "Completion"))))
+  (let ((buffer (window-buffer window)))
+    (setf (buffer-minor-mode buffer buffer "Completion")
+          (not (buffer-minor-mode buffer "Completion")))))
 
 
 ;;; Consecutive alphanumeric keystrokes that start a word cause a possible
@@ -224,7 +197,7 @@
            ;; If start of word not already in *completion-prefix*, put it
            ;; there.
            (unless (eq (last-command-type) :completion-self-insert)
-             (set-completion-prefix))
+             (set-completion-prefix (window-buffer window)))
            ;; Then add new stuff.
            (cond ((and p (> p 1))
                   (fill *completion-prefix* (char-downcase char)
@@ -247,17 +220,17 @@
 ;;; SET-COMPLETION-PREFIX grabs any completion-wordchars immediately before
 ;;; point and stores these into *completion-prefix*.
 ;;;
-(defun set-completion-prefix ()
-  (let* ((point (current-point))
+(defun set-completion-prefix (buffer)
+  (let* ((point (buffer-point buffer))
          (point-line (mark-line point)))
-    (cond ((and (previous-character point)
-                (completion-char-p (previous-character point)))
+    (cond ((and (previous-character buffer point)
+                (completion-char-p (previous-character buffer point)))
            (with-mark ((mark point))
-             (reverse-find-attribute mark :completion-wordchar #'zerop)
+             (reverse-find-attribute buffer mark :completion-wordchar #'zerop)
              (unless (eq (mark-line mark) point-line)
                (editor-error "No completion wordchars on this line!"))
              (let ((insert-string (nstring-downcase
-                                   (region-to-string
+                                   (region-to-string buffer
                                     (region mark point)))))
                (replace *completion-prefix* insert-string)
                (setq *completion-prefix-length* (length insert-string)))))
@@ -278,14 +251,14 @@
     ;; let him.
     ;;
     (unless (member last-command-type '(:completion-self-insert :completion))
-      (set-completion-prefix)
+      (set-completion-prefix (window-buffer window))
       (setf last-command-type :completion-self-insert))
     (case last-command-type
       (:completion-self-insert
-       (do-completion))
+       (do-completion (window-buffer window)))
       (:completion
        (rotate-completions *completion-prefix* *completion-prefix-length*)
-       (do-completion))))
+       (do-completion (window-buffer window)))))
   (setf (last-command-type) :completion))
 
 (defcommand "List Possible Completions" (window p)
@@ -294,7 +267,7 @@
   (declare (ignore p))
   (let ((last-command-type (last-command-type)))
     (unless (member last-command-type '(:completion-self-insert :completion))
-      (set-completion-prefix))
+      (set-completion-prefix (window-buffer window)))
     (let* ((prefix *completion-prefix*)
            (prefix-length *completion-prefix-length*)
            (bucket (completion-bucket-for prefix prefix-length)))
@@ -310,26 +283,26 @@
 
 (defvar *last-completion-mark* nil)
 
-(defun do-completion ()
+(defun do-completion (buffer)
   (let ((completion (find-completion *completion-prefix*
                                      *completion-prefix-length*))
-        (point (current-point)))
+        (point (buffer-point buffer)))
     (when completion
       (if *last-completion-mark*
           (move-mark *last-completion-mark* point)
           (setq *last-completion-mark* (copy-mark point :temporary)))
       (let ((mark *last-completion-mark*))
-        (reverse-find-attribute mark :completion-wordchar #'zerop)
+        (reverse-find-attribute buffer mark :completion-wordchar #'zerop)
         (let* ((region (region mark point))
-               (string (region-to-string region)))
+               (string (region-to-string buffer region)))
           (declare (simple-string string))
-          (delete-region region)
+          (delete-region buffer region)
           (let* ((first (position-if #'alpha-char-p string))
                  (next (if first (position-if #'alpha-char-p string
                                               :start (1+ first)))))
             ;; Often completions start with asterisks when hacking on Lisp
             ;; code, so we look for alphabetic characters.
-            (insert-string point
+            (insert-string buffer point
                            ;; Leave the cascading IF's alone.
                            ;; Writing this as a COND, using LOWER-CASE-P as
                            ;; the test is not equivalent to this code since
@@ -372,7 +345,7 @@
   "Show another possible completion in the status line, if there is one.
    With an argument, rotate the completion ring that many times."
   (unless (eq (last-command-type) :completion-self-insert)
-    (set-completion-prefix)
+    (set-completion-prefix (window-buffer window))
     (setf (last-command-type) :completion-self-insert))
   (dotimes (i (or p 1))
     (rotate-completions *completion-prefix* *completion-prefix-length*))
@@ -382,10 +355,7 @@
 
 ;;;; Nifty database and parsing machanisms.
 
-(defhvar "Completion Database Filename"
-  "The file that \"Save Completions\" and \"Read Completions\" will
-   respectively write and read the completion database to and from."
-  :value nil)
+
 
 (defvar *completion-default-default-database-filename*
   "hemlock-completions.txt"
@@ -465,18 +435,18 @@
   (declare (ignore p))
   (let ((buffer (prompt-for-buffer window :prompt "Buffer to parse: "
                                    :must-exist t
-                                   :default (current-buffer)
+                                   :default (window-buffer window)
                                    :default-string (buffer-name
-                                                    (current-buffer)))))
+                                                    (window-buffer window)))))
     (with-mark ((word-start (buffer-start-mark buffer) :right-inserting)
                 (word-end (buffer-start-mark buffer) :left-inserting)
                 (buffer-end-mark (buffer-start-mark buffer)))
       (message "Starting parse of ~S..." (buffer-name buffer))
       (loop
-        (unless (find-attribute word-start :completion-wordchar) (return))
+        (unless (find-attribute buffer word-start :completion-wordchar) (return))
         (record-completion
-         (region-to-string (region word-start
-                                   (or (find-attribute
+         (region-to-string buffer (region word-start
+                                   (or (find-attribute buffer
                                         (move-mark word-end word-start)
                                         :completion-wordchar #'zerop)
                                        buffer-end-mark))))
@@ -540,12 +510,11 @@
          (iter:collect str))))))
 
 (defun %find-symbol-completion/request
-       (current-window show-matches-p prefix packname symname)
+    (current-window show-matches-p prefix packname symname)
   (let ((matches (%find-symbol-completion-matches packname symname)))
-    (hemlock::eval-in-master
-     `(%find-symbol-completion/results
-       ,current-window
-       ',show-matches-p ',prefix ',matches))))
+    (%find-symbol-completion/results
+     current-window
+     show-matches-p prefix matches)))
 
 (defun %find-symbol-completion/results (current-window show-matches-p prefix matches)
   (let ((completion
@@ -571,28 +540,28 @@
            (message "no matches")
            nil))))
     (when completion
-      (%insert-completion completion))
+      (%insert-completion (window-buffer current-window) completion))
     (when (and show-matches-p matches)
-      (split-window-command nil)
+      (split-window-command current-window nil)
       (make-completelist-buffer current-window (mapcar #'make-completelist-entry matches)))))
 
-(defun %insert-completion (completion)
-  (let ((point (current-point)))
+(defun %insert-completion (buffer completion)
+  (let ((point (buffer-point buffer)))
     (if *last-completion-mark*
         (move-mark *last-completion-mark* point)
         (setq *last-completion-mark* (copy-mark point :temporary)))
     (let ((mark *last-completion-mark*))
-      (reverse-find-attribute mark :completion-wordchar #'zerop)
+      (reverse-find-attribute buffer mark :completion-wordchar #'zerop)
       (let* ((region (region mark point))
-             (string (region-to-string region)))
+             (string (region-to-string buffer region)))
         (declare (simple-string string))
-        (delete-region region)
+        (delete-region buffer region)
         (let* ((first (position-if #'alpha-char-p string))
                (next (if first (position-if #'alpha-char-p string
                                             :start (1+ first)))))
           ;; Often completions start with asterisks when hacking on Lisp
           ;; code, so we look for alphabetic characters.
-          (insert-string point
+          (insert-string buffer point
                          ;; Leave the cascading IF's alone.
                          ;; Writing this as a COND, using LOWER-CASE-P as
                          ;; the test is not equivalent to this code since
@@ -614,16 +583,16 @@
                                      (string-downcase (subseq prefix (1+ p))))
                              (values nil
                                      (string-downcase prefix))))
-    (hemlock::eval-in-slave
-     `(%find-symbol-completion/request
-       ,current-window
-       ',(and show-matches-p t)
-       ',package-prefix
-       ',(or package-prefix (package-at-point))
-       ',symname))))
+    (%find-symbol-completion/request
+     current-window
+     (and show-matches-p t)
+     package-prefix
+     (or package-prefix (package-at-point (window-buffer current-window) (buffer-point (window-buffer current-window))))
+     symname)))
 
-(defun complete-symbol (&optional show-matches-p)
-  (find-symbol-completion show-matches-p (symbol-string-at-point)))
+(defun complete-symbol (window p &optional show-matches-p)
+  (declare (ignore p))
+  (find-symbol-completion window show-matches-p (symbol-string-at-point (window-buffer window))))
 
 (defun editor-find-symbol-completion (current-window show-matches-p prefix)
   (multiple-value-bind (package-prefix symname)
@@ -633,7 +602,7 @@
                                      (string-downcase (subseq prefix (1+ p))))
                              (values nil
                                      (string-downcase prefix))))
-    (let* ((package (or package-prefix (package-at-point)))
+    (let* ((package (or package-prefix (package-at-point (window-buffer current-window) (buffer-point (window-buffer current-window)))))
            (matches (%find-symbol-completion-matches package symname)))
       (%find-symbol-completion/results
        current-window
@@ -643,33 +612,29 @@
 (defun editor-complete-symbol (current-window &optional show-matches-p)
   (editor-find-symbol-completion current-window show-matches-p (symbol-string-at-point)))
 
-(defhvar "Completion Function" ""
-  :value 'completion-complete-word)
 
-(defhvar "Completion Function" ""
-  :mode "Lisp" :value 'complete-symbol)
-
-(defhvar "Completion Function" ""
-  :mode "Editor" :value #'(lambda ()
-                            (editor-complete-symbol (krma.gui::focused-window (clui::window-parent *echo-area-window*)))))
 
 (defcommand "Complete For Mode" (window p)
   "" ""
-  (funcall (value completion-function) window p))
+  (funcall (value completion-function) window p)
+  (krma.gui::redraw-buffer window))
 
 (defcommand "Indent Or Complete" (window p)
   """"
-  (if (let ((mark (current-point)))
+  (if (let* ((buffer (window-buffer window))
+             (mark (buffer-point buffer)))
         (or (zerop (mark-charpos mark))
             ;; why doesn't this work?
             ;; (test-char (next-character mark) :lisp-syntax :whitespace)
-            (find (previous-character mark) '(#\space #\tab #\newline))))
+            (find (previous-character buffer mark) '(#\space #\tab #\newline))))
       (indent-command window p)
-      (complete-for-mode-command window p)))
+      (complete-for-mode-command window p))
+  (krma.gui::redraw-buffer window))
 
 ;;; Mode
 
 (defvar *completelist-entries* nil)
+(defvar *completelist-entries-end*)
 ;;;
 
 (defun make-completelist-entry (str)
@@ -689,38 +654,39 @@
 
 ;;;; Commands.
 
-(defmode "Completelist" :major-p t
-  :documentation "Completelist mode presents a list of completions.")
+
 
 (defcommand "Completelist Quit" (window p)
   "Kill the completelist buffer."
   ""
   (declare (ignore p))
   (when *completelist-buffer*
-        (delete-buffer-if-possible *completelist-buffer*)))
+        (delete-buffer-if-possible *completelist-buffer* (window-buffer window))))
 
-(defun completelist-entry-from-mark (mark)
-  (array-element-from-mark (current-point) *completelist-entries*))
+(defun completelist-entry-from-mark (buffer mark)
+  (array-element-from-mark buffer (buffer-point buffer) *completelist-entries*))
 
 (defcommand "Completelist Find Definition" (window p)
   "" ""
   (declare (ignore p))
-  (let ((entry (completelist-entry-from-mark (current-point))))
-    (when entry
-      (change-to-definition entry))))
+  (let ((buffer (window-buffer window)))
+    (let ((entry (completelist-entry-from-mark buffer (buffer-point buffer))))
+      (when entry
+        (change-to-definition entry)))))
 
 (defcommand "Completelist Pick" (window p)
   "" ""
   (declare (ignore p))
-  (let ((entry (completelist-entry-from-mark (current-point))))
-    (when entry
-      (completelist-quit-command nil)
-      (delete-window-command nil)
-      (%insert-completion (fuzz-completed-string entry)))))
+  (let ((buffer (window-buffer window)))
+    (let ((entry (completelist-entry-from-mark buffer (buffer-point buffer))))
+      (when entry
+        (completelist-quit-command window nil)
+        (delete-window-command window nil)
+        (%insert-completion buffer (fuzz-completed-string entry))))))
 
 (defun refresh-completelist (buf entries)
   (with-writable-buffer (buf)
-    (delete-region (buffer-region buf))
+    (delete-region buf (buffer-region buf))
     (setf *completelist-entries-end* (length entries))
     (setf *completelist-entries* (coerce entries 'vector))
     (with-output-to-mark (s (buffer-point buf))

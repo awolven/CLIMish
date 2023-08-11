@@ -494,9 +494,18 @@
    Window return NIL.  The wait may be aborted if there is pending input."
   (let* ((result t))
     (catch 'redisplay-catcher
-      (redisplay-window window)
+      (krma.gui::redraw-buffer window)
       (setf result
-            (multiple-value-bind (x y) (mark-to-cursorpos mark window)
+            (let* ((buffer (window-buffer window))
+                   (point (buffer-point buffer))
+                   (saved (push-buffer-mark buffer (copy-mark point))))
+              (unwind-protect (move-mark point mark)
+                (update-window-image window)
+                (sleep time)
+                (move-mark point saved)
+                (update-window-image window))
+              
+              #+NIL
               (device-show-mark (device-hunk-device (window-hunk window))
                                 window x y time))))
     result))

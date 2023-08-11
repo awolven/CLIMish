@@ -36,7 +36,7 @@
       (split-window-command nil)
       (make-fuzzylist-buffer current-window (mapcar #'parse-fuzzylist-entry matches)))
      (matches
-      (%fuzzy-insert-completion (caar matches)))
+      (%fuzzy-insert-completion (window-buffer current-window) (caar matches)))
      (t
       (message "no matches")))))
 
@@ -58,14 +58,14 @@
                         (fuzzy-completions symname packname))))
         (%fuzzy-complete-symbol/results window matches)))))
 
-(defun %fuzzy-insert-completion (completion)
+(defun %fuzzy-insert-completion (buffer completion)
   (let ((point (current-point)))
     (when completion
       (if *last-completion-mark*
           (move-mark *last-completion-mark* point)
           (setq *last-completion-mark* (copy-mark point :temporary)))
       (let ((mark *last-completion-mark*))
-        (reverse-find-attribute mark :completion-wordchar #'zerop)
+        (reverse-find-attribute buffer mark :completion-wordchar #'zerop)
         (let* ((region (region mark point))
                (string (region-to-string region)))
           (declare (simple-string string))
@@ -866,14 +866,14 @@ keywords: :BOUNDP, :FBOUNDP, :CONSTANT, :GENERIC-FUNCTION,
     (when entry
       (change-to-definition entry))))
 
-(defcommand "Fuzzylist Pick" (p)
+(defcommand "Fuzzylist Pick" (window p)
   "" ""
   (declare (ignore p))
   (let ((entry (fuzzylist-entry-from-mark (current-point))))
     (when entry
       (fuzzylist-quit-command nil)
       (delete-window-command nil)
-      (%fuzzy-insert-completion (fuzz-completed-string entry)))))
+      (%fuzzy-insert-completion (window-buffer window) (fuzz-completed-string entry)))))
 
 (defun refresh-fuzzylist (buf entries)
   (with-writable-buffer (buf)

@@ -106,7 +106,8 @@
               (end (region-end ,region-sym))
               (undo-region (hi::.copy-region. (region (line-start start) (line-end buffer end)))))
          (.indent-region. ,region-sym)
-         (make-region-undo :twiddle "Indent"
+         (make-region-undo .buffer.
+                           :twiddle "Indent"
                            (region (line-start (copy-mark start :left-inserting))
                                    (line-end buffer (copy-mark end :right-inserting)))
                            undo-region)))))
@@ -147,10 +148,14 @@
          (point (buffer-point buffer)))
     (let ((prefix (hi::value fill-prefix)))
       (delete-horizontal-space buffer point)
-      (new-line-command window p)
-      (if prefix
-          (insert-string buffer point prefix)
-          (funcall (hi::value indent-function) buffer point)))))
+      (if (buffer-minor-mode buffer "Interactive-Character-Stream")
+          (confirm-line-of-input-command window p)
+          (progn
+            (new-line-command window p)
+            (if prefix
+                (insert-string buffer point prefix)
+                (funcall (hi::value indent-function) buffer point)))))
+    (krma.gui::redraw-buffer window)))
 
 
 (defcommand "Indent" (window p)
@@ -170,7 +175,9 @@
                  (unless (line-offset buffer mark (1+ p))
                    (buffer-start mark buffer)))
              (indent-region-for-commands buffer (region mark point))
-             (find-attribute (line-start point) :whitespace #'zerop))))))
+             (find-attribute buffer (line-start point) :whitespace #'zerop))))
+    (krma.gui::redraw-buffer window)))
+  
 
 (defcommand "Indent Region" (window p)
     "Invokes function held by Hemlock variable \"Indent Function\" on every
@@ -239,7 +246,7 @@
 
 
 (defcommand "New Line" (window p)
-  "Moves the point to a new blank line.
+    "Moves the point to a new blank line.
   A newline is inserted if the next two lines are not already blank.
   With an argument, repeats p times."
     "Moves the point to a new blank line."
@@ -268,8 +275,8 @@
 (defun delete-horizontal-space (buffer mark)
   "Deletes all :space characters on either side of mark."
   (with-mark ((start mark))
-    (reverse-find-attribute start :space #'zerop)
-    (find-attribute mark :space #'zerop)
+    (reverse-find-attribute buffer start :space #'zerop)
+    (find-attribute buffer mark :space #'zerop)
     (delete-region buffer (region start mark))))
 
 (defcommand "Delete Indentation" (window p)

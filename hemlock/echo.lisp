@@ -295,7 +295,8 @@
                            ((:prompt *parse-prompt*) "Keyword: ")
                            ((:help *parse-help*) "Type a keyword."))
   "Prompts for a keyword using the String Tables."
-  (let ((*parse-verification-function* #'keyword-verification-function)
+  (let ((*parse-verification-function* #'(lambda (string)
+                                           (keyword-verification-function (window-buffer current-window) string)))
         (*parse-type* :keyword))
     (parse-for-something current-window)))
 
@@ -308,7 +309,8 @@
                                   "Type the name of a variable."))
   "Prompts for a variable defined in the current scheme of things."
   (let ((*parse-string-tables* (current-variable-tables))
-        (*parse-verification-function* #'keyword-verification-function)
+        (*parse-verification-function* #'(lambda (string)
+                                           (keyword-verification-function (window-buffer current-window) string)))
         (*parse-type* :keyword))
     (parse-for-something current-window)))
 
@@ -321,7 +323,7 @@
        (mode (buffer-mode-objects *current-buffer*) (cdr mode)))
       ((null mode) tables)))
 
-(defun keyword-verification-function (string)
+(defun keyword-verification-function (buffer string)
   (declare (simple-string string))
   (multiple-value-bind
       (prefix key value field ambig)
@@ -337,8 +339,8 @@
               (insert-string *echo-area-buffer* (region-start *parse-input-region*) prefix)
               (let ((point (buffer-point *echo-area-buffer*)))
                 (move-mark point (region-start *parse-input-region*))
-                (unless (character-offset point ambig)
-                  (buffer-end point)))
+                (unless (character-offset buffer point ambig)
+                  (buffer-end point buffer)))
               nil)))
           (t
            ;; HACK: If it doesn't have to exist, and the completion does not

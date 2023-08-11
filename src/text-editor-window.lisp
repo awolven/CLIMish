@@ -92,18 +92,19 @@
 	  (progn
 	    (setf (window-buffer first) buffer)
 	    (setf (send first visible?) t)
-	    (focus-window first)
+	    ;;;(focus-window first)
 	    first)
-	  (progn
+	  (let ((found? nil))
 	    (do ((w (next first) (next w)))
 		((eq w first))
 	      (when (is-typeout? w)
-		(progn
-		  (setf (window-buffer w) buffer)
-		  (setf (send w visible?) t)
-		  (focus-window w)
-		  (return-from find-or-create-typeout-window w))))
-	    (make-instance 'text-editor-window :buffer buffer 'visible? t))))))
+		(setq found? t)
+		(setf (window-buffer w) buffer)
+		(setf (send w visible?) t)
+		  ;;;(focus-window w)
+		(return-from find-or-create-typeout-window w)))
+	    (unless found?
+	      (make-instance 'text-editor-window :buffer buffer 'visible? t)))))))
 
 
       
