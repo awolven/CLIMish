@@ -190,7 +190,7 @@
             (- (length (the list *buffer-list*)) 2))
       (setf *bufed-buffers* (make-array *bufed-buffers-end*))
       (setf (buffer-writable buf) t)
-      (with-output-to-mark (s (buffer-point buf))
+      (with-output-to-mark (s buf (buffer-point buf))
         (let ((i 0))
           (do-strings (n b *buffer-names*)
             (declare (simple-string n))
@@ -284,7 +284,7 @@
     (with-mark ((temp point :left-inserting))
       (line-offset temp 1)
       (delete-region (region point temp)))
-    (with-output-to-mark (s point)
+    (with-output-to-mark buffer (s point)
       (bufed-write-line buffer name s))))
 ;;;
 (add-hook buffer-name-hook 'bufed-name-hook)
@@ -294,7 +294,7 @@
     (with-mark ((temp point :left-inserting))
       (line-offset temp 1)
       (delete-region (region point temp)))
-    (with-output-to-mark (s point)
+    (with-output-to-mark (s buffer point)
       (bufed-write-line buffer (buffer-name buffer) s pathname))))
 ;;;
 (add-hook buffer-pathname-hook 'bufed-pathname-hook)

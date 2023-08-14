@@ -86,6 +86,8 @@
 (defun find-or-create-typeout-window (buffer-name)
   (let ((first (focused-window (clui::window-parent *echo-area-window*)))
 	(buffer (hi::make-unique-buffer buffer-name :modes '("Typeout"))))
+    (make-instance 'text-editor-window :buffer buffer 'visible? t)
+    #+NIL
     (flet ((is-typeout? (w)
 	     (string= (send w title) "Random Typeout")))
       (if (is-typeout? first)
@@ -104,7 +106,7 @@
 		  ;;;(focus-window w)
 		(return-from find-or-create-typeout-window w)))
 	    (unless found?
-	      (make-instance 'text-editor-window :buffer buffer 'visible? t)))))))
+	      ))))))
 
 
       

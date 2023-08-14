@@ -69,7 +69,7 @@
     (delete-region (buffer-region buf))
     (setf *xref-entries-end* (length entries))
     (setf *xref-entries* (coerce entries 'vector))
-    (with-output-to-mark (s (buffer-point buf))
+    (with-output-to-mark (s buf (buffer-point buf))
       (dolist (entry entries)
         (xref-write-line entry s)))))
 

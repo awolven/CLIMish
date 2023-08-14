@@ -457,7 +457,7 @@
   (multiple-value-bind (x mode-tables)
                        (count-abbrevs)
     (declare (ignore x))
-    (with-output-to-mark (stream (current-point) :full)
+    (with-output-to-mark (stream (window-buffer window) (current-point) :full)
       (maphash #'(lambda (key val)
                    (write-abbrev key val nil stream))
                *global-abbrev-table*)
@@ -480,7 +480,7 @@
   definition list must be in the format produced by \"Insert Word Abbrevs\"."
 
   (declare (ignore p))
-  (with-input-from-region (file (buffer-region (current-buffer)))
+  (with-input-from-region (file (window-buffer window) (buffer-region (window-buffer window)))
     (read-abbrevs file)))
 
 

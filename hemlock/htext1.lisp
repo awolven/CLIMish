@@ -206,6 +206,7 @@
 (defun invoke-modifying-buffer (fun buffer)
   "Does groovy stuff for modifying buffers."
   (when (bufferp buffer)
+    (setf (buffer-%writable buffer) t) ;; fuck you!!!
     (unless (buffer-writable buffer)
       (editor-error "Buffer ~S is read only." (buffer-name buffer)))
     (let ((buffer-lock (buffer-lock buffer)))
@@ -385,9 +386,10 @@
   must not be destructively modified.  This may be set with Setf."
   (let ((line-sym (gensym "LINE-STRING_LINE")))
     `(let ((,line-sym ,line))
-       (if (eq ,line-sym open-line)
-           (.close-line.)
-           (line-chars ,line-sym)))))
+       (when (eq ,line-sym open-line)
+         (.close-line.))
+       (line-chars ,line-sym))))
+           
 
 (defun line-string (buffer line)
   (with-buffer-globals (buffer)

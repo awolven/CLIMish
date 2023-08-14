@@ -557,7 +557,7 @@
   (unless quiet (message "Compiling region ..."))
   (let ((pathname (buffer-pathname buffer)))
     (in-lisp buffer
-     (with-input-from-region (stream region)
+     (with-input-from-region (stream buffer region)
        (with-pop-up-display (*error-output* :height 19 :current-window current-window)
          ;; JDz: We don't record source locations and what not, but this
          ;; is portable.  CMUCL specific implementation removed because
@@ -690,7 +690,7 @@
        (unwind-protect
          (progn (setf (current-window) ,window)
                 (buffer-end ,point)
-                (with-output-to-mark (,stream ,point) ,@forms))
+                (with-output-to-mark (,stream ,buffer ,point) ,@forms))
          (setf (current-window) ,old-window)))))
 
 #+MIL
@@ -739,6 +739,24 @@
                       (pop-buffer-mark buffer)
                       (update-window-image window)
                       (adhoc::adhoc-redefinition-hook)))))
+      (flet ((do-compile ()
+               (with-visual-feedback ()
+                 (bt:make-thread
+                  #'(lambda ()
+                      (let ((hi::*debug-on-error* t))
+                        (let* ((original-error-output *error-output*)
+                               (*error-output* (krma.gui::make-popup-window)))
+                          (let (#+SBCL(sb-ext:*invoke-debugger-hook*
+                                        #'(lambda (condition hook-value)
+                                            (declare (ignorable hook-value))
+                                            (let ((*error-output* original-error-output))
+                                              (invoke-debugger condition)))))
+                            (format *error-output* "Compiling...~%")
+                            (let ((fasl (compile-file (namestring pn))))
+                              (finish-output *error-output*)
+                              (when fasl
+                                (load fasl)
+                                (finish-output *error-output*)))))))))))
       (unless pn (editor-error "Buffer has no associated pathname."))
       (cond ((buffer-modified buf)
              (when (or (not (value compile-buffer-file-confirm))
@@ -748,9 +766,7 @@
                         :prompt (list "Save and compile file ~A? "
                                       (namestring pn))))
                (write-buffer-file window buf pn)
-               (with-visual-feedback ()
-                 (with-pop-up-display (*error-output* #+NIL "Compiler Warnings" :current-window window)
-                   (in-lisp buffer (load (compile-file (namestring pn) #+cmu :error-file #+cmu nil)))))
+               (do-compile)
                (clear-echo-area)))
             ((older-or-non-existent-fasl-p pn p)
              (when (or (not (value compile-buffer-file-confirm))
@@ -758,13 +774,9 @@
                         window
                         :default t :default-string "Y"
                         :prompt (list "Compile file ~A? " (namestring pn))))
-               (with-visual-feedback ()
-                 (with-pop-up-display (*error-output* #+NIL "Compiler Warnings" :current-window window)
-                   (in-lisp buffer (load (compile-file (namestring pn) #+cmu :error-file #+cmu nil)))))
+               (do-compile)
                (clear-echo-area)))
-            (t (with-visual-feedback ()
-                   (with-pop-up-display (*error-output* #+NIL "Compiler Warnings" :current-window window)
-                     (in-lisp buffer (load (compile-file (namestring pn) #+cmu :error-file #+cmu nil)))))
+            (t (do-compile)
                (clear-echo-area)
                #+OLD(when (or p
                          (prompt-for-y-or-n
@@ -772,7 +784,7 @@
                           :default t :default-string "Y"
                           :prompt
                           "Fasl file up to date, compile source anyway? "))
-                 ))))))
+                 )))))))
 #+NIL
 (defcommand "Editor Compile Group" (p)
   "Compile each file in the current group which needs it in the editor Lisp.

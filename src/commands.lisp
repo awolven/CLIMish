@@ -57,7 +57,7 @@
     ""
     ""
   (let ((buffer (window-buffer window)))
-    (if (region-active-p buffer)
+    (if (buffer-active-region-p buffer)
 	(ring-push (hi::current-region buffer) hemlock::*kill-ring*)
 	(krma.gui::handle-character-input window #\Newline (or p 1)))))
 

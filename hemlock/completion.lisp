@@ -689,7 +689,7 @@
     (delete-region buf (buffer-region buf))
     (setf *completelist-entries-end* (length entries))
     (setf *completelist-entries* (coerce entries 'vector))
-    (with-output-to-mark (s (buffer-point buf))
+    (with-output-to-mark (s buf (buffer-point buf))
       (dolist (entry entries)
         (completelist-write-line entry s)))))
 

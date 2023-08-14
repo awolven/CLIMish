@@ -146,7 +146,7 @@
       (setf *coned-connections-end* (length connections))
       (setf *coned-connections*
             (map 'vector #'make-coned-connection connections))
-      (with-output-to-mark (s (buffer-point buf))
+      (with-output-to-mark (s buf (buffer-point buf))
         (dolist (c connections)
           (coned-write-line c s))))))
 

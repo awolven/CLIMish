@@ -156,7 +156,7 @@
 ;;; to the user and to clean up the dired buffer.
 ;;;
 (defun call-print-directory (current-window directory mark dot-files-p)
-  (handler-case (with-output-to-mark (s mark :full)
+  (handler-case (with-output-to-mark (s (window-buffer current-window) mark :full)
                   (print-directory directory s
                                    :all dot-files-p
                                    :verbose t

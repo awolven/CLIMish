@@ -285,6 +285,7 @@
   "Recompute all the fields of buffer's modeline for window, so the next
    redisplay will reflect changes."
   (bt:with-recursive-lock-held ((buffer-lock buffer))
+    (ignore-errors
     (let ((ml-buffer (window-modeline-buffer window)))
 
       ;;(declare (simple-string ml-buffer))
@@ -304,7 +305,7 @@
             (fill (dis-line-chars dis-line) #\space :start (min effective-length (length (dis-line-chars dis-line)))))
           (setf (window-modeline-buffer-len window) len)
           (setf (dis-line-length dis-line) len)
-          (setf (dis-line-flags dis-line) changed-bit))))))
+          (setf (dis-line-flags dis-line) changed-bit)))))))
     
 
 ;;; UPDATE-MODELINE-FIELD must replace the entire dis-line-chars with ml-buffer

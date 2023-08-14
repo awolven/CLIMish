@@ -50,7 +50,7 @@
                           delete-buffer-a delete-buffer-b)
         (get-srccom-buffers window current-buffer "Compare buffer: " buffer-a buffer-b
                             dest-buffer p)
-      (with-output-to-mark (log dest-point)
+      (with-output-to-mark (log dest-buffer dest-point)
         (format log "Comparison of ~A and ~A.~%~%"
                 (buffer-name buffer-a) (buffer-name buffer-b))
         (with-mark ((mark-a (buffer-start-mark (or delete-buffer-a buffer-a)))
@@ -91,7 +91,7 @@
                         delete-buffer-a delete-buffer-b)
                        (get-srccom-buffers window current-buffer "Merge buffer: " buffer-a buffer-b
                                            dest-buffer p)
-    (with-output-to-mark (stream dest-point)
+    (with-output-to-mark (stream dest-buffer dest-point)
       (let ((region-a (buffer-region (or delete-buffer-a buffer-a))))
         (with-mark ((temp-a (region-start region-a) :right-inserting)
                     (temp-b dest-point :right-inserting)

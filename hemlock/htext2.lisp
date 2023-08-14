@@ -262,13 +262,13 @@
   (setf (mark-charpos mark) (line-length buffer line))
   mark)
 
-(defun buffer-start (mark &optional (buffer (line-buffer (mark-line mark))))
+(defun buffer-start (mark &optional buffer)
   "Change Mark to point to the beginning of Buffer, which defaults to
   the buffer Mark is currently in."
   (unless buffer (error "Mark ~S does not point into a buffer." mark))
   (move-mark mark (buffer-start-mark buffer)))
 
-(defun buffer-end (mark &optional (buffer (line-buffer (mark-line mark))))
+(defun buffer-end (mark &optional buffer)
   "Change Mark to point to the end of Buffer, which defaults to
   the buffer Mark is currently in."
   (unless buffer (error "Mark ~S does not point into a buffer." mark))

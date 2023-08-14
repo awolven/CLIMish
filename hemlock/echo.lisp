@@ -102,7 +102,7 @@
          (let ((point (buffer-point *echo-area-buffer*)))
            (with-mark ((m point :left-inserting))
              (line-start m)
-             (with-output-to-mark (s m :full)
+             (with-output-to-mark (s *echo-area-window* m :full)
                (apply #'format s string args)
                (fresh-line s)))))
         (t
@@ -383,7 +383,7 @@
   "Prompts for a Lisp expression."
   (let ((*parse-verification-function*
          #'(lambda (string)
-             (let ((expr (with-input-from-region (stream *parse-input-region*)
+             (let ((expr (with-input-from-region (stream (window-buffer current-window) *parse-input-region*)
                            (handler-case (read stream nil hemlock-eof)
                              (error () hemlock-eof)))))
                (if *parse-value-must-exist*

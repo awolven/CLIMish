@@ -46,7 +46,7 @@
     (delete-region (buffer-region buf))
     (setf *slave-stack-frames-end* (length entries))
     (setf *slave-stack-frames* (coerce entries 'vector))
-    (with-output-to-mark (s (buffer-point buf))
+    (with-output-to-mark (s buf (buffer-point buf))
       (iter:iter (iter:for entry in  entries)
                  (iter:for i from 0)
                  (debug-write-line i entry s)))))

@@ -167,7 +167,7 @@
     (let ((projects (coerce (list-clbuild-info) 'vector)))
       (setf *clbuild-info-end* (length projects))
       (setf *clbuild-info* projects)
-      (with-output-to-mark (s (buffer-point buf))
+      (with-output-to-mark (s buf (buffer-point buf))
         (iter:iter (iter:for c in-vector projects)
                    (clbuild-write-line c s)))
       (buffer-start (current-point)))))

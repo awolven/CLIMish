@@ -62,6 +62,7 @@
 ;;; Utility Options" using PRINT-SOMETHING.
 ;;;
 (defun print-region (region)
+  #+NIL
   (with-input-from-region (s region)
     (print-something (:input s))))
 
@@ -188,7 +189,7 @@
          (filter-and-args-list (listify-unix-filter-string filter-and-args))
          (filter (car filter-and-args-list))
          (args (cdr filter-and-args-list))
-         (new-region (unix-filter-region region filter args))
+         (new-region (unix-filter-region (window-buffer window) region filter args))
          (start (copy-mark (region-start region) :right-inserting))
          (end (copy-mark (region-end region) :left-inserting))
          (old-region (region start end))
@@ -196,13 +197,13 @@
     (ninsert-region end new-region)
     (make-region-undo (window-buffer window) :twiddle "Unix Filter Region" old-region undo-region)))
 
-(defun unix-filter-region (region command args)
+(defun unix-filter-region (buffer region command args)
   "Passes the region REGION as standard input to the program COMMAND
   with arguments ARGS and returns the standard output as a freshly
   cons'ed region."
   (let ((new-region (make-empty-region)))
-    (with-input-from-region (input region)
-      (with-output-to-mark (output (region-end new-region) :full)
+    (with-input-from-region (input buffer region)
+      (with-output-to-mark (output buffer (region-end new-region) :full)
         (ext:run-program command args
                          :input input
                          :output output
@@ -242,7 +243,7 @@
           (when new-buffer
             (setf (value view-return-function) #'(lambda ()))
             (with-writable-buffer (buffer)
-              (with-output-to-mark (s point :full)
+              (with-output-to-mark (s (window-buffer window) point :full)
                 (execute-man topic s))))
           (buffer-start point buffer)))))
 

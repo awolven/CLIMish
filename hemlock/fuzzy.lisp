@@ -880,7 +880,7 @@ keywords: :BOUNDP, :FBOUNDP, :CONSTANT, :GENERIC-FUNCTION,
     (delete-region (buffer-region buf))
     (setf *fuzzylist-entries-end* (length entries))
     (setf *fuzzylist-entries* (coerce entries 'vector))
-    (with-output-to-mark (s (buffer-point buf))
+    (with-output-to-mark (s buf (buffer-point buf))
       (dolist (entry entries)
         (fuzzylist-write-line entry s)))))
 

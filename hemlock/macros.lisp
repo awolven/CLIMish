@@ -509,7 +509,7 @@
 (defvar *free-hemlock-output-streams* ()
   "This variable contains a list of free Hemlock output streams.")
 
-(defmacro with-output-to-mark ((var mark &optional (buffered ':line))
+(defmacro with-output-to-mark ((var buffer mark &optional (buffered ':line))
                                &body gorms)
   "With-Output-To-Mark (Var Mark [Buffered]) {Declaration}* {Form}*
   During the evaluation of Forms, Var is bound to a stream which inserts
@@ -520,7 +520,7 @@
        ,@decls
        (if ,var
            (modify-hemlock-output-stream ,var ,mark ,buffered)
-           (setq ,var (make-hemlock-output-stream ,mark ,buffered)))
+           (setq ,var (make-hemlock-output-stream ,buffer ,mark ,buffered)))
        (unwind-protect
          (multiple-value-prog1 ,@forms
            (finish-output ,var))
@@ -530,7 +530,7 @@
 (defvar *free-hemlock-region-streams* ()
   "This variable contains a list of free Hemlock input streams.")
 
-(defmacro with-input-from-region ((var region) &body gorms)
+(defmacro with-input-from-region ((var buffer region) &body gorms)
   "With-Input-From-Region (Var Region) {Declaration}* {Form}*
   During the evaluation of Forms, Var is bound to a stream which
   returns input from Region."
@@ -539,7 +539,7 @@
        ,@decls
        (if ,var
            (setq ,var (modify-hemlock-region-stream ,var ,region))
-           (setq ,var (make-hemlock-region-stream ,region)))
+           (setq ,var (make-hemlock-region-stream ,buffer ,region)))
        (unwind-protect
          (progn ,@forms)
          (delete-mark (hemlock-region-stream-mark ,var))

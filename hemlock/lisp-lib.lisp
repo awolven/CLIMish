@@ -39,7 +39,7 @@
     (message "Groveling library ...")
     (let ((lib-directory (directory *lisp-library-directory*))
           (lib-entries ()))
-      (with-output-to-mark (s (buffer-point *selected-library-buffer*))
+      (with-output-to-mark (s *selected-library-buffer* (buffer-point *selected-library-buffer*))
         (dolist (lib-spec lib-directory)
           (let* ((path-parts (pathname-directory lib-spec))
                  (last (elt path-parts (1- (length path-parts))))

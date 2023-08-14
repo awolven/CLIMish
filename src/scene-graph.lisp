@@ -205,7 +205,9 @@
   (setf (the origin) (v+ (the origin) vec))
   (values))
 
+
 (defun adhoc::adhoc-redefinition-hook ()
+  #+NIL
   (when (boundp '*app*)
     (loop for node in (krma::node-children (krma::application-scene *app*))
 	  do (rm-redraw-node-recursively node))))

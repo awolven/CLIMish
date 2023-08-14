@@ -9,6 +9,7 @@
    (drag-last-x :initform nil :accessor drag-last-x)
    (drag-last-y :initform nil :accessor drag-last-y)
    (last-event :initform nil :accessor window-last-event)
+   (popup-window :initform nil :accessor popup-window)
    (command-loop-go-semaphore :initform (bt:make-semaphore :name "command-loop-go-semaphore") :accessor command-loop-go-semaphore)))
 
 (defclass krma-gui-window (krma-gui-window-mixin)
@@ -505,6 +506,7 @@
   ((parent (main-window *app*))
    (scene (application-scene *app*))
    (style *style*)
+   (color (the style window-bg-color))
    (font (the style current-font))
    (iconified? (:noticer (if value
 			     (progn
@@ -812,10 +814,9 @@
 (defmethod rm-draw-node ((self homemade-window-mixin))
   
   (unless (the iconified?)
-    (let* ((style (the style))
-	   (scene (the scene))
+    (let* ((scene (the scene))
 	   (group (the group))
-	   (color (copy-seq (send style window-bg-color))))
+	   (color (copy-seq (the color))))
       (when (the title-bar?)
 	(when (the title-bar transparency-button opaque?)
 	  (setf (aref color 3) 1.0f0)))
@@ -1160,7 +1161,8 @@
 
 (defmethod clui:handle-event ((window homemade-window-mixin) (event clui::pointer-button-press-event-mixin))
   (call-next-method)
-  (setf (send window focused?) t)
+  (bt:make-thread #'(lambda ()
+		      (setf (send window focused?) t)))
   (values))
 
 (defmethod clui:handle-event ((self title-bar) (event clui::pointer-button-press-event-mixin))

@@ -1325,7 +1325,7 @@
                                   (buffer-default-pathname buffer)))
           (let ((point (buffer-point buffer)))
             (buffer-start point)
-            (with-output-to-mark (s point :full)
+            (with-output-to-mark (s buffer point :full)
               (format s (value log-entry-template)
                       (namestring pathname)
                       (universal-time-to-string

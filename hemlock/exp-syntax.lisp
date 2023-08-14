@@ -323,6 +323,7 @@
   (make-syntax-info :frob nil (initial-syntax-state) nil))
 
 (defun recompute-syntax-marks (buffer line tag)
+  (with-buffer-globals (buffer)
   (let* ((sy (or (tag-syntax-info tag)
                  (empty-syntax-info)))
          (prev (line-previous line))
@@ -365,7 +366,7 @@
              (make-syntax-info (line-signature line)
                                prev-to
                                state
-                               font-marks) )))))
+                               font-marks) ))))))
 
 (defun state-font (state)
   (cond ((member 'hash-plus state)

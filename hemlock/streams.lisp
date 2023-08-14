@@ -35,7 +35,10 @@
    (out
     :accessor old-lisp-stream-out)
    (sout
-    :accessor old-lisp-stream-sout)))
+    :accessor old-lisp-stream-sout)
+   (buffer
+    :initarg :buffer
+    :accessor hemlock-output-stream-buffer)))    
 
 (defun hemlock-output-stream-p (x)
   (typep x 'hemlock-output-stream))
@@ -62,7 +65,7 @@
 (defmethod hi::stream-line-length ((stream hemlock-output-stream))
   (mark-charpos (hemlock-output-stream-mark stream))
   (let* ((buffer
-          (line-buffer (mark-line (hemlock-output-stream-mark stream)))))
+          (hemlock-output-stream-buffer stream)))
     (when buffer
       (do ((w (buffer-windows buffer) (cdr w))
            (min most-positive-fixnum (min (window-width (car w)) min)))
@@ -72,14 +75,15 @@
 (defmethod print-object ((object hemlock-output-stream) stream)
   (write-string "#<Hemlock output stream>" stream))
 
-(defun make-hemlock-output-stream (mark &optional (buffered :line))
+(defun make-hemlock-output-stream (buffer mark &optional (buffered :line))
   "Returns an output stream whose output will be inserted at the Mark.
   Buffered, which indicates to what extent the stream may be buffered
   is one of the following:
    :None  -- The screen is brought up to date after each stream operation.
    :Line  -- The screen is brought up to date when a newline is written.
    :Full  -- The screen is not updated except explicitly via Force-Output."
-  (modify-hemlock-output-stream (make-instance 'hemlock-output-stream)
+  (modify-hemlock-output-stream (make-instance 'hemlock-output-stream
+                                               :buffer buffer)
                                 mark
                                 buffered))
 
@@ -134,7 +138,7 @@
 (defun hemlock-output-unbuffered-out (stream character)
   (with-left-inserting-mark (mark (hemlock-output-stream-mark stream))
     (let* ((buffer
-             (line-buffer (mark-line (hemlock-output-stream-mark stream)))))
+             (hemlock-output-stream-buffer stream)))
       (insert-character buffer mark character)
       #+NIL
       (redisplay-windows-from-mark mark))))
@@ -142,7 +146,7 @@
 (defun hemlock-output-unbuffered-sout (stream string start end)
   (with-left-inserting-mark (mark (hemlock-output-stream-mark stream))
     (let* ((buffer
-             (line-buffer (mark-line (hemlock-output-stream-mark stream)))))
+             (hemlock-output-stream-buffer stream)))
       (insert-string buffer mark string start end)
     #+NIL
     (redisplay-windows-from-mark mark))))
@@ -150,7 +154,7 @@
 (defun hemlock-output-buffered-out (stream character)
   (with-left-inserting-mark (mark (hemlock-output-stream-mark stream))
     (let* ((buffer
-             (line-buffer (mark-line (hemlock-output-stream-mark stream)))))
+             (hemlock-output-stream-buffer stream)))
       (insert-character buffer mark character))))
 
 (defun hemlock-output-buffered-sout (stream string start end)
@@ -160,7 +164,7 @@
 (defun hemlock-output-line-buffered-out (stream character)
   (with-left-inserting-mark (mark (hemlock-output-stream-mark stream))
     (let* ((buffer
-             (line-buffer (mark-line (hemlock-output-stream-mark stream)))))
+             (hemlock-output-stream-buffer stream)))
       (insert-character buffer mark character)
       (when (char= character #\newline)
         #+NIL
@@ -170,7 +174,7 @@
   (declare (simple-string string))
   (with-left-inserting-mark (mark (hemlock-output-stream-mark stream))
     (let* ((buffer
-             (line-buffer (mark-line (hemlock-output-stream-mark stream)))))
+              (hemlock-output-stream-buffer stream)))
       (insert-string buffer mark string start end)
       (when (find #\newline string :start start :end end)
         #+NIL
@@ -212,7 +216,7 @@
       (setf input-string
             (catch 'hi::lispbuf-input
               (let ((hi::*reading-lispbuf-input* t)
-                    (buffer (line-buffer (mark-line mark))))
+                    (buffer (hemlock-output-stream-buffer stream)))
                 (move-mark
                  (variable-value 'hemlock::buffer-input-mark :buffer buffer)
                  (buffer-point buffer))
@@ -264,18 +268,22 @@
    ;;
    ;; The mark pointing to the next character to read.
    (mark :initarg :mark
-         :accessor hemlock-region-stream-mark)) )
+         :accessor hemlock-region-stream-mark)
+
+   (buffer :initarg :buffer
+           :accessor hemlock-region-stream-buffer)))
 
 (defmethod print-object ((object hemlock-region-stream) stream)
   (declare (ignorable object))
   (write-string "#<Hemlock region stream>" stream))
 
-(defun make-hemlock-region-stream (region)
+(defun make-hemlock-region-stream (buffer region)
   "Returns an input stream that will return successive characters from the
   given Region when asked for input."
   (make-instance 'hemlock-region-stream
                  :region region
-                 :mark (copy-mark (region-start region) :right-inserting)))
+                 :mark (copy-mark (region-start region) :right-inserting)
+                 :buffer buffer))
 
 ;;; Note: this is called when re-using a stream and is expected to
 ;;; re-initialize the stream.
@@ -300,7 +308,7 @@
     (cond ((mark< mark
                   (region-end (hemlock-region-stream-region stream)))
            (let* ((buffer
-                    (line-buffer (mark-line (hemlock-region-stream-mark stream)))))
+                    (hemlock-region-stream-buffer stream)))
              (prog1 (next-character buffer mark) (mark-after buffer mark))))
           (t :eof))))
 
@@ -314,7 +322,7 @@
                    (region-start (hemlock-region-stream-region stream)))
       (error "Nothing to unread."))
     (let* ((buffer
-             (line-buffer (mark-line (hemlock-region-stream-mark stream)))))
+              (hemlock-region-stream-buffer stream)))
       (unless (char= char (previous-character buffer mark))
         (error "Unreading something not read: ~S" char))
       (mark-before buffer mark))

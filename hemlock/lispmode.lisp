@@ -814,7 +814,7 @@
                 (do ((line (mark-line mark) (,step line))
                      (count 0 (1+ count)))
                     ((null line)
-                     (,end mark))
+                     (,end mark buffer))
                   (declare (fixnum count))
                   (when (char= (line-character buffer line 0) #\()
                     (setq last-defun line)

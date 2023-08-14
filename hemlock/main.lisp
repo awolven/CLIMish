@@ -854,7 +854,7 @@ hemlock.x11::(defun hunk-reset (hunk) hunk)
             (*print-case* :downcase))
        (delete-region (buffer-region buffer))
        (with-output-to-mark
-           (*standard-output* (buffer-point buffer))
+           (*standard-output* buffer (buffer-point buffer))
          (eval `(grindef ,x))   ; hackish, I know...
          (terpri)
          (hemlock::change-to-buffer buffer)

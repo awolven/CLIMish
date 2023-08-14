@@ -129,6 +129,7 @@
    (:file "src/kill-ring")
    (:file "src/text-editor-view")
    (:file "src/text-editor-window")
+   (:file "src/popup-stream")
    (:file "hemlock/exp-syntax")
    (:file "src/echo-area-window")
    (:file "src/command-tables")

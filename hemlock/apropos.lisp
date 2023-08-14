@@ -69,7 +69,7 @@
     (delete-region buf (buffer-region buf))
     (setf *apropos-entries-end* (length entries))
     (setf *apropos-entries* (coerce entries 'vector))
-    (with-output-to-mark (s (buffer-point buf))
+    (with-output-to-mark (s buf (buffer-point buf))
       (dolist (entry entries)
         (apropos-write-line entry s)))))
 
