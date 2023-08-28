@@ -125,11 +125,13 @@
 
 
 (defun f-o (stream)
-  (let ((buffer-windows (hi::buffer-windows (hemlock-character-io-stream-buffer stream))))
-    (mapcar #'(lambda (window)
-		(hi::maybe-rebottom-window-on-mark window (buffer-point (window-buffer window)))
-		(krma.gui::redraw-buffer window))
-	    buffer-windows)))
+  (with-buffer-globals ((hemlock-character-io-stream-buffer stream))
+    (let ((buffer-windows (hi::buffer-windows .buffer.)))
+      (mapcar #'(lambda (window)
+		  (bt::with-recursive-lock-held ((hi::window-lock window))
+		    (hi::maybe-rebottom-window-on-mark window .point.)
+		    (krma.gui::redraw-buffer window)))
+	    buffer-windows))))
 
 (defmethod stream-finish-output ((stream hemlock-character-io-stream))
   (f-o stream))

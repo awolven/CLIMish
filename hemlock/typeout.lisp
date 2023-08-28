@@ -22,6 +22,10 @@
 
 (defun invoke-with-pop-up-display (current-window cont buffer-name height)
   (declare (ignore height))
+  (let ((*standard-output* (krma.gui::make-popup-window)))
+    (funcall cont *standard-output*))
+  
+  #+NIL
   (let* ((window (krma.gui::find-or-create-typeout-window "Random Typeout"))
          (buf (window-buffer window)))
     (cond ((eq current-window *echo-area-window*)

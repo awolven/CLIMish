@@ -55,7 +55,7 @@
 (defgeneric ring-push (object ring)
   (:documentation "Push an object into a ring, deleting an element if necessary."))
 
-(defmethod ring-push (region (ring kill-ring-head))
+(defmethod ring-push ((region region) (ring kill-ring-head))
   (let ((window (krma.gui::focused-window (krma::main-window krma::*app*))))
     (when window
       (let* ((string (region-to-string (window-buffer window) region))
@@ -80,6 +80,28 @@
                 (1+ (kill-ring-element-index
                      (krma.gui::prev (krma.gui::prev ring))))))))
     (values)))
+
+(defmethod ring-push ((string string) (ring kill-ring-head))
+  (let* ((new (make-instance 'kill-ring-element))
+         (prev (krma.gui::prev ring)))
+    
+    (when (= (kill-ring-max-size ring)
+             (1+ (kill-ring-element-index prev)))
+      ;; drop off the oldest one
+      (setf (krma.gui::next prev) ring
+            (krma.gui::prev ring) (krma.gui::prev prev)))
+    
+    (setf (kill-ring-element-value new)
+          (kill-ring-element-value ring))
+
+    (setf (krma.gui::next new) (krma.gui::next ring))
+    (setf (krma.gui::prev new) ring)
+    (setf (krma.gui::next ring) new)
+    (setf (kill-ring-element-value ring) string)
+    (unless (eq (krma.gui::prev ring) ring)
+      (setf (kill-ring-element-index (krma.gui::prev ring))
+            (1+ (kill-ring-element-index
+                 (krma.gui::prev (krma.gui::prev ring))))))))
 
 
 ;;; ring-pop  --  Public

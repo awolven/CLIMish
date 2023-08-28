@@ -2,7 +2,6 @@
   :description "A platform independent gui library."
   :depends-on (:krma
 	       :adhoc
-	       :3d-math
 	       :trivial-gray-streams
 	       :bordeaux-threads
 	       :iterate

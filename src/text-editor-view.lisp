@@ -89,7 +89,7 @@
 			  (scene-draw-filled-2d-rectangle-list
 			   scene :cursor #xffff0077
 			   (list xval yval (+ xval space-width) (+ yval font-size))
-			   0 (1+ (the buffer-view text layer)))))))))))))))
+			   0 (1+ (the buffer-view text elevation)))))))))))))))
 
 
 (defun cursorpos-to-mark (x y window)
@@ -432,7 +432,7 @@
 						    scene :cursor #xff770033
 						    (list (+ (* x0 space-width) ox) (+ (* y font-size) oy)
 							  (+ (* x1 space-width) ox) (+ (* (1+ y) font-size) oy))
-						    0 (1+ (the buffer-view text layer)))))
+						    0 (1+ (the buffer-view text elevation)))))
 
 					    (when (eql dis-line-m0 dis-line-m1)
 					      ;; it's just a partial line, draw and return
@@ -518,7 +518,7 @@
 	    (yp (send text superior y))
 	    (scene (send text scene))
 	    (group (send text group))
-	    (layer (float (send text layer)))
+	    (elevation (float (send text elevation)))
 	    (font (hi::window-font-family window))
 	    (font-size (font-size font))
 	    (font-data (font-data font))
@@ -552,7 +552,7 @@
 				    (yval (float (+ (* y font-size) -2 yp))))
 			       (krma::draw-data-add-text-primitive draw-data group nil font color
 							 xval yval (subseq string start end)
-							 0 layer)))))
+							 0 elevation)))))
 		    (do ((change (hi::dis-line-font-changes dl) (hi::font-change-next change)))
 			((null change)
 			 (buffer-view-add-string last position font text-color-key chars last length))

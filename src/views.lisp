@@ -139,8 +139,8 @@
    (style :defaulting))
 
   :attributes
-  ((layer (if (the superior)
-	      (1+ (the superior layer))
+  ((elevation (if (the superior)
+	      (1+ (the superior elevation))
 	      0)))
 
   :components
@@ -168,7 +168,7 @@
   :inputs
   ((color (the style border-color))
    (border-size 1)
-   (base-layer 13)
+   (base-elevation 13)
 
    (x (ecase (the index)
 	((:west :north :south) (+ (the window x) (- (/ (the border-size) 2))))
@@ -185,9 +185,9 @@
   
   :attributes
   ((index (first (the indices)))
-   (layer (ecase (the index)
-	    ((:north :south) (+ (the base-layer) 1))
-	    ((:east :west) (+ (the base-layer) 0))))))
+   (elevation (ecase (the index)
+	    ((:north :south) (+ (the base-elevation) 1))
+	    ((:east :west) (+ (the base-elevation) 0))))))
 
 (defobject resize-border (border)
   :inputs
@@ -333,7 +333,7 @@
       scene (the group) nil (the color)
       (list (the x0) (the y0) (the x1) (the y1))
       (the object-id)
-      (the layer))
+      (the elevation))
      (the primitive-handles))))
 
 (defmethod rm-draw-node ((self border))
@@ -346,7 +346,7 @@
 	(if (typep (the root (resize-borders (the index))) 'null-object)
 	    0
 	    (the root (resize-borders (the index)) object-id))
-	(the layer))
+	(the elevation))
        (the primitive-handles)))))
 
 
@@ -447,7 +447,7 @@
 	    scene group nil title-bar-color
 	    (list (the x0) (the y0) (the x1) (the y1))
 	    (the object-id)
-	    (the layer))
+	    (the elevation))
 	   (the primitive-handles)))
     
 	(let ((title-bar-color (if focused? (send style title-bg-active-color) (send style title-bg-color))))
@@ -456,7 +456,7 @@
 	    scene group nil title-bar-color
 	    (list (the x0) (the y0) (the x1) (the y1))
 	    (the object-id)
-	    (the layer))
+	    (the elevation))
 	   (the primitive-handles))))
 	  
 
@@ -467,7 +467,7 @@
        scene group nil (send style current-font) (send style text-color) layout-r-x0 layout-r-y0
        (send window title)
        (the object-id)
-       (1+ (the layer))))))
+       (1+ (the elevation))))))
 
 (defclass ring-element-mixin ()
   ((next :initform nil :accessor next)
@@ -542,7 +542,7 @@
 
   :attributes
   ((z-index :modifiable 0)
-   (layer (* (the z-index) krma::+view-depth+))
+   (elevation (* (the z-index) krma::+view-depth+))
    (border-indices '((:north) (:south) (:east) (:west))))
 
   :components
@@ -561,12 +561,12 @@
    (resize-borders :type (if (the resizable?) 'resize-border 'null-object)
 		   :aggregate (:indices (the border-indices))
 		   border-size 6
-		   base-layer (+ (the layer) 11))
+		   base-elevation (+ (the elevation) 11))
 
    (border :type 'border
 	   :aggregate (:indices (the border-indices))
 	   border-size 2
-	   base-layer (+ (the layer) 13))
+	   base-elevation (+ (the elevation) 13))
 
    (horizontal-scrollbar :type (if (the scrollbar-x?) 'scrollbar 'null-object)
 			 axis :horizontal)
@@ -774,7 +774,7 @@
   (values))
 
 (defmethod transform-coordinate ((vec vec2) (view view-mixin))
-  (transform-coordinate (vec3 (vx vec) (vy vec) (send view layer)) view))
+  (transform-coordinate (vec3 (vx vec) (vy vec) (send view elevation)) view))
 
 (defmethod initialize-instance :after ((self homemade-window-mixin) &rest initargs)
   (declare (ignore initargs))
@@ -825,7 +825,7 @@
        scene group nil color
        (list (the x0) (if (the title-bar?) (the title-bar y1) (the y0)) (the x1) (the y1))
        (the object-id)
-       (the layer)))))
+       (the elevation)))))
 
   
 
@@ -907,14 +907,14 @@
 	 (cross-color (send style text-color))
 	 (object-id (the object-id))
 	 (group (the group))
-	 (layer (the layer))
+	 (elevation (the elevation))
 	 (hovered? (the hovered?)))
 
     (push (scene-add-filled-2d-circle-primitive scene group nil (if hovered? (send style button-hovered-color) 0)
 						(the center-x) (the center-y) (max 2.0f0 (1+ (* 0.5f0 font-size)))
 						12
 						object-id
-						layer)
+						elevation)
 	  (the primitive-handles))
 
     (let ((cross-extent (the cross-extent)))
@@ -924,7 +924,7 @@
 					 (- (the center-x) cross-extent)
 					 (- (the center-y) cross-extent)
 					 object-id
-					 (1+ layer))
+					 (1+ elevation))
 	    (the primitive-handles))
     
       (push (scene-add-2d-line-primitive scene group nil 2.0f0 cross-color
@@ -933,7 +933,7 @@
 					 (- (the center-x) cross-extent)
 					 (+ (the center-y) cross-extent)
 					 object-id
-					 (1+ layer))
+					 (1+ elevation))
 	    (the primitive-handles)))
 
     (values)))
@@ -945,14 +945,14 @@
 	 (cross-color (send style text-color))
 	 (object-id (the object-id))
 	 (group (the group))
-	 (layer (the layer))
+	 (elevation (the elevation))
 	 (hovered? (the hovered?)))
 
     (push (scene-add-filled-2d-circle-primitive scene group nil (if hovered? (send style button-hovered-color) 0)
 						(the center-x) (the center-y) (max 2.0f0 (1+ (* 0.5f0 font-size)))
 						12
 						object-id
-						layer)
+						elevation)
 	  (the primitive-handles))
 
     (let ((side-extent (max 2.0f0 (1+ (* 0.33f0 font-size))))
@@ -963,7 +963,7 @@
 					 (+ (the center-x) side-extent)
 					 (+ (the center-y) side-extent)
 					 object-id
-					 (1+ layer))
+					 (1+ elevation))
 	    (the primitive-handles))
 
       (when (the opaque?)
@@ -974,7 +974,7 @@
 		     (+ (the center-x) side-extent2)
 		     (+ (the center-y) side-extent2))
 	       object-id
-	       (1+ layer))
+	       (1+ elevation))
 	    (the primitive-handles)))
 
       
@@ -985,12 +985,12 @@
 					 (+ (the center-x) (max 2.0f0 (1+ (* 0.5f0 font-size))))
 					 (- (the center-y) (max 2.0f0 (1+ (* 0.5f0 font-size))))
 					 object-id
-					 (1+ layer))
+					 (1+ elevation))
 	    (the primitive-handles)))
 
     (values)))
 
-(defun scene-add-arrow (scene group pos-x pos-y color dir scale object-id layer &key (style *style*))
+(defun scene-add-arrow (scene group pos-x pos-y color dir scale object-id elevation &key (style *style*))
   (let* ((h (font-size (send style current-font)))
 	 (r (* h 0.40f0 scale))
 	 (center-x (+ pos-x (* h 0.50f0)))
@@ -1034,9 +1034,9 @@
 	   (+ center-x b-x) (+ center-y b-y)
 	   (+ center-x c-x) (+ center-y c-y))
      object-id
-     layer)))
+     elevation)))
 
-(defun scene-add-arrow-pointing-at (scene group pos-x pos-y half-size-x half-size-y color dir &optional (object-id 0) (layer 0))
+(defun scene-add-arrow-pointing-at (scene group pos-x pos-y half-size-x half-size-y color dir &optional (object-id 0) (elevation 0))
   (let ((a-x)
 	(a-y)
 	(b-x)
@@ -1072,9 +1072,9 @@
 	   b-x b-y
 	   pos-x pos-y)
      object-id
-     layer)))    
+     elevation)))    
 
-(defun scene-add-arrow-dock-menu (scene group p-min-x p-min-y size color object-id layer &key (style *style*))
+(defun scene-add-arrow-dock-menu (scene group p-min-x p-min-y size color object-id elevation &key (style *style*))
   (declare (ignorable style))
   (scene-add-filled-2d-rectangle-list-primitive
    scene group nil color
@@ -1083,7 +1083,7 @@
 	 (+ p-min-x (* size 0.70f0))
 	 (+ p-min-y (* size 0.30f0)))
    object-id
-   layer)
+   elevation)
   (scene-add-arrow-pointing-at scene group
 			       (+ p-min-x (* size 0.40f0))
 			       (+ p-min-y (* size 0.85f0))
@@ -1092,7 +1092,7 @@
 			       color
 			       :down
 			       object-id
-			       layer))  
+			       elevation))  
 
 (defmethod rm-draw-node ((self iconify-button))
 
@@ -1102,7 +1102,7 @@
 	 (text-col (send style text-color))
 	 (object-id (the object-id))
 	 (group (the group))
-	 (layer (the layer))
+	 (elevation (the elevation))
 	 (hovered? (the hovered?))
 	 (window (the window))
 	 (dock-node? nil))
@@ -1111,7 +1111,7 @@
 						(the center-x) (the center-y) (max 2.0f0 (1+ (* 0.5f0 font-size)))
 						12
 						object-id
-						layer)
+						elevation)
 	  (the primitive-handles))
 
     (if dock-node?
@@ -1121,7 +1121,7 @@
 					 (font-size (send style current-font))
 					 text-col
 					 object-id
-					 (1+ layer)
+					 (1+ elevation)
 					 :style style)
 	      (the primitive-handles))
 	(push (scene-add-arrow scene group
@@ -1130,7 +1130,7 @@
 			       text-col (if (send window iconified?) :right :down)
 			       1.0f0
 			       object-id
-			       (1+ layer)
+			       (1+ elevation)
 			       :style style)
 	      (the primitive-handles)))
     (values)))
@@ -1148,14 +1148,14 @@
 	   (- (box-x1 menu-bar) (send window border-size))
 	   (box-y1 menu-bar))
      (send menu-bar object-id)
-     (send menu-bar layer))
+     (send menu-bar elevation))
     (when (and (plusp (frame-border-size style))
 	       (> (box-y1 menu-bar) (+ (box-y window) (box-height window))))
       (scene-add-2d-line-primitive scene group nil (frame-border-size style) (border-color style)
 			 (box-x0 menu-bar) (box-y1 menu-bar)
 			 (box-x1 menu-bar) (box-y1 menu-bar)
 			 (send menu-bar object-id)
-			 (send menu-bar layer)))))
+			 (send menu-bar elevation)))))
 
 
 

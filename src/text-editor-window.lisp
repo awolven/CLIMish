@@ -23,7 +23,7 @@
 	     scene group nil (the bg-color)
 	     (list (the x0) (the y0) (the x1) (the y1))
 	     (the object-id)
-	     (the layer))
+	     (the elevation))
 	    (the primitive-handles))
 
       (let ((modeline (hi::window-modeline-buffer (the superior))))
@@ -33,7 +33,7 @@
 						  (min (length modeline)
 						       (hi::window-modeline-buffer-len (the superior))))
 					  (the object-id)
-					  (1+ (the layer)))
+					  (1+ (the elevation)))
 		(the primitive-handles))))
       (values))))
 
