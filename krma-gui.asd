@@ -134,7 +134,8 @@
    (:file "src/command-tables")
    (:file "src/commands")
    (:file "src/debugger")
+   (:file "src/context-menu")
    (:file "src/gui-application")
-      (:file "hemlock/completion")
+   (:file "hemlock/completion")
    (:file "src/gestures")))
 	  

@@ -1178,8 +1178,16 @@
 	(let ((object (krma::object-from-id hovered)))
 	  (when object
 	    (clui:handle-event object event)))
-	(focus-window *echo-area-window*))
+	(if (eq (clui::input-event-code event) clui::+pointer-right-button+)
+	    (let ((menu (make-instance 'context-menu)))
+	      (set-window-position menu
+				   (- (clui::pointer-event-x event) 70)
+				   (- (clui::pointer-event-y event) 70))
+	      (focus-window menu))
+	    (focus-window *echo-area-window*)))
     (values)))
+
+
 
 (defobject popup-window-mixin (homemade-window-mixin))
 

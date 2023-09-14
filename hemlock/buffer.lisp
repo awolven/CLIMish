@@ -1,4 +1,4 @@
-s(in-package :hemlock-internals)
+(in-package :hemlock-internals)
 
 (declaim (special ;;*current-buffer* ; because it is defined too late --amb
                   *global-variable-names* ; defined in main.lisp --amb
