@@ -92,14 +92,9 @@
     
 	(tagbody
 
-	   (print (or (focused-window window) *echo-area-window*))
-	   (finish-output)
-       
 	 RESET (setq w (or (focused-window window) *echo-area-window*))
 	   (setq event-chain ())
-	   (setq table-chain (list (command-table w)))
-
-	   
+	   (setq table-chain (list (compute-command-table w (window-command-continuation w))))
        
 	   ;; code will continue to wait until it either gets a gesture that matches or C-g is sent
        

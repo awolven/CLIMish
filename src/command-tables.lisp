@@ -1,11 +1,29 @@
 (in-package :krma.gui)
 
+(defmethod compute-command-table (view continued-command)
+  (declare (ignore continued-command))
+  (command-table view))
+
+(defmethod compute-command-table ((view echo-area-window-mixin) (continued-command null))
+  (command-table view))
+
+(defmethod compute-command-table ((view echo-area-window-mixin) (continued-command hi::command))
+  (let ((bindings (get-command-table continued-command))
+	(table (make-hash-table :test #'eq)))
+    (rebuild-command-table-1 view table)
+    (hash-table-recursive-copy bindings table)
+    table))    
+
 (defvar *global-command-table* (make-hash-table :test #'eq))
 
 (defmethod get-command-table (class)
   (loop for class in (compute-class-precedence-list class)
      when (slot-exists-p class 'command-table)
        do (return (slot-value class 'command-table))))
+
+(defmethod get-command-table ((command hi::command))
+  (or (hi::command-command-table command)
+      (setf (hi::command-command-table command) (make-hash-table :test #'eq))))
 
 (defun hash-table-recursive-copy (old-hash-table new-hash-table)
   (maphash #'(lambda (k v)
@@ -25,6 +43,9 @@
 (defun rebuild-command-table (text-editor-view)
   (let ((command-table (command-table text-editor-view)))
     (clrhash command-table) ;; start fresh from here
+    (rebuild-command-table-1 text-editor-view command-table)))
+
+(defun rebuild-command-table-1 (text-editor-view command-table)
     (hash-table-recursive-copy *global-command-table* command-table)
     (let ((class-precedence-list (list (class-of text-editor-view))))
       (loop for class in class-precedence-list
@@ -42,7 +63,7 @@
 	  (when buffer-bindings
 	    (hash-table-recursive-copy buffer-bindings command-table))))
       
-      t)))
+      t))
 
 (defun command-bindings (view command)
   (let ((bindings (hi::command-%bindings command))
@@ -101,11 +122,11 @@
       
       
 
-(defmethod get-table-entry (object table key)
+(defmethod get-table-entry (object (table hash-table) key)
   (declare (ignore object))
   (gethash key table))
 
-(defmethod get-table-entry ((object view-mixin) table (key character))
+(defmethod get-table-entry ((object view-mixin) (table hash-table) (key character))
   #'(lambda (window p)
       (handle-character-input window key (or p 1))))
 
@@ -129,9 +150,12 @@
     (let ((table (cond ((and (symbolp where) (find-class where nil)) (get-command-table (find-class where)))
 			((bufferp where) (hi::buffer-bindings where))
 			((stringp where) (let ((mode (hi::getstring where hi::*mode-names*)))
-					   (unless mode
-					     (error "~S is an unknown mode while binding ~{~A~}" where ids))
-					   (hi::mode-object-bindings mode)))
+					   (if mode
+					       (hi::mode-object-bindings mode)
+					       (let ((command (hi::getstring where hi::*command-names*)))
+						 (if command
+						     (get-command-table command)
+						     (error "~S is an unknown mode while binding ~{~A~}" where ids))))))
 			
 			((eq where :global) *global-command-table*)
 			(t (error "Cannot find command table for ~S while binding ~{~A~}" where ids)))))

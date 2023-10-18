@@ -35,6 +35,7 @@
             (with-slots (.point.
                          *internal-temp-region*
                          *internal-temp-mark*
+                         hemlock::*target-column*
                          last-was-undo-p
                          this-is-undo-p
                          undoing-undo-list
@@ -580,7 +581,7 @@
 ;;; Renumber-Region-Containing renumbers the region containing the given line.
 
 (defun renumber-region-containing (buffer line)
-  (cond ((line-buffer line)
+  (cond (buffer
          (renumber-region (buffer-region buffer)))
         (t
          (do ((line line (line-previous line))

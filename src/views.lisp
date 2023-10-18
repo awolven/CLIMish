@@ -500,6 +500,7 @@
   
   :slots
   ((command-table :initform (make-hash-table :test #'eq) :reader command-table)
+   (command-continuation :initform nil :accessor window-command-continuation)
    (resize-mode :initform nil :accessor resize-mode))
 
   :inputs

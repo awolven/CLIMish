@@ -275,7 +275,8 @@
                 (point-position
                  (move-mark point (apply #'position-mark (cadr chunk)))) )))))
 
-      (setf undoing-undo-list undo-list) ))))
+      (setf undoing-undo-list undo-list) )))
+  (krma.gui::redraw-buffer window))
 
 (defun new-undo-invoke-hook (buffer command p)
   (declare (ignore p))

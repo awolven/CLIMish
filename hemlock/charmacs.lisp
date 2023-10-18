@@ -60,9 +60,25 @@
   into the Table, which is a U-Vector of 8-bit bytes. When the number picked
   up from the table bitwise ANDed with Mask is non-zero, the current
   index into the String is returned. The corresponds to SCANC on the Vax."
+
+  ;; avoid errors from bogus args:
+  (when (> end (length string))
+    (warn "%sp-find-character-with-attribute: end was too large")
+    (setq end (length string)))
+  (when (>= start (length string))
+    (warn "%sp-find-character-with-attribute: start was too large")
+    (setq start (length string)))
+  (when (minusp end)
+    (warn "%sp-find-character-with-attribute: end was negative")
+    (setq end 0))
+  (when (minusp start)
+    (warn "%sp-find-character-with-attribute: start was negative")
+    (setq start 0))
+  
   (do ((index start (1+ index)))
-      ((= index end) nil)
+      ((>= index end) nil)
     (declare (fixnum index))
+    
     (if (/= (logand (char-set-ref table (char-code (elt string index))) mask) 0)
         (return index))))
 

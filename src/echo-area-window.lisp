@@ -2,7 +2,7 @@
 
 (defobject echo-area-window-mixin (text-editor-window-mixin)
   :metaclass echo-area-window-class
-  
+
   :inputs
   ((parent (main-window *app*))
    (iconified? nil)

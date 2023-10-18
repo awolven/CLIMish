@@ -375,7 +375,8 @@
   %name                            ;The name of the command
   documentation                    ;Command documentation string or function
   function                         ;The function which implements the command
-  %bindings)                       ;Places where command is bound
+  %bindings                        ;Places where command is bound
+  command-table) ; active subcommands
 
 (setf (documentation 'commandp 'function)
   "Returns true if its argument is a Hemlock command object, Nil otherwise.")

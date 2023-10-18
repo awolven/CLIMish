@@ -227,6 +227,9 @@
    (*internal-temp-mark*
     :initform nil)
 
+   (hemlock::*target-column*
+    :initform 0)
+
    (last-was-undo-p
     :initform nil)
    

@@ -221,7 +221,7 @@
 
 ;;;; Moving around:
 
-(defvar *target-column* 0)
+;;(defvar *target-column* 0) ; target-column is now a buffer-global
 
 (defmacro .set-target-column. (mark)
   `(if (eq (last-command-type) :line-motion)
