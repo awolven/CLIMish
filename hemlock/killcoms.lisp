@@ -354,7 +354,7 @@
             (t (editor-error)))
       (deactivate-region buffer))
     ;; displayed-p is giving a poor result here, so we're not going to check
-    (hi::center-window-on-mark window point)
+    (hi::bottom-window-on-mark window point)
     (krma.gui:redraw-buffer window)))
 ;;;
 (push :unkill *ephemerally-active-command-types*)
