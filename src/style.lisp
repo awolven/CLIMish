@@ -24,7 +24,8 @@
    (window-title-align-x (* (the window-title-align-x-mm) (the px-per-mm-width)))
    (window-menu-button-position :right)
    (title-bar-height-mm 4)
-   (title-bar-height (* (the title-bar-height-mm) (the px-per-mm-height)))
+   ;;(title-bar-height (* (the title-bar-height-mm) (the px-per-mm-height)))
+   (title-bar-height (* 3/2 (font-size (the current-font))))
    (default-window-border-size-mm 1/4)
    (default-window-border-size (* (the default-window-border-size-mm) (the px-per-mm-width)))
    (default-initial-window-height-mm 100)
@@ -32,7 +33,7 @@
    (default-initial-window-width-mm 140)
    (default-initial-window-width (* (the default-initial-window-width-mm) (the px-per-mm-width)))
    
-   (current-font (the roboto-font (bmfonts 2.75) bmfont))
+   (current-font (the roboto-font (bmfonts 3.5) bmfont))
    (lisp-defines-text-color #(0.545f0 0.980f0 0.439f0 1.0f0))
    (lisp-names-text-color #(0.888f0 0.814f0 0.310f0 1.0f0))
    (lisp-strings-color #(0.914f0 0.325f0 0.331f0 1.0f0))
