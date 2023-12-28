@@ -15,17 +15,23 @@
 (in-package :hemlock)
 
 
-(defcommand "Region to Cut Buffer" (p)
-  "Place the current region into the X cut buffer."
-  "Place the current region into the X cut buffer."
+(defhcommand region-to-cut-buffer-command (window p)
+  (:pretty-name "Region to Cut Buffer")
+  (:documentation "Place the current region into the X cut buffer.")
+  (:help-string "Place the current region into the X cut buffer."))
+
+(defmethod region-to-cut-buffer-command (window p)  
   (declare (ignore p))
   (store-cut-string (hi::bitmap-device-display
-                     (hi::device-hunk-device (hi::window-hunk (current-window))))
+                     (hi::device-hunk-device (hi::window-hunk window)))
                     (region-to-string (current-region))))
 
-(defcommand "Insert Cut Buffer" (p)
-  "Insert the X cut buffer at current point."
-  "Insert the X cut buffer at current point.  Returns nil when it is empty."
+(defhcommand insert-cut-buffer-command (window p)
+  (:pretty-name "Insert Cut Buffer")
+  (:documentation "Insert the X cut buffer at current point.")
+  (:help-string "Insert the X cut buffer at current point.  Returns nil when it is empty."))
+
+(defmethod insert-cut-buffer-command (window p)
   (declare (ignore p))
   (let ((str (fetch-cut-string (hi::bitmap-device-display
                                 (hi::device-hunk-device

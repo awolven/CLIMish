@@ -314,9 +314,12 @@
   "A string-table of the string-name of all process buffers and corresponding
    buffer structures.")
 
-(defcommand "Set Current Shell" (p)
-  "Sets the value of \"Current Shell\", which the \"Shell\" command uses."
-  "Sets the value of \"Current Shell\", which the \"Shell\" command uses."
+(defhcommand set-current-shell-command (window p)
+  (:pretty-name "Set Current Shell")
+  (:documentation "Sets the value of \"Current Shell\", which the \"Shell\" command uses.")
+  (:help-string "Sets the value of \"Current Shell\", which the \"Shell\" command uses."))
+
+(defmethod set-current-shell-command (window p)
   (declare (ignore p))
   (set-current-shell))
 
@@ -346,17 +349,22 @@
         (declare (ignore new-buffer-name))
         (setf (value current-shell) new-buffer)))))
 
-(defcommand "Shell" (p)
-  "This spawns a shell in a buffer.  If there already is a \"Current Shell\",
+(defhcommand shell-command (window p)
+  (:pretty-name "Shell")
+  (:documentation
+   "This spawns a shell in a buffer.  If there already is a \"Current Shell\",
    this goes to that buffer.  If there is no \"Current Shell\", there are
    shell buffers, and \"Ask about Old Shells\" is set, this prompts for one
    of them, setting \"Current Shell\" to that shell.  Supplying an argument
-   forces the creation of a new shell buffer."
-  "This spawns a shell in a buffer.  If there already is a \"Current Shell\",
+   forces the creation of a new shell buffer.")
+  (:help-string
+   "This spawns a shell in a buffer.  If there already is a \"Current Shell\",
    this goes to that buffer.  If there is no \"Current Shell\", there are
    shell buffers, and \"Ask about Old Shells\" is set, this prompts for one
    of them, setting \"Current Shell\" to that shell.  Supplying an argument
-   forces the creation of a new shell buffer."
+   forces the creation of a new shell buffer."))
+
+(defmethod shell-command (window p)
   (let ((shell (value current-shell))
         (no-shells-p (do-strings (var val *shell-names* t)
                        (declare (ignore var val))
@@ -368,9 +376,12 @@
            (change-to-buffer (value current-shell)))
           (t (make-new-shell nil)))))
 
-(defcommand "Shell Command Line in Buffer" (p)
-  "Prompts the user for a process and a buffer in which to run the process."
-  "Prompts the user for a process and a buffer in which to run the process."
+(defhcommand shell-command-line-in-buffer-command (window p)
+  (:pretty-name "Shell Command Line in Buffer")
+  (:documentation "Prompts the user for a process and a buffer in which to run the process.")
+  (:help-string "Prompts the user for a process and a buffer in which to run the process."))
+
+(defmethod shell-command-line-in-buffer-command (window p)
   (declare (ignore p))
   (make-new-shell t))
 
@@ -522,9 +533,12 @@
 
 ;;;; Supporting Commands.
 
-(defcommand "Confirm Process Input" (p)
-  "Evaluate Process Mode input between the point and last prompt."
-  "Evaluate Process Mode input between the point and last prompt."
+(defhcommand confirm-process-input-command (window p)
+  (:pretty-name "Confirm Process Input")
+  (:documentation "Evaluate Process Mode input between the point and last prompt.")
+  (:help-string "Evaluate Process Mode input between the point and last prompt."))
+
+(defmethod confirm-process-input-command (window p)
   (declare (ignore p))
   (unless (hemlock-bound-p 'process-connection :buffer (current-buffer))
     (editor-error "Not in a process buffer."))
@@ -538,11 +552,14 @@
       ;; Move "Buffer Input Mark" to end of buffer.
       (move-mark (region-start input-region) (region-end input-region)))))
 
-(defcommand "Shell Complete Filename" (p)
-  "Attempts to complete the filename immediately preceding the point.
-   It will beep if the result of completion is not unique."
-  "Attempts to complete the filename immediately preceding the point.
-   It will beep if the result of completion is not unique."
+(defhcommand shell-complete-filename-command (window p)
+  (:pretty-name "Shell Complete Filename")
+  (:documentation "Attempts to complete the filename immediately preceding the point.
+   It will beep if the result of completion is not unique.")
+  (:help-string "Attempts to complete the filename immediately preceding the point.
+   It will beep if the result of completion is not unique."))
+
+(defmethod shell-complete-filename-command (window p)
   (declare (ignore p))
   (unless (hemlock-bound-p 'current-working-directory)
     (editor-error "Shell filename completion only works in shells."))
@@ -569,9 +586,12 @@
                    (editor-error)))
                 (t (editor-error "No such file exists."))))))))
 
-(defcommand "Kill Main Process" (window p)
-  "Kills the process in the current buffer."
-  "Kills the process in the current buffer."
+(defhcommand kill-main-process-command (window p)
+  (:pretty-name "Kill Main Process")
+  (:documentation "Kills the process in the current buffer.")
+  (:help-string "Kills the process in the current buffer."))
+
+(defmethod kill-main-process-command (window p)
   (declare (ignore p))
   (unless (hemlock-bound-p 'process-connection :buffer (current-buffer))
     (editor-error "Not in a process buffer."))
@@ -583,18 +603,24 @@
                                :default-string "no"))
     (delete-connection (value process-connection))))
 
-(defcommand "Stop Main Process" (p)
-  "Stops the process in the current buffer.  With an argument use :sigstop
-   instead of :sigtstp."
-  "Stops the process in the current buffer.  With an argument use :sigstop
-  instead of :sigtstp."
+(defhcommand stop-main-process-command (window p)
+  (:pretty-name "Stop Main Process")
+  (:documentation "Stops the process in the current buffer.  With an argument use :sigstop
+   instead of :sigtstp.")
+  (:help-string "Stops the process in the current buffer.  With an argument use :sigstop
+  instead of :sigtstp."))
+
+(defmethod stop-main-process-command (window p)
   (unless (hemlock-bound-p 'process-connection :buffer (current-buffer))
     (editor-error "Not in a process buffer."))
   (deliver-signal-to-process (if p :sigstop :sigtstp) (value process-connection)))
 
-(defcommand "Continue Main Process" (p)
-  "Continues the process in the current buffer."
-  "Continues the process in the current buffer."
+(defhcommand continue-main-process-command (window p)
+  (:pretty-name "Continue Main Process")
+  (:documentation "Continues the process in the current buffer.")
+  (:help-string "Continues the process in the current buffer."))
+
+(defmethod continue-main-process-command (window p)
   (declare (ignore p))
   (unless (hemlock-bound-p 'process-connection :buffer (current-buffer))
     (editor-error "Not in a process buffer."))
@@ -612,9 +638,12 @@
   "Delivers a signal to a process."
   (process-kill process signal :process-group))
 
-(defcommand "Send EOF to Process" (p)
-  "Sends a Ctrl-D to the process in the current buffer."
-  "Sends a Ctrl-D to the process in the current buffer."
+(defhcommand send-eof-to-process-command (window p)
+  (:pretty-name "Send EOF to Process")
+  (:documentation "Sends a Ctrl-D to the process in the current buffer.")
+  (:help-string "Sends a Ctrl-D to the process in the current buffer."))
+
+(defmethod send-eof-to-process-command (window p)
   (declare (ignore p))
   (unless (hemlock-bound-p 'process-connection :buffer (current-buffer))
     (editor-error "Not in a process buffer."))
@@ -623,9 +652,12 @@
     (write-char (code-char 4) stream)
     (force-output stream)))
 
-(defcommand "Interrupt Buffer Subprocess" (p)
-  "Stop the subprocess currently executing in this shell."
-  "Stop the subprocess currently executing in this shell."
+(defhcommand interrupt-buffer-subprocess-command (window p)
+  (:pretty-name "Interrupt Buffer Subprocess")
+  (:documentation "Stop the subprocess currently executing in this shell.")
+  (:help-string "Stop the subprocess currently executing in this shell."))
+
+(defmethod interrupt-buffer-subprocess-command (window p)
   (declare (ignore p))
   (unless (hemlock-bound-p 'process-connection :buffer (current-buffer))
     (editor-error "Not in a process buffer."))
@@ -633,25 +665,34 @@
   (buffer-end (value buffer-input-mark))
   (deliver-signal-to-subprocess :sigint (value process-connection)))
 
-(defcommand "Kill Buffer Subprocess" (p)
-  "Kill the subprocess currently executing in this shell."
-  "Kill the subprocess currently executing in this shell."
+(defhcommand kill-buffer-subprocess-command (window p)
+  (:pretty-name "Kill Buffer Subprocess")
+  (:documentation "Kill the subprocess currently executing in this shell.")
+  (:help-string "Kill the subprocess currently executing in this shell."))
+
+(defmethod kill-buffer-subprocess-command (window p)
   (declare (ignore p))
   (unless (hemlock-bound-p 'process-connection :buffer (current-buffer))
     (editor-error "Not in a process buffer."))
   (deliver-signal-to-subprocess :sigkill (value process-connection)))
 
-(defcommand "Quit Buffer Subprocess" (p)
-  "Quit the subprocess currently executing int his shell."
-  "Quit the subprocess currently executing int his shell."
+(defhcommand quit-buffer-subprocess-command (window p)
+  (:pretty-name "Quit Buffer Subprocess")
+  (:documentation "Quit the subprocess currently executing int his shell.")
+  (:help-string "Quit the subprocess currently executing int his shell."))
+
+(defmethod quit-buffer-subprocess-command (window p)
   (declare (ignore p))
   (unless (hemlock-bound-p 'process-connection :buffer (current-buffer))
     (editor-error "Not in a process buffer."))
   (deliver-signal-to-subprocess :sigquit (value process-connection)))
 
-(defcommand "Stop Buffer Subprocess" (p)
-  "Stop the subprocess currently executing in this shell."
-  "Stop the subprocess currently executing in this shell."
+(defhcommand stop-buffer-subprocess-command (window p)
+  (:pretty-name "Stop Buffer Subprocess")
+  (:documentation "Stop the subprocess currently executing in this shell.")
+  (:help-string "Stop the subprocess currently executing in this shell."))
+
+(defmethod stop-buffer-subprocess-command (window p)
   (unless (hemlock-bound-p 'process-connection :buffer (current-buffer))
     (editor-error "Not in a process buffer."))
   (deliver-signal-to-subprocess (if p :sigstop :sigtstp) (value process-connection)))
@@ -660,10 +701,15 @@
   "Delivers a signal to a subprocess of a shell."
   (process-kill process signal :pty-process-group))
 
-(defcommand "Shell Command"
+(defhcommand shell-command-command
+    (window p &optional command directory)
+  (:pretty-name "Shell Command")
+  (:documentation "")
+  (:help-string ""))
+
+(defmethod shell-command-command
     (window p &optional (command (hi::prompt-for-string window :prompt "Shell command: "))
-                 (directory (default-directory)))
-  "" ""
+                (directory (default-directory)))
   (declare (ignore p))
   (change-to-buffer
    (connection-buffer

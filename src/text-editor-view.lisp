@@ -456,7 +456,6 @@
 	  (draw-cursor-closure-generator os-window (the scene)))
     (setf (krma::immediate-mode-work-function-2 (clui::window-display os-window))
 	  (draw-active-region-closure-generator os-window (the scene))))
-  (rebuild-command-table self)
   self)
 
 #+NIL

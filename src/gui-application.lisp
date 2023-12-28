@@ -1,7 +1,8 @@
 (in-package :krma.gui)
 
 (defclass application-mixin (krma-application-mixin)
-  ())
+  ((default-command :initform #'insert-character-command :accessor default-command)
+   (universal-argument :initform nil :accessor universal-argument)))
 
 (defclass application (application-mixin)
   ())
@@ -9,9 +10,9 @@
 (in-package :hemlock)
 
 (defun krma.gui::post-init-hemlock (hemlock::initial-buffer)
-	     (defmode "Echo Area" :major-p t :current-buffer initial-buffer)
+	     (defmode :echo-area :major-p t :current-buffer initial-buffer)
 	     
-	     (setq hi::*echo-area-buffer* (make-instance 'hi:buffer :name "Echo Area" :modes '("Echo Area") :current-buffer initial-buffer))
+	     (setq hi::*echo-area-buffer* (make-instance 'hi:buffer :name "Echo Area" :modes '(:echo-area) :current-buffer initial-buffer))
 	     (setq hi::*echo-area-region* (hi::buffer-region hi::*echo-area-buffer*))
 	     (setq hi::*echo-area-stream* (hemlock::make-hemlock-character-io-stream hi::*echo-area-buffer*))
 	     (setq hi::*echo-area-window* ())
@@ -26,11 +27,11 @@
 	       :value nil
 	       :current-buffer initial-buffer)
 	     
-	     (defmode "Character-Stream"
+	     (defmode :character-stream
 		 :major-p nil :setup-function 'hemlock::setup-character-stream-mode
 		 :current-buffer initial-buffer)
 	     
-	     (defmode "Interactive-Character-Stream" :major-p nil :setup-function 'hemlock::setup-interactive-character-stream-mode
+	     (defmode :interactive-character-stream :major-p nil :setup-function 'hemlock::setup-interactive-character-stream-mode
 		      :current-buffer initial-buffer)
 	     
 	     (defhvar "Message Pause" "The number of seconds to pause after a Message."
@@ -212,7 +213,7 @@
 	       :value "~A, ~A, Edit by ~:[???~;~:*~:(~A~)~].~%  @~2%"
 	       :current-buffer initial-buffer)
 
-	     (defmode "Log"
+	     (defmode :log
 		 :major-p t
 		 :setup-function
 		 #'(lambda (buffer)
@@ -223,7 +224,7 @@
 		 :current-buffer initial-buffer)
 
 	     (defhvar "Fill Prefix" "The fill prefix in Log mode."
-	       :value "  "  :mode "Log"
+	       :value "  "  :mode :log
 	       :current-buffer initial-buffer)
 
 	     (hi::define-file-type-hook ("log") (buffer type)
@@ -276,22 +277,22 @@
 	     
 	     (define-file-type-hook ("lisp" "slisp" "l" "lsp" "mcl") (buffer type)
 	       (declare (ignore type))
-	       (setf (buffer-major-mode buffer initial-buffer) "Lisp"))
+	       (setf (buffer-major-mode buffer initial-buffer) :lisp))
 	     
 	     (define-file-type-hook ("txt" "text" "tx") (buffer type)
 	       (declare (ignore type))
-	       (setf (buffer-major-mode buffer initial-buffer) "Text"))
+	       (setf (buffer-major-mode buffer initial-buffer) :text))
 
-	     (defmode "Grep" :major-p t
+	     (defmode :grep :major-p t
 		      :documentation
 		      "Grep results"
 		      :current-buffer initial-buffer)
 	     
-	     (defmode "Apropos" :major-p t
+	     (defmode :apropos :major-p t
 		      :documentation "Apropos mode presents a list of slave symbols."
 		      :current-buffer initial-buffer)
 	     
-	     (defmode "Typeout" :major-p t
+	     (defmode :typeout :major-p t
 		      :documentation
 		      "Typeout is a read-only buffer for pop up displays."
 		      :current-buffer initial-buffer)
@@ -302,10 +303,10 @@
 	       :value 30
 	       :current-buffer initial-buffer)
 
-	     (defmode "Text" :major-p t
+	     (defmode :text :major-p t
 		      :current-buffer initial-buffer)
 
-	     (defmode "CAPS-LOCK" :current-buffer initial-buffer)
+	     (defmode :caps-lock :current-buffer initial-buffer)
 
 	     (defhvar "Source Compare Ignore Extra Newlines"
 		 "If T, Source Compare and Source Merge will treat all groups of newlines
@@ -350,7 +351,7 @@
 	       :value t
 	       :current-buffer initial-buffer)
 
-	     (defmode "Fill" :current-buffer initial-buffer)
+	     (defmode :fill :current-buffer initial-buffer)
 
 ;;;; -- Variables --
 
@@ -466,7 +467,7 @@
 	       :value t
 	       :current-buffer initial-buffer)
 
-	     (defmode "Lisp" :major-p t :setup-function 'setup-lisp-mode
+	     (defmode :lisp :major-p t :setup-function 'setup-lisp-mode
 		      :current-buffer initial-buffer)
 
 	     (defhvar "Paren Pause Period"
@@ -479,14 +480,14 @@
 		 "This is how long commands that deal with \"brackets\" shows the cursor at
    the matching \"bracket\" for this number of seconds."
 	       :value nil
-	       :mode "Lisp"
+	       :mode :lisp
 	       :current-buffer initial-buffer)
 	     
 	     (defhvar "Highlight Open Parens"
 		 "When non-nil, causes open parens to be displayed in a different font when
    the cursor is directly to the right of the corresponding close paren."
 	       :value t
-	       :mode "Lisp"
+	       :mode :lisp
 	       :current-buffer initial-buffer)
 
 
@@ -494,7 +495,7 @@
 		 "Should be a function that takes a mark for input and returns either NIL
    if the mark is not after a close paren, or two (temporary) marks
    surrounding the corresponding open paren."
-	       :mode "Lisp"
+	       :mode :lisp
 	       :value 'lisp-open-paren-finder-function
 	       :current-buffer initial-buffer)
 
@@ -503,33 +504,33 @@
 	     (defhvar "Auto Fill Space Indent"
 		 "When non-nil, uses \"Indent New Comment Line\" to break lines instead of
    \"New Line\"."
-	       :mode "Lisp" :value t
+	       :mode :lisp :value t
 	       :current-buffer initial-buffer)
 
 	     (defhvar "Comment Start"
 		 "String that indicates the start of a comment."
-	       :mode "Lisp" :value ";"
+	       :mode :lisp :value ";"
 	       :current-buffer initial-buffer)
 
 	     (defhvar "Comment Begin"
 		 "String that is inserted to begin a comment."
-	       :mode "Lisp" :value "; "
+	       :mode :lisp :value "; "
 	       :current-buffer initial-buffer)
 
 	     (defhvar "Indent Function"
 		 "Indentation function which is invoked by \"Indent\" command.
    It must take one argument that is the prefix argument."
 	       :value 'indent-for-lisp
-	       :mode "Lisp"
+	       :mode :lisp
 	       :current-buffer initial-buffer)
 
-	     (defmode "Editor" :current-buffer initial-buffer)
+	     (defmode :editor :current-buffer initial-buffer)
 	     
 	     (defhvar "Editor Definition Info"
 		 "When this is non-nil, the editor Lisp is used to determine definition
    editing information; otherwise, the slave Lisp is used."
 	       :value t
-	       :mode "Editor"
+	       :mode :editor
 	       :current-buffer initial-buffer)
 
 	     (defattribute "Whitespace"
@@ -587,10 +588,10 @@
 	     (setf (character-attribute :word-delimiter #\tab) 1)
 	     (setf (character-attribute :word-delimiter #\newline) 1)
 
-	     (shadow-attribute initial-buffer :word-delimiter #\. 0 "Fundamental")
-	     (shadow-attribute initial-buffer :word-delimiter #\' 0 "Text")
-	     (shadow-attribute initial-buffer :word-delimiter #\backspace 0 "Text")
-	     (shadow-attribute initial-buffer :word-delimiter #\_ 0 "Text")
+	     (shadow-attribute initial-buffer :word-delimiter #\. 0 :fundamental)
+	     (shadow-attribute initial-buffer :word-delimiter #\' 0 :text)
+	     (shadow-attribute initial-buffer :word-delimiter #\backspace 0 :text)
+	     (shadow-attribute initial-buffer :word-delimiter #\_ 0 :text)
 	     
 	     (defattribute "Page Delimiter"
 		 "This attribute is 1 for characters that separate pages, 0 otherwise.")
@@ -691,7 +692,7 @@
 
 	     (add-hook write-file-hook 'cleanup-checkpoint)
 	     
-	     (defmode "Save"
+	     (defmode :save
 		 :setup-function 'setup-auto-save-mode
 		 :cleanup-function 'cleanup-auto-save-mode
 		 :current-buffer initial-buffer)
@@ -760,7 +761,7 @@
 
 	     (add-hook redisplay-hook 'highlight-active-region)
 
-	     (defmode "Dired" :major-p t
+	     (defmode :dired :major-p t
 		      :documentation
 		      "Dired permits convenient directory browsing and file operations including
    viewing, deleting, copying, renaming, and wildcard specifications."
@@ -797,7 +798,7 @@
 	       :value t
 	       :current-buffer initial-buffer)
 
-	     (defmode "View" :major-p nil
+	     (defmode :view :major-p nil
 		      :setup-function 'setup-view-mode
 		      :cleanup-function 'cleanup-view-mode
 		      :precedence 5.0
@@ -806,7 +807,7 @@
    Scrolling off the end optionally deletes the buffer."
 		      :current-buffer initial-buffer)
 
-  (defmode "Lisp Listener" :major-p nil :current-buffer initial-buffer)
+  (defmode :lisp-listener :major-p nil :current-buffer initial-buffer)
 
   (defconstant completion-table-size 991)
 
@@ -831,9 +832,9 @@
   (setf (character-attribute :completion-wordchar char) 1))
   
   (dolist (char default-lisp-wordchars)
-  (shadow-attribute initial-buffer :completion-wordchar char 1 "Lisp"))
+  (shadow-attribute initial-buffer :completion-wordchar char 1 :lisp))
 
-  (shadow-attribute initial-buffer :completion-wordchar #\' 0 "Lisp")
+  (shadow-attribute initial-buffer :completion-wordchar #\' 0 :lisp)
 
   (defhvar "Completion Bucket Size"
   "This limits the number of completions saved for a particular combination of
@@ -852,15 +853,15 @@
     :current-buffer initial-buffer)
 
   (defhvar "Completion Function" ""
-    :mode "Lisp" :value 'complete-symbol
+    :mode :lisp :value 'complete-symbol
     :current-buffer initial-buffer)
 
   (defhvar "Completion Function" ""
-    :mode "Editor" :value #'(lambda ()
+    :mode :editor :value #'(lambda ()
 			      (editor-complete-symbol (krma.gui::focused-window (clui::window-parent *echo-area-window*))))
     :current-buffer initial-buffer)
 
-  (defmode "Completion" :transparent-p t :precedence 10.0
+  (defmode :completion :transparent-p t :precedence 10.0
   :documentation
   "This is a minor mode that saves words greater than three characters in length,
    allowing later completion of those words.  This is very useful for often
@@ -869,7 +870,7 @@
    Size\" limits the number of completions saved in each list."
     :current-buffer initial-buffer)
 
-  (defmode "Completelist" :major-p t
+  (defmode :completelist :major-p t
     :documentation "Completelist mode presents a list of completions."
     :current-buffer initial-buffer)
 

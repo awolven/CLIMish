@@ -2,7 +2,9 @@
 
 (defvar *style*)
 
-(defvar *object-id-counter* 0)
+;; start the counter for lisp objects at the end of half of int so we can use foreign handled ints
+;; as oids directly without needing to access this counter (such as parasolid tags)
+(defvar *object-id-counter* (expt 2 31)) 
 
 (defun new-object-id ()
   (incf *object-id-counter*))

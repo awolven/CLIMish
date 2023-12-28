@@ -50,15 +50,21 @@
   :documentation
   "Xref lists Lisp definitions.")
 
-(defcommand "Xref Quit" (window p)
-  "Kill the xref buffer."
-  ""
+(defhcommand xref-quit-command (window p)
+  (:pretty-name "Xref Quit")
+  (:documentation "Kill the xref buffer.")
+  (:help-string "Kill the xref buffer."))
+
+(defmethod xref-quit-command (window p)
   (declare (ignore p))
   (when *xref-buffer* (delete-buffer-if-possible *xref-buffer*)))
 
-(defcommand "Xref Goto" (window p)
-  "Change to the entry's buffer."
-  "Change to the entry's buffer."
+(defhcommand xref-goto-command (window p)
+  (:pretty-name "Xref Goto")
+  (:documentation "Change to the entry's buffer.")
+  (:help-string "Change to the entry's buffer."))
+
+(defmethod xref-goto-command (window p)
   (declare (ignore p))
   (let ((entry (array-element-from-mark (current-point) *xref-entries*)))
     (when entry
@@ -102,9 +108,12 @@
               "..."
               (subseq str (- (length str) (ceiling (- len 3) 2))))))
 
-(defcommand "Xref Help" (window p)
-  "Show this help."
-  "Show this help."
+(defhcommand xref-help-command (window p)
+  (:pretty-name "Xref Help")
+  (:documentation "Show this help.")
+  (:help-string "Show this help."))
+
+(defmethod xref-help-command (window p)
   (declare (ignore p))
   (describe-mode-command nil "Xref"))
 
@@ -145,8 +154,12 @@
   (hemlock::eval-in-slave
    `(%find-definitions "definition" 'conium:find-definitions ',name)))
 
-(defcommand "Find Definitions" (window p)
-  "" ""
+(defhcommand find-definitions-command (window p)
+  (:pretty-name "Find Definitions")
+  (:documentation "")
+  (:help-string ""))
+
+(defmethod find-definitions-command (window p)
   (let ((default (hemlock::symbol-string-at-point)))
     ;; Fixme: MARK-SYMBOL isn't very good, meaning that often we
     ;; will get random forms rather than a symbol.  Let's at least
@@ -166,8 +179,12 @@
 (macrolet
     ((% (name fun conium-fun)
        `(progn
-          (defcommand ,name (window p)
-            "" ""
+          (defhcommand ,(intern (string-downcase (substitute #\- #\space name))) (window p)
+            (:pretty-name ,name)
+            (:documentation "")
+            (:help-string ""))
+
+          (defmethod ,(intern (string-downcase (substitute #\- #\space name))) (window p)
             (let ((default (hemlock::symbol-string-at-point)))
               ;; Fixme: MARK-SYMBOL isn't very good, meaning that often we
               ;; will get random forms rather than a symbol.  Let's at least

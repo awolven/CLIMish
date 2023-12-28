@@ -67,29 +67,41 @@
     (print-something (:input s))))
 
 
-(defcommand "Print Buffer" (window p)
-  "Prints the current buffer using the program defined by the hvar
+(defhcommand print-buffer-command (window p)
+  (:pretty-name "Print Buffer")
+  (:documentation
+   "Prints the current buffer using the program defined by the hvar
    \"Print Utility\" with the options from the hvar \"Print Utility
-   Options\".   Errors appear in the echo area."
-  "Prints the contents of the buffer."
+   Options\".   Errors appear in the echo area.")
+  (:help-string "Prints the contents of the buffer."))
+
+(defmethod print-buffer-command (window p)
   (declare (ignore p))
   (message "Printing buffer...~%")
   (print-region (buffer-region (current-buffer))))
 
-(defcommand "Print Region" (window p)
-  "Prints the current region using the program defined by the hvar
+(defhcommand print-region-command (window p)
+  (:pretty-name "Print Region")
+  (:documentation
+   "Prints the current region using the program defined by the hvar
    \"Print Utility\" with the options from the hvar \"Print Utility
-   Options\".  Errors appear in the echo area."
-  "Prints the current region."
+   Options\".  Errors appear in the echo area.")
+  (:help-string "Prints the current region."))
+
+(defmethod print-region-command (window p)
   (declare (ignore p))
   (message "Printing region...~%")
   (print-region (current-region)))
 
-(defcommand "Print File" (window p)
-  "Prompts for a file and prints it usings the program defined by
+(defhcommand print-file-command (window p)
+  (:pretty-name "Print File")
+  (:documentation
+   "Prompts for a file and prints it usings the program defined by
    the hvar \"Print Utility\" with the options from the hvar \"Print
-   Utility Options\".  Errors appear in the echo area."
-  "Prints a file."
+   Utility Options\".  Errors appear in the echo area.")
+  (:help-string "Prints a file."))
+
+(defmethod print-file-command (window p)
   (declare (ignore p))
   (let* ((pn (prompt-for-file window :prompt "File to print: "
                               :help "Name of file to print."
@@ -103,13 +115,18 @@
 
 ;;;; Scribe.
 
-(defcommand "Scribe File" (window p)
-  "Scribe a file with the default directory set to the directory of the
+(defhcommand scribe-file-command (window p)
+  (:pretty-name "Scribe File")
+  (:documentation
+   "Scribe a file with the default directory set to the directory of the
    specified file.  The output from running Scribe is sent to the
    \"Scribe Warnings\" buffer.  See \"Scribe Utility\" and \"Scribe Utility
-   Switches\"."
-  "Scribe a file with the default directory set to the directory of the
-   specified file."
+   Switches\".")
+  (:help-string
+   "Scribe a file with the default directory set to the directory of the
+   specified file."))
+
+(defmethod scribe-file-command (window p)
   (declare (ignore p))
   (scribe-file (prompt-for-file window :prompt "Scribe file: "
                                 :default
@@ -120,15 +137,20 @@
    anything."
   :value t)
 
-(defcommand "Scribe Buffer File" (window p)
-  "Scribe the file associated with the current buffer.  The default directory
+(defhcommand scribe-buffer-file-command (window p)
+  (:pretty-name "Scribe Buffer File")
+  (:documentation
+   "Scribe the file associated with the current buffer.  The default directory
    set to the directory of the file.  The output from running Scribe is sent to
    the \"Scribe Warnings\" buffer.  See \"Scribe Utility\" and \"Scribe Utility
    Switches\".  Before doing anything the user is asked to confirm saving and
    Scribe'ing the file.  This prompting can be inhibited by with \"Scribe Buffer
-   File Confirm\"."
-  "Scribe a file with the default directory set to the directory of the
-   specified file."
+   File Confirm\".")
+  (:help-string
+   "Scribe a file with the default directory set to the directory of the
+   specified file."))
+
+(defmethod scribe-buffer-file-command (window p)
   (declare (ignore p))
   (let* ((buffer (current-buffer))
          (pathname (buffer-pathname buffer))
@@ -174,12 +196,16 @@
 
 ;;;; UNIX Filter Region
 
-(defcommand "Unix Filter Region" (window p)
-  "Unix Filter Region prompts for a UNIX program and then passes the current
+(defhcommand unix-filter-region-command (window p)
+  (:pretty-name "Unix Filter Region")
+  (:documentation "Unix Filter Region prompts for a UNIX program and then passes the current
   region to the program as standard input.  The standard output from the
-  program is used to replace the region.  This command is undo-able."
-  "UNIX-FILTER-REGION-COMMAND is not intended to be called from normal
-  Hemlock commands; use UNIX-FILTER-REGION instead."
+  program is used to replace the region.  This command is undo-able.")
+  (:help-string
+   "UNIX-FILTER-REGION-COMMAND is not intended to be called from normal
+  Hemlock commands; use UNIX-FILTER-REGION instead."))
+
+(defmethod unix-filter-region-command (window p)
   (declare (ignore p))
   (let* ((region (current-region))
          (filter-and-args (prompt-for-string
@@ -226,11 +252,15 @@
 
 ;;;; Man pages.
 
-(defcommand "Manual Page" (window p)
-  "Read the Unix manual pages in a View buffer.
-   If given an argument, this will put the man page in a Pop-up display."
-  "Read the Unix manual pages in a View buffer.
-   If given an argument, this will put the man page in a Pop-up display."
+(defhcommand manual-page-command (window p)
+  (:pretty-name "Manual Page")
+  (:documentation "Read the Unix manual pages in a View buffer.
+   If given an argument, this will put the man page in a Pop-up display.")
+  (:help-string
+   "Read the Unix manual pages in a View buffer.
+   If given an argument, this will put the man page in a Pop-up display."))
+
+(defmethod manual-page-command (window p)
   (let ((topic (prompt-for-string window :prompt "Man topic: ")))
     (if p
         (with-pop-up-display (stream)

@@ -1,22 +1,29 @@
 (in-package :hemlock)
 
-(defcommand "Editor Error Test" (window p)
-    ""
-    ""
+(defhcommand editor-error-test-command (window p)
+  (:documentation "")
+  (:pretty-name "Editor Error Test"))
+
+(defmethod editor-error-test-command (window p)
   window p
   (editor-error "FOO!!"))
 
-(defcommand "Debugger Test" (window p)
-    ""
-    ""
+(defhcommand debugger-test-command (window p)
+  (:documentation "")
+  (:pretty-name "Debugger Test"))
+
+(defmethod debugger-test-command (window p)
   window p
   (break))
 
-(defcommand "Next Line" (window p)
-    "Moves the point to the next line.
+(defhcommand next-line-command (window p)
+  (:pretty-name  "Next Line")
+  (:documentation 
+   "Moves the point to the next line.
    With prefix argument, moves the point that many lines down (or up if
-   the prefix is negative)."
-    "Moves the down p lines."
+   the prefix is negative)."))
+
+(defmethod next-line-command (window p)
   (when (typep window 'krma.gui::text-editor-window)
     (let* ((buffer (window-buffer window))
 	   (point (buffer-point buffer)))
@@ -46,26 +53,96 @@
 	    (krma.gui:redraw-buffer window))
 	  (update-window-image window)))))
 
-(defcommand "Previous Line" (window p)
-    "Moves the point to the previous line.
+
+(defhcommand previous-line-command (window p)
+  (:pretty-name "Previous Line")
+  (:documentation 
+   "Moves the point to the previous line.
   With prefix argument, moves the point that many lines up (or down if
-  the prefix is negative)."
-    "Moves the point up p lines."
+  the prefix is negative)."))
+
+(defmethod previous-line-command (window p)
   (next-line-command window (- (or p 1))))
 
-(defcommand "Insert Newline" (window p)
-    ""
-    ""
+(defcommand enter-command (window buffer major-mode p)
+  (:pretty-name "Enter")
+  (:documentation "")
+  (:help-string "")
+  (:argument-computation (let* ((os-window (krma.gui::main-window krma.gui::app))
+				(window (or (krma.gui::focused-window os-window) *echo-area-window*))
+				(buffer (and (typep window 'krma.gui::text-editor-view-mixin)
+					     (window-buffer window)))
+				(major-mode (and buffer (buffer-major-mode buffer)))
+				(universal-argument (krma.gui::universal-argument krma.gui::app)))
+			   (list window buffer major-mode universal-argument)))
+  (:applicability t))
+
+(defmethod enter-command (window buffer major-mode p)
   (let ((buffer (window-buffer window)))
     (if (buffer-active-region-p buffer)
 	(ring-push (hi::current-region buffer) hemlock::*kill-ring*)
 	(krma.gui::handle-character-input window #\Newline (or p 1)))))
 
-(defcommand "Beginning of Line" (window p)
-    "Moves the point to the beginning of the current line.
+(defmethod enter-command (window buffer (major-mode (eql :lisp)) p)
+  ;; indent-new-line
+  (let* ((point (buffer-point buffer)))
+    (let ((prefix (hi::value fill-prefix)))
+      (delete-horizontal-space buffer point)
+      (if (buffer-minor-mode buffer :interactive-character-stream)
+          (enter-command window buffer :interactive-character-stream nil)
+          (progn
+            (enter-command window buffer nil p)
+            (if prefix
+                (insert-string buffer point prefix)
+                (funcall (hi::value indent-function) buffer point)))))
+    (krma.gui::redraw-buffer window)))
+
+(defmethod enter-command (window buffer (major-mode (eql :echo-area)) p)
+  (declare (ignore buffer p))
+  (let* ((string (region-to-string *echo-area-buffer* *parse-input-region*))
+         (empty (zerop (length string))))
+    (declare (simple-string string))
+    (if empty
+        (when *parse-default* (setq string *parse-default*))
+        (when (or (zerop (ring-length *echo-area-history*))
+                  (string/= string (ring-ref *echo-area-history* 0)))
+          (ring-push string *echo-area-history*)))
+    (multiple-value-bind (res flag)
+                         (funcall *parse-verification-function* string)
+      (unless (or res flag) (editor-error))
+      (exit-recursive-edit res))))
+
+(defmethod enter-command (window buffer (major-mode (eql :interactive-character-stream)) p)
+  (declare (ignore p))
+  (let* ((stream (variable-value 'buffer-stream :buffer buffer))
+	 (point (buffer-point buffer)))
+    (insert-character buffer point #\Newline)
+    (with-buffer-globals (buffer)
+    (let* ((mark (hemlock-character-io-stream-mark stream))
+	   (input-region (region mark (buffer-end-mark buffer)))
+	   (string (region-to-string buffer input-region)))
+
+      (move-mark
+       (hemlock-character-io-stream-mark stream)
+       (buffer-end-mark buffer))
+      
+      (with-slots (input-line input-line-position) stream
+	(setf input-line-position 0
+	      input-line (copy-seq string))))
+    (buffer-end point buffer))
+    (f-o stream)))
+
+(defmethod enter-command (window buffer (major-mode (eql :dired)) p)
+  (declare (ignore buffer))
+  (dired-edit-file-command window p))
+
+(defhcommand beginning-of-line-command (window p)
+  (:pretty-name "Beginning of Line")
+  (:documentation "Moves the point to the beginning of the current line.
   With prefix argument, moves the point to the beginning of the prefix'th
-  next line."
-    "Moves the point down p lines and then to the beginning of the line."
+  next line."))
+
+(defmethod beginning-of-line-command (window p)
   (let* ((buffer (window-buffer window))
 	 (point (buffer-point buffer)))
     (unless (line-offset buffer point (if p p 0)) (editor-error "No such line."))
@@ -74,10 +151,12 @@
     (krma.gui:redraw-buffer window)))
 
 
-(defcommand "End of Line" (window p)
-    "Moves the point to the end of the current line.
-  With prefix argument, moves the point to the end of the prefix'th next line."
-    "Moves the point down p lines and then to the end of the line."
+(defhcommand end-of-line-command (window p)
+  (:pretty-name "End of Line")
+  (:documentation "Moves the point to the end of the current line.
+  With prefix argument, moves the point to the end of the prefix'th next line."))
+
+(defmethod end-of-line-command (window p)
   (let* ((buffer (window-buffer window))
 	 (point (buffer-point buffer)))
     (unless (line-offset buffer point (if p p 0)) (editor-error "No such line."))
@@ -85,11 +164,14 @@
     (setf (last-command-type) nil)
     (krma.gui:redraw-buffer window)))
 
-(defcommand "Forward Character" (view p)
-    "Move the point forward one character.
+(defhcommand forward-character-command (view p)
+    (:pretty-name "Forward Character")
+    (:documentation "Move the point forward one character.
    With prefix argument move that many characters, with negative argument
-   go backwards."
-    "Move the point of the current buffer forward p characters."
+   go backwards.")
+  (:help-string "Move the point of the current buffer forward p characters."))
+
+(defmethod forward-character-command (view p)
   (let ((p (or p 1)))
     (let* ((buffer (window-buffer view))
 	   (point (buffer-point buffer)))
@@ -105,17 +187,23 @@
     (setf (last-command-type) nil)
     (update-window-image view)))
 
-(defcommand "Backward Character" (view p)
-    "Move the point backward one character.
-  With prefix argument move that many characters backward."
-  "Move the point p characters backward."
+(defhcommand backward-character-command (view p)
+    (:pretty-name "Backward Character")
+    (:documentation "Move the point backward one character.
+  With prefix argument move that many characters backward.")
+  (:help-string "Move the point p characters backward."))
+
+(defmethod backward-character-command (view p)
   (forward-character-command view (- (or p 1))))
 
-(defcommand "Delete Next Character" (view p)
-    "Deletes the character to the right of the point.
+(defhcommand delete-next-character-command (view p)
+    (:pretty-name "Delete Next Character")
+    (:documentation "Deletes the character to the right of the point.
    With prefix argument, delete that many characters to the right
-  (or left if prefix is negative)."
-    "Deletes p characters to the right of the point."
+  (or left if prefix is negative).")
+  (:help-string "Deletes p characters to the right of the point."))
+
+(defmethod delete-next-character-command (view p)
   (let* ((buffer (window-buffer view))
 	 (point (buffer-point buffer)))
     (cond ((kill-characters buffer point (or p 1)))
@@ -124,18 +212,24 @@
 	  (t (editor-error "Not enough next characters.")))
     (krma.gui:redraw-buffer view)))
 
-(defcommand "Delete Previous Character" (view p)
-    "Deletes the character to the left of the point.
-   Will push characters from successive deletes on to the kill ring."
-    "Deletes the character to the left of the point.
-   Will push characters from successive deletes on to the kill ring."
+(defhcommand delete-previous-character-command (view p)
+    (:pretty-name "Delete Previous Character")
+    (:documentation "Deletes the character to the left of the point.
+   Will push characters from successive deletes on to the kill ring.")
+  (:help-string "Deletes the character to the left of the point.
+   Will push characters from successive deletes on to the kill ring."))
+
+(defmethod delete-previous-character-command (view p)
   (delete-next-character-command view (- (or p 1))))
 
-(defcommand "Transpose Characters" (view p)
-    "Exchanges the characters on either side of the point and moves forward
+(defhcommand transpose-characters-command (view p)
+    (:pretty-name "Transpose Characters")
+    (:documentation "Exchanges the characters on either side of the point and moves forward
   With prefix argument, does this that many times.  A negative prefix
-  argument causes the point to be moved backwards instead of forwards."
-    "Exchanges the characters on either side of the point and moves forward."
+  argument causes the point to be moved backwards instead of forwards.")
+  (:help-string "Exchanges the characters on either side of the point and moves forward."))
+
+(defmethod transpose-characters-command (view p)
   (let ((buffer (hi::view-buffer view)))
     (when buffer
       (let ((arg (or p 1))
@@ -156,10 +250,13 @@
   (setf (last-command-type) nil)
   (krma.gui:redraw-buffer view))
 
-(defcommand "Forward Word" (view p)
-    "Moves forward one word.
-  With prefix argument, moves the point forward over that many words."
-    "Moves the point forward p words."
+(defhcommand forward-word-command (view p)
+    (:pretty-name "Forward Word")
+    (:documentation "Moves forward one word.
+  With prefix argument, moves the point forward over that many words.")
+  (:help-string "Moves the point forward p words."))
+
+(defmethod forward-word-command (view p)
   (let* ((buffer (hi::view-buffer view))
 	 (point (buffer-point buffer)))
     (cond ((word-offset buffer point (or p 1)))
@@ -172,20 +269,26 @@
     (setf (last-command-type) nil)
     (krma.gui::redraw-buffer view)))
 
-(defcommand "Backward Word" (view p)
-    "Moves forward backward word.
-  With prefix argument, moves the point back over that many words."
-    "Moves the point backward p words."
+(defhcommand backward-word-command (view p)
+    (:pretty-name "Backward Word")
+    (:documentation "Moves forward backward word.
+  With prefix argument, moves the point back over that many words.")
+  (:help-string "Moves the point backward p words."))
+
+(defmethod backward-word-command (view p)
   (forward-word-command view (- (or p 1))))
 
 
-(defcommand "Find File" (view p &optional pathname)
-  "Visit a file in its own buffer.
+(defhcommand find-file-command (view p &optional pathname)
+    (:pretty-name "Find File")
+    (:documentation "Visit a file in its own buffer.
    If the file is already in some buffer, select that buffer,
    otherwise make a new buffer with the same name as the file and
-   read the file into it."
-  "Make a buffer containing the file Pathname current, creating a buffer
-   if necessary.  The buffer is returned."
+   read the file into it.")
+  (:help-string "Make a buffer containing the file Pathname current, creating a buffer
+   if necessary.  The buffer is returned."))
+
+(defmethod find-file-command (view p &optional pathname)
   (declare (ignore p))
   (let* ((pn (or pathname
                  (prompt-for-file
@@ -198,44 +301,59 @@
     (krma.gui::find-or-create-text-editor-window-for-buffer buffer)
     buffer))
 
-(defcommand "Mousewheel Scroll" (window p)
-    "Use mousewheel to scroll."
-    "Use mousewheel to scroll."
+(defhcommand mousewheel-scroll-command (window p)
+    (:pretty-name "Mousewheel Scroll")
+    (:documentation "Use mousewheel to scroll.")
+  (:help-string "Use mousewheel to scroll."))
+
+(defmethod mousewheel-scroll-command (window p)
   (declare (ignore p))
   (let ((last-event (krma.gui::window-last-event (clui::window-parent (adhoc:send window adhoc::root)))))
     (let* ((offset (clui::pointer-wheel-event-yoffset last-event)))
       (scroll-window window (- (* 2 (round offset))))
       (krma.gui:redraw-buffer window))))
 
-(defcommand "Cycle Windows" (window p)
-    "Focus next window"
-    "Focus next window"
+(defhcommand cycle-windows-command (window p)
+    (:pretty-name "Cycle Windows")
+    (:documentation "Focus next window")
+  (:help-string "Focus next window"))
+
+(defmethod cycle-windows-command (window p)
   (declare (ignore p))
   (let ((next (krma.gui::next window)))
     (when (clui::window-iconified? next)
       (setf (clui::window-iconified? next) nil))
     (krma.gui::focus-window next)))
 
-(defcommand "Reverse Cycle Windows" (window p)
-    "Focus previous window"
-    "Focus previous window"
+(defhcommand reverse-cycle-windows-command (window p)
+    (:pretty-name "Reverse Cycle Windows")
+  (:documentation "Focus previous window")
+  (:help-string "Focus previous window"))
+
+(defmethod reverse-cycle-windows-command (window p)
   (declare (ignore p))
   (let ((prev (krma.gui::prev window)))
     (when (clui::window-iconified? prev)
       (setf (clui::window-iconified? prev) nil))
     (krma.gui::focus-window prev)))
 
-(defcommand "Iconify Window" (window p)
-    "Iconify Window"
-    "Iconify Window and focus on next window."
+(defhcommand iconify-window-command (window p)
+  (:pretty-name "Iconify Window")
+  (:help-string "Iconify Window")
+  (:documentation "Iconify Window and focus on next window."))
+
+(defmethod iconify-window-command (window p)
   (declare (ignore p))
   (let ((next (krma.gui::next window)))
     (krma.gui::focus-window next)
     (setf (clui::window-iconified? window) t)))
 
-(defcommand "Beginning of Buffer" (window p)
-  "Moves the point to the beginning of the current buffer."
-    "Moves the point to the beginning of the current buffer."
+(defhcommand beginning-of-buffer-command (window p)
+  (:pretty-name "Beginning of Buffer")
+  (:help-string "Moves the point to the beginning of the current buffer.")
+  (:documentation "Moves the point to the beginning of the current buffer."))
+
+(defmethod beginning-of-buffer-command (window p)
   (declare (ignore p))
   (let* ((buffer (window-buffer window)))
     (with-buffer-globals (buffer)
@@ -243,9 +361,12 @@
     (hi::maybe-recenter-window-on-mark window (buffer-point buffer))
     (krma.gui::redraw-buffer window)))
 
-(defcommand "End of Buffer" (window p)
-  "Moves the point to the end of the current buffer."
-    "Moves the point to the end of the current buffer."
+(defhcommand end-of-buffer-command (window p)
+  (:pretty-name "End of Buffer")
+  (:documentation "Moves the point to the end of the current buffer.")
+  (:help-string "Moves the point to the end of the current buffer."))
+
+(defmethod end-of-buffer-command (window p)
   (declare (ignore p))
   (let* ((buffer (window-buffer window)))
     (with-buffer-globals (buffer)
@@ -253,12 +374,17 @@
     (hi::maybe-rebottom-window-on-mark window (buffer-point buffer))
     (krma.gui::redraw-buffer window)))
 
-(defcommand "Scroll Window Down" (window p)
-  "Move down one screenfull.
-  With prefix argument scroll down that many lines."
-  "If P is NIL then scroll Window, which defaults to the current
+(defhcommand scroll-window-down-command (window p)
+  (:pretty-name "Scroll Window Down")
+  (:help-string
+   "Move down one screenfull.
+  With prefix argument scroll down that many lines.")
+  (:documentation
+   "If P is NIL then scroll Window, which defaults to the current
   window, down one screenfull.  If P is supplied then scroll that
-  many lines."
+  many lines."))
+
+(defmethod scroll-window-down-command (window p)
   (let ((buffer (window-buffer window)))
     (with-buffer-globals (buffer)
       (if p
@@ -269,12 +395,16 @@
 					    height (- height overlap))))))
     (krma.gui::redraw-buffer window)))
 
-(defcommand "Scroll Window Up" (window p)
-    "Move up one screenfull.
-  With prefix argument scroll up that many lines."
-    "If P is NIL then scroll Window, which defaults to the current
+(defhcommand scroll-window-up-command (window p)
+  (:pretty-name "Scroll Window Up")
+  (:help-string "Move up one screenfull.
+  With prefix argument scroll up that many lines.")
+  (:documentation
+   "If P is NIL then scroll Window, which defaults to the current
   window, up one screenfull.  If P is supplied then scroll that
-  many lines."
+  many lines."))
+
+(defmethod scroll-window-up-command (window p)
   (let ((buffer (window-buffer window)))
     (with-buffer-globals (buffer)
       (if p
@@ -284,6 +414,3 @@
 	    (hi::.scroll-window. window (if (>= height overlap)
 					    height (- height overlap))))))
     (krma.gui::redraw-buffer window)))
-
-
-    

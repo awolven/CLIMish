@@ -61,14 +61,47 @@
 (defmethod handle-character-input (window char p)
   (declare (ignore window char p)))
 
+(defcommand insert-character-command (window character p)
+  (:pretty-name "Insert Character")
+  (:documentation "This command is the value for the default command.")
+  (:help-string "This command is the value for the default command.")
+  (:argument-computation (list
+			   (focused-window (main-window app))
+
+			   ;; potential race condition:
+			   ;; character-event has 1/100th of a second to show up in queue
+			   ;; otherwse event is ignored
+			   ;; so if computer is running very slowly character events will be dropped
+			   (let ((event (get-next-event (main-window app) 0.01)))
+			     
+			     (if event
+
+				 (progn
+				   (setf (window-last-event (main-window app)) event)
+				   (let ((event-id (input-event-id event)))
+				     
+				   (if (characterp event-id)
+				       
+				       event-id
+				       
+				       (throw :reset nil))))
+
+				 (throw :reset nil)))
+
+			   (universal-argument app)))
+  
+  (:applicability (hemlock-applicability app)))
+
+(defmethod insert-character-command (window character p)
+  (handle-character-input window character (or p 1)))
+			   
+
 (defun command-loop (window)
-  (let ((w)
-	(event)
+  (let ((event)
 	(event-id)
 	(table-chain)
 	(event-chain)
 	(result)
-	(p nil)
 	#+NIL
 	(#+CCL *debugger-hook* #+SBCL sb-ext:*invoke-debugger-hook* #'gui-debug-condition))
 
@@ -89,86 +122,63 @@
 				 (apply #'message string
 					(editor-error-format-arguments c)))
 			       (throw 'hi::command-loop-catcher nil)))))
+
+
     
-	(tagbody
+	  (tagbody
 
-	 RESET (setq w (or (focused-window window) *echo-area-window*))
-	   (setq event-chain ())
-	   (setq table-chain (list (compute-command-table w (window-command-continuation w))))
+	   RESET 
+	     (setq event-chain ())
+	     (setq table-chain (list *command-table*))
        
-	   ;; code will continue to wait until it either gets a gesture that matches or C-g is sent
+	   GET (setq event (get-next-event window))
+	     (unless event (go GET))
+	     (setf (window-last-event window) event)
+	     (setq event-id (input-event-id event))
+
+	   CHECK 
        
-	 GET (setq event (get-next-event window))
-	   (unless event (go GET))
-	   (setf (window-last-event window) event)
-	   (setq event-id (input-event-id event))
-
-	 CHECK 
-       
-	   (cond ((characterp event-id)
-		  ;; we don't accept character events here without being first preceded by a key event
-		  (go RESET))
-
-		 ((eq event-id #k"C-g")
-
-		  (hi::invoke-hook hemlock::abort-hook)
-			   
-		  (message "Abort")
-			   
-		  (when table-chain
-		    ;; go up one level
-		    (pop table-chain))
-			   
-		  (unless table-chain
-		    ;; we've over aborted:
+	     (cond ((characterp event-id)
+		    ;; we don't accept character events here
+		    ;; without being first preceded by a key event
 		    (go RESET))
-	      
-		  (go GET))
-				
-		 (t (push event-id event-chain)
-		    (setq result (get-table-entry w (car table-chain) event-id))
 
-		    (cond ((null result)
-			   ;; potential race condition:
-			   ;; character-event has 1/100th of a second to show up in queue
-			   ;; otherwse event is ignored
-			   ;; so if computer is running very slowly character events will be dropped
-			   (setq event (get-next-event window 0.01))
+		   ((eq event-id #k"C-g")
+
+		    (hi::invoke-hook hemlock::abort-hook)
 			   
-			   (when event
+		    (message "Abort")
+			   
+		    (when table-chain
+		      ;; go up one level
+		      (pop table-chain))
+			   
+		    (unless table-chain
+		      ;; we've over aborted:
+		      (go RESET))
+	      
+		    (go GET))
+				
+		   (t (push event-id event-chain)
+		      (setq result (gethash event-id (car table-chain)))
 
-			     (setf (window-last-event window) event)
-			       (setq event-id (input-event-id event))
-			     
-			     (when (characterp event-id)			       
-			       
-			       ;; replace preceding key event with character event
-			       (setf (car event-chain) event-id)
-			       ;; we're still on the same table
-			       (setq result (get-table-entry w (car table-chain) event-id))
+		      (cond ((null result)
 
-			       (cond ((null result) (go GET))
-			  
-				     ((hash-table-p result)
-				      (push result table-chain)
-				      (go GET))
-				 
-				     (t (catch 'ignore
-					  (catch 'hi::command-loop-catcher
-					    (funcall result w p)))
-					(go RESET)))))
-			 
-			   ;;(message "~%~{~A~} is not a defined gesture" (nreverse event-chain))
-			   (go RESET))
+			     (catch :reset
+			       (when (default-command *app*)
+				 (invoke-command (default-command *app*))))
+			   
+			     (go RESET))
 		       
-			  ((hash-table-p result)
-			   (push result table-chain)
-			   (GO GET))
+			    ((hash-table-p result)
+			     (push result table-chain)
+			     (GO GET))
 				   
-			  (t (catch 'ignore
-			       (catch 'hi::command-loop-catcher
-				 (funcall hi::*invoke-hook* result w p)))
-			     (go RESET))))))))))
+			    (t (catch 'ignore
+				 (catch 'hi::command-loop-catcher
+				   ;;(funcall hi::*invoke-hook* result w p)))
+				   (invoke-command result)))
+			       (go RESET))))))))))
 
 (defun start-command-loop (window)
   (bt:make-thread #'(lambda ()

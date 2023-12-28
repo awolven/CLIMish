@@ -140,11 +140,14 @@
 
   :attributes
   ((elevation (if (the superior)
-	      (1+ (the superior elevation))
-	      0)))
+		  (1+ (the superior elevation))
+		  0)))
 
   :components
   ((client-rect :type 'client-rect)))
+
+(defmethod hi::window-buffer (self)
+  nil)
 
 (defmethod untransform-coordinate ((vec vec3) (self view-mixin))
   (let ((vec4 (m* (vec4 (- (vx vec) (the x)) (- (vy vec) (the y)) (vz vec) 1) (the inverse-matrix))))
@@ -711,6 +714,7 @@
 		finally (setf (the z-index) (length siblings))
 			(mapcar #'rm-redraw-node-recursively (nconc siblings (list self)))
 			(setf (focused-window (window-parent (the root))) self))
+	  (krma.gui::rebuild-command-table (krma.gui::compute-applicable-commands))
 	  (values)))))
 
 (defmethod %unfocus-window ((self homemade-window-mixin))

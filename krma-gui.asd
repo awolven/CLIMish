@@ -24,118 +24,121 @@
 
    
    
-   (:file "hemlock/lispdep")
-   (:file "hemlock/hemlock-ext")
-   (:file "hemlock/decls")
-   ;;(:file "hemlock/classes")
-   (:file "hemlock/line")
-   (:file "hemlock/struct")
-   (:file "hemlock/charmacs")
+   (:file "src/hemlock-core/lispdep")
+   (:file "src/hemlock-core/hemlock-ext")
+   (:file "src/hemlock-core/decls")
+   ;;(:file "src/hemlock-core/classes")
+   (:file "src/hemlock-core/line")
+   (:file "src/hemlock-core/struct")
+   (:file "src/hemlock-core/charmacs")
 
-   (:file "hemlock/macros")
+   (:file "src/command-generic-function")
+   (:file "src/hemlock-core/macros")
 
-   (:file "hemlock/table")
+   (:file "src/hemlock-core/table")
    (:file "src/classes")
-   (:file "hemlock/vars")
+   (:file "src/hemlock-core/vars")
 
 
-   (:file "hemlock/key-event")
-   (:file "hemlock/rompsite")
-   (:file "hemlock/bit-stuff")
+   (:file "src/hemlock-core/key-event")
+   (:file "src/hemlock-core/rompsite")
+   (:file "src/hemlock-core/bit-stuff")
 
 
 
-   (:file "hemlock/ring")
-   (:file "hemlock/htext1")
+   (:file "src/hemlock-core/ring")
+   (:file "src/hemlock-core/htext1")
 
-   (:file "hemlock/window")
-   (:file "hemlock/buffer")
+   (:file "src/hemlock-core/window")
+   (:file "src/hemlock-core/buffer")
 
-   (:file "hemlock/interp")
+   (:file "src/hemlock-core/interp")
    (:file "src/event-queue")
 
-   (:file "hemlock/htext2")
-   (:file "hemlock/htext3")
-   (:file "hemlock/htext4")
-   (:file "hemlock/files")
-   (:file "hemlock/search1")
-   (:file "hemlock/search2")
+   (:file "src/hemlock-core/htext2")
+   (:file "src/hemlock-core/htext3")
+   (:file "src/hemlock-core/htext4")
+   (:file "src/hemlock-core/files")
+   (:file "src/hemlock-core/search1")
+   (:file "src/hemlock-core/search2")
 
 
-   (:file "hemlock/cursor")
-   #+NIL(:file "hemlock/screen")
+   (:file "src/hemlock-core/cursor")
+   #+NIL(:file "src/hemlock-core/screen")
 
-   (:file "hemlock/linimage")
-      (:file "hemlock/syntax")
-   (:file "hemlock/winimage")
-
-
-
-   #+NIL(:file "hemlock/display")
+   (:file "src/hemlock-core/linimage")
+      (:file "src/hemlock-core/syntax")
+   (:file "src/hemlock-core/winimage")
 
 
-   (:file "hemlock/kbdmac")
-   (:file "hemlock/font")
-   (:file "hemlock/streams")
 
-   (:file "hemlock/main-hemlock")
+   #+NIL(:file "src/hemlock-core/display")
+
+
+   (:file "src/hemlock-core/kbdmac")
+   (:file "src/hemlock-core/font")
+   (:file "src/hemlock-core/streams")
+
+   (:file "src/hemlock-core/main-hemlock")
    
-   (:file "hemlock/stream")
+   (:file "src/hemlock-core/stream")
 
-   (:file "hemlock/echo")
-   (:file "hemlock/new-undo")
+   (:file "src/hemlock-core/echo")
+   (:file "src/hemlock-core/new-undo")
 
 
-   #+NIL(:file "hemlock/hunk-draw")
+   #+NIL(:file "src/hemlock-core/hunk-draw")
 
-   (:file "hemlock/echocoms")
-   (:file "hemlock/killcoms")
-   (:file "hemlock/command")
+   (:file "src/hemlock-core/echocoms")
+   (:file "src/hemlock-core/killcoms")
+   (:file "src/hemlock-core/command")
    
-   (:file "hemlock/undo")
+   (:file "src/hemlock-core/undo")
 
-   (:file "hemlock/searchcoms")
-   (:file "hemlock/filecoms")
-   (:file "hemlock/indent")
-   (:file "hemlock/grep")
-   (:file "hemlock/apropos")
-   (:file "hemlock/typeout")
-   (:file "hemlock/morecoms")
-   (:file "hemlock/doccoms")
-   (:file "hemlock/srccom")
-   (:file "hemlock/group")
-   (:file "hemlock/fill")
-   (:file "hemlock/text")
+   (:file "src/hemlock-core/searchcoms")
+   (:file "src/hemlock-core/filecoms")
+   (:file "src/hemlock-core/indent")
+   (:file "src/hemlock-core/grep")
+   (:file "src/hemlock-core/apropos")
+   (:file "src/hemlock-core/typeout")
+   (:file "src/hemlock-core/morecoms")
+   (:file "src/hemlock-core/doccoms")
+   (:file "src/hemlock-core/srccom")
+   (:file "src/hemlock-core/group")
+   (:file "src/hemlock-core/fill")
+   (:file "src/hemlock-core/text")
 
 
 
-   (:file "hemlock/lispmode")
-   (:file "hemlock/eval-server")
-   (:file "hemlock/lispbuf")
+   (:file "src/hemlock-core/lispmode")
+   (:file "src/hemlock-core/eval-server")
+   (:file "src/hemlock-core/lispbuf")
 
-   (:file "hemlock/defsyn")
+   (:file "src/hemlock-core/defsyn")
 
-   (:file "hemlock/auto-save")
+   (:file "src/hemlock-core/auto-save")
 
-   (:file "hemlock/highlight")
-   (:file "hemlock/dired")
-   (:file "hemlock/diredcoms")
+   (:file "src/hemlock-core/highlight")
+   (:file "src/hemlock-core/dired")
+   (:file "src/hemlock-core/diredcoms")
 
-   (:file "hemlock/ll")
-   (:file "hemlock/cmd")
+   (:file "src/hemlock-core/ll")
+   (:file "src/hemlock-core/cmd")
 
    
    (:file "src/kill-ring")
    (:file "src/text-editor-view")
    (:file "src/text-editor-window")
    (:file "src/popup-stream")
-   (:file "hemlock/exp-syntax")
+   (:file "src/hemlock-core/exp-syntax")
    (:file "src/echo-area-window")
-   (:file "src/command-tables")
+   ;;(:file "src/command-tables")
    (:file "src/commands")
    (:file "src/debugger")
    (:file "src/context-menu")
    (:file "src/gui-application")
-   (:file "hemlock/completion")
-   (:file "src/gestures")))
+   (:file "src/hemlock-core/completion")
+   (:file "src/accelerators")
+   ;;(:file "src/gestures")
+   ))
 	  

@@ -40,6 +40,7 @@
 	   old-hash-table)
   new-hash-table)
 
+#+DEPRECATED
 (defun rebuild-command-table (text-editor-view)
   (let ((command-table (command-table text-editor-view)))
     (clrhash command-table) ;; start fresh from here

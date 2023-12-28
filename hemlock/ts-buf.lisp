@@ -263,9 +263,12 @@
             (editor-error "Can't find the typescript data?")))
       (editor-error "Not in a typescript buffer.")))
 
-(defcommand "Confirm Typescript Input" (p)
-  "Send the current input to the slave typescript."
-  "Send the current input to the slave typescript."
+(defhcommand confirm-typescript-input-command (window p)
+  (:pretty-name "Confirm Typescript Input")
+  (:documentation "Send the current input to the slave typescript.")
+  (:help-string "Send the current input to the slave typescript."))
+
+(defmethod confirm-typescript-input-command (window p)
   (declare (ignore p))
   (let ((ts (typescript-data-or-lose)))
     (let ((input (get-interactive-input)))
@@ -282,25 +285,38 @@
           (buffer-end (ts-data-fill-mark ts)
                       (ts-data-buffer ts)))))))
 
-(defcommand "Typescript Slave Break" (p)
-  "Interrupt the slave Lisp process associated with this interactive buffer,
-   causing it to invoke BREAK."
-  "Interrupt the slave Lisp process associated with this interactive buffer,
-   causing it to invoke BREAK."
+(defhcommand typescript-slave-break-command (window p)
+  (:pretty-name "Typescript Slave Break")
+  (:documentation "Interrupt the slave Lisp process associated with this interactive buffer,
+   causing it to invoke BREAK.")
+  (:help-string
+   "Interrupt the slave Lisp process associated with this interactive buffer,
+   causing it to invoke BREAK."))
+
+(defmethod typescript-slave-break-command (window p)
   (declare (ignore p))
   (send-oob-to-slave "B"))
 
-(defcommand "Typescript Slave to Top Level" (p)
-  "Interrupt the slave Lisp process associated with this interactive buffer,
-   causing it to throw to the top level REP loop."
-  "Interrupt the slave Lisp process associated with this interactive buffer,
-   causing it to throw to the top level REP loop."
+(defhcommand typescript-slave-to-top-level-command (window p)
+  (:pretty-name "Typescript Slave to Top Level")
+  (:documentation "Interrupt the slave Lisp process associated with this interactive buffer,
+   causing it to throw to the top level REP loop.")
+  (:help-string 
+   "Interrupt the slave Lisp process associated with this interactive buffer,
+   causing it to throw to the top level REP loop."))
+
+(defmethod typescript-slave-to-top-level-command (window p)
   (declare (ignore p))
   (send-oob-to-slave "T"))
 
-(defcommand "Typescript Slave Status" (p)
-  "Interrupt the slave and cause it to print status information."
-  "Interrupt the slave and cause it to print status information."
+(defhcommand typescript-slave-status-command (window p)
+  (:pretty-name "Typescript Slave Status")
+  (:documentation
+   "Interrupt the slave and cause it to print status information.")
+  (:help-string
+   "Interrupt the slave and cause it to print status information."))
+
+(defmethod typescript-slave-status-command (window p)
   (declare (ignore p))
   (send-oob-to-slave "S"))
 
@@ -315,8 +331,12 @@
     #+NIL
     (hemlock-ext:send-character-out-of-band socket (schar string 0))))
 
-(defcommand "Clear Typescript Buffer" (p)
-  "" ""
+(defhcommand clear-typescript-buffer-command (window p)
+  (:pretty-name "Clear Typescript Buffer")
+  (:documentation "")
+  (:help-string ""))
+
+(defmethod clear-typescript-buffer-command (window p)
   (declare (ignore p))
   (let* ((input-region (get-interactive-input))
          (input (if input-region
