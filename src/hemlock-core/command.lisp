@@ -26,6 +26,7 @@
 
 
 
+#+DISABLE
 (defhcommand exit-hemlock-command (window p)
   (:pretty-name "Exit Hemlock")
   (:documentation "Exit hemlock returning to the Lisp top-level read-eval-print loop.")
@@ -35,6 +36,7 @@
   (declare (ignore p))
   (exit-hemlock))
 
+#+DISABLE
 (defhcommand pause-hemlock-command (window p)
   (:pretty-name "Pause Hemlock")
   (:documentation
@@ -68,6 +70,7 @@
     (hi::update-all-buffer-windows
      buffer)))
 
+#+DISABLE
 (defhcommand quoted-insert-command (window p)
   (:pretty-name "Quoted Insert")
   (:documentation
@@ -289,6 +292,7 @@
   "Moves the point up p lines."
   (next-line-command window (- (or p 1))))
 
+#+DISABLE
 (defhcommand mark-to-end-of-buffer-command (window p)
   (:pretty-name "Mark to End of Buffer")
   (:documentation "Sets the current region from point to the end of the buffer.")
@@ -300,6 +304,7 @@
          (point (buffer-point buffer)))
     (buffer-end (copy-mark point) buffer)))
 
+#+DISABLE
 (defhcommand mark-to-beginning-of-buffer (window p)
   (:pretty-name "Mark to Beginning of Buffer")
   (:documentation "Sets the current region from the beginning of the buffer to point.")
@@ -422,6 +427,7 @@
       (with-buffer-globals ((window-buffer window))
         (hi::.scroll-window. window (- (* 2 (round y))))))))
 
+#+DISABLE
 (defhcommand scroll-next-window-down-command (window p)
   (:pretty-name "Scroll Next Window Down")
   (:documentation "Do a \"Scroll Window Down\" on the next window.")
@@ -432,6 +438,7 @@
     (when (eq win window) (editor-error "Only one window."))
     (scroll-window-down-command p win)))
 
+#+DISABLE
 (defhcommand scroll-next-window-up-command (window p)
   (:pretty-name "Scroll Next Window Up")
   (:documentation "Do a \"Scroll Window Up\" on the next window.")
@@ -442,6 +449,7 @@
     (when (eq win window) (editor-error "Only one window."))
     (scroll-window-up-command p win)))
 
+#+DISABLE
 (defhcommand top-of-window-command (window p)
   (:pretty-name "Top of Window")
   (:documentation "Move the point to the top of the current window.
@@ -454,6 +462,7 @@
     (with-buffer-globals ((window-buffer window))
       (move-mark .point. (window-display-start window)))))
 
+#+DISABLE
 (defhcommand bottom-of-window-command (window p)
   (:pretty-name "Bottom of Window")
   (:documentation "Move the point to the bottom of the current window.
@@ -473,6 +482,7 @@
 ;;; WINDOW-DISPLAY-START instead of SCROLL-WINDOW, but using the latter
 ;;; messed with point and did other hard to predict stuff.
 ;;;
+#+DISABLE
 (defhcommand refresh-screen-command (window p)
   (:pretty-name "Refresh Screen")
   (:documentation "Refreshes everything in the window, centering current line.
@@ -488,7 +498,7 @@
       (krma.gui:redraw-buffer window))))
 
 
-
+#+DISABLE
 (defhcommand track-buffer-point-command (window p)
   (:pretty-name "Track Buffer Point")
   (:documentation
@@ -524,8 +534,9 @@
     (let ((cmd (getstring name *command-names*)))
       (clear-echo-area)
       (message (command-name cmd))
-      (krma.gui::invoke-command cmd))))
+      (krma.gui::invoke-command cmd (krma.gui::send *echo-area-window* krma.gui::parent)))))
 
+#+DISABLE
 (defhcommand eval-expression-command (window p)
   (:pretty-name "Eval Expresion")
   (:documentation "")
@@ -536,7 +547,7 @@
   (message "~S" (eval (prompt-for-expression window))))
 
 
-
+#+DISABLE
 (defhcommand universal-argument-command (window p)
   (:pretty-name "Universal Argument")
   (:documentation "Sets prefix argument for next command.
@@ -569,6 +580,7 @@
            (universal-argument-loop key-event 1)))
         (universal-argument-loop key-event 1))))
 
+#+DISABLE
 (defhcommand negative-argument-command (window p)
   (:pretty-name "Negative Argument")
   (:documentation "This command is equivalent to invoking \"Universal Argument\" and typing
@@ -583,6 +595,7 @@
   (finish-output *echo-area-stream*)
   (universal-argument-loop (get-key-event *editor-input*) -1))
 
+#+DISABLE
 (defhcommand argument-digit-command (window p)
     (:pretty-name "Argument Digit")
     (:documentation

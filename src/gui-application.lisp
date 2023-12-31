@@ -1,8 +1,7 @@
 (in-package :krma.gui)
 
 (defclass application-mixin (krma-application-mixin)
-  ((default-command :initform #'insert-character-command :accessor default-command)
-   (universal-argument :initform nil :accessor universal-argument)))
+  ())
 
 (defclass application (application-mixin)
   ())

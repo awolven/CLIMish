@@ -59,16 +59,14 @@
      (declare (ignore buffer window))
      "  Type ? for help.  "))
 
-(defun dired-context? (app)
-  (let* ((os-window (krma.gui::main-window app))
-         (homemade-window (krma.gui::focused-window os-window))
+(defun dired-context? (os-window)
+  (let* ((homemade-window (krma.gui::focused-window os-window))
          (buffer (window-buffer homemade-window))
          (major-mode (and buffer (buffer-major-mode buffer))))
     (eq major-mode :dired)))
 
-(defun view-context? (app)
-  (let* ((os-window (krma.gui::main-window app))
-         (homemade-window (krma.gui::focused-window os-window))
+(defun view-context? (os-window)
+  (let* ((homemade-window (krma.gui::focused-window os-window))
          (buffer (window-buffer homemade-window))
          (major-mode (and buffer (buffer-major-mode buffer))))
     (eq major-mode :view)))
@@ -84,13 +82,18 @@
    UNIX dot files."))
 
 (defmethod dired-command (window p &optional directory)
-  (let ((info (if (hemlock-bound-p 'dired-information)
-                  (value dired-information))))
-    (dired-guts window nil
-                ;; Propagate dot-files property to subdirectory edits.
-                (or (and info (dired-info-dot-files-p info))
-                    p)
-                directory)))
+  (let* ((info (if (hemlock-bound-p 'dired-information)
+                   (if (eq window *echo-area-window*)
+                       nil
+                       (variable-value 'dired-information :buffer (window-buffer window)))))
+         (buffer (dired-guts window nil
+                             ;; Propagate dot-files property to subdirectory edits.
+                             (or (and info (dired-info-dot-files-p info))
+                                 p)
+                             directory)))
+    (if (eq window *echo-area-window*)
+        (krma.gui::find-or-create-text-editor-window-for-buffer buffer)
+        (setf (window-buffer window) buffer))))
 
 (defhcommand dired-with-pattern-command (window p)
   (:pretty-name "Dired with Pattern")
@@ -127,7 +130,7 @@
          (name (concatenate 'simple-string "Dired " full-name))
          (buffer (cdr (assoc full-name *pathnames-to-dired-buffers*
                              :test #-win32 #'string=
-                             #+win32 #'string-equal))))
+                                   #+win32 #'string-equal))))
     (declare (simple-string full-name))
     (setf (value pathname-defaults) (merge-pathnames directory dpn))
     (let ((b
@@ -150,10 +153,11 @@
                                                 :delete-hook (list 'dired-buffer-delete-hook))))
                      (unless (initialize-dired-buffer current-window directory pattern
                                                       dot-files-p buffer)
-                       (delete-buffer-if-possible buffer (window-buffer current-window))
+                       ;;(delete-buffer-if-possible buffer (window-buffer current-window))
                        (editor-error "No entries for ~A." full-name))
                      (push (cons full-name buffer) *pathnames-to-dired-buffers*)
                      buffer)))))
+      
       b)))
 
 ;;; INITIALIZE-DIRED-BUFFER gets a dired in the buffer and defines some
@@ -209,8 +213,8 @@
    for deletion.")
   (:help-string
    "Marks a file for deletion; signals an error if not in a dired buffer.")
-  (:applicability (dired-context? krma.gui::app))
-  (:argument-computation (krma.gui::hemlock-arguments krma.gui::app)))
+  (:applicability (dired-context? krma.gui::os-window))
+  (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window)))
 
 (defmethod dired-delete-file-command (window p)
   (dired-frob-deletion window p t))
@@ -224,8 +228,8 @@
    for deletion.")
   (:help-string
    "Removes a mark for deletion; signals and error if not in a dired buffer.")
-  (:applicability (dired-context? krma.gui::app))
-  (:argument-computation (krma.gui::hemlock-arguments krma.gui::app)))
+  (:applicability (dired-context? krma.gui::os-window))
+  (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window)))
 
 (defmethod dired-undelete-file-command (window p)
   (dired-frob-deletion window p nil))
@@ -236,8 +240,8 @@
    See \"Dired Delete File\".")
   (:help-string "Marks file for deletion and moves down a line.
    See \"Dired Delete File\".")
-  (:applicability (dired-context? krma.gui::app))
-  (:argument-computation (krma.gui::hemlock-arguments krma.gui::app)))
+  (:applicability (dired-context? krma.gui::os-window))
+  (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window)))
 
 (defmethod dired-delete-file-and-down-line-command (window p)
   (declare (ignore p))
@@ -251,8 +255,8 @@
    See \"Dired Delete File\".")
   (:help-string "Marks file undeleted and moves down a line.
    See \"Dired Delete File\".")
-  (:applicability (dired-context? krma.gui::app))
-  (:argument-computation (krma.gui::hemlock-arguments krma.gui::app)))
+  (:applicability (dired-context? krma.gui::os-window))
+  (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window)))
   
 
 (defmethod dired-undelete-file-and-down-line-command (window p)
@@ -267,8 +271,8 @@
    See \"Dired Delete File\".")
   (:help-string "Prompts for a pattern and marks matching files for deletion.
    See \"Dired Delete File\".")
-  (:applicability (dired-context? krma.gui::app))
-  (:argument-computation (krma.gui::hemlock-arguments krma.gui::app)))
+  (:applicability (dired-context? krma.gui::os-window))
+  (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window)))
 
 (defmethod dired-delete-file-with-pattern-command (window p)
   (declare (ignore p))
@@ -282,8 +286,8 @@
    See \"Dired Delete File\".")
   (:help-string "Prompts for a pattern and marks matching files undeleted.
    See \"Dired Delete File\".")
-  (:applicability (dired-context? krma.gui::app))
-  (:argument-computation (krma.gui::hemlock-arguments krma.gui::app)))
+  (:applicability (dired-context? krma.gui::os-window))
+  (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window)))
 
 (defmethod dired-undelete-file-with-pattern-command (window p)
   (declare (ignore p))
@@ -297,11 +301,11 @@
 ;;; an error.
 ;;;
 (defun dired-frob-deletion (current-window patternp deletep)
-  (unless (hemlock-bound-p 'dired-information)
+  (unless (hemlock-bound-p 'dired-information :buffer (window-buffer current-window))
     (editor-error "Not in Dired buffer."))
   (let ((current-buffer (window-buffer current-window)))
     (with-mark ((mark (buffer-point current-buffer) :left-inserting))
-      (let* ((dir-info (value dired-information))
+      (let* ((dir-info (variable-value 'dired-information :buffer (window-buffer current-window)))
              (files (dired-info-files dir-info))
              (del-files
                (if patternp
@@ -343,8 +347,8 @@
   (:pretty-name "Dired Edit File")
   (:documentation "Read in file or recursively \"Dired\" a directory.")
   (:help-string "Read in file or recursively \"Dired\" a directory.")
-  (:applicability (dired-context? krma.gui::app))
-  (:argument-computation (krma.gui::hemlock-arguments krma.gui::app)))
+  (:applicability (dired-context? krma.gui::os-window))
+  (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window)))
 
 (defmethod dired-edit-file-command (window p)
   (declare (ignore p))
@@ -354,10 +358,11 @@
     (let ((pathname (dired-file-pathname
                      (array-element-from-mark
                       buffer
-                      point (dired-info-files (value dired-information))))))
+                      point (dired-info-files (variable-value 'dired-information :buffer (window-buffer window)))))))
       (if (directoryp pathname)
           (dired-command window nil (directory-namestring pathname))
-          (change-to-buffer (find-file-buffer window pathname) window)))))
+          (change-to-buffer (find-file-buffer window pathname) window)))
+    (krma.gui::rm-redraw-node-recursively window)))
 
 (defcommand dired-view-file-command (window p)
   (:pretty-name "Dired View File")
@@ -367,8 +372,8 @@
   (:help-string
    "Read in file as if by \"View File\".
    This associates the file's buffer with the dired buffer.")
-  (:applicability (dired-context? krma.gui::app))
-  (:argument-computation (krma.gui::hemlock-arguments krma.gui::app)))
+  (:applicability (dired-context? krma.gui::os-window))
+  (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window)))
 
 (defmethod dired-view-file-command (window p)
   (declare (ignore p))
@@ -378,7 +383,7 @@
     (let ((pathname (dired-file-pathname
                      (array-element-from-mark
                       buffer
-                      point (dired-info-files (value dired-information))))))
+                      point (dired-info-files (variable-value 'dired-information :buffer buffer))))))
       (if (directoryp pathname)
           (dired-command window nil (directory-namestring pathname))
           (let* ((dired-buf (window-buffer window))
@@ -415,15 +420,15 @@
    buffer.")
   (:help-string "Invokes \"Dired\" on the directory up one level from the current Dired
    buffer.")
-  (:applicability (dired-context? krma.gui::app))
-  (:argument-computation (krma.gui::hemlock-arguments krma.gui::app)))
+  (:applicability (dired-context? krma.gui::os-window))
+  (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window)))
 
 (defmethod dired-up-directory-command (window p)
   (declare (ignore p))
   (unless (hemlock-bound-p 'dired-information)
     (editor-error "Not in Dired buffer."))
   (let ((dirs (or (pathname-directory
-                   (dired-info-pathname (value dired-information)))
+                   (dired-info-pathname (variable-value 'dired-information :buffer (window-buffer window))))
                   '(:relative))))
     (dired-command window nil
                    (truename (make-pathname :directory (nconc dirs '(:up)))))))
@@ -440,15 +445,15 @@
   (:help-string
    "Recompute the contents of a dired buffer.
    This maintains delete flags for files that have not been modified.")
-  (:applicability (dired-context? krma.gui::app))
-  (:argument-computation (krma.gui::hemlock-arguments krma.gui::app)))
+  (:applicability (dired-context? krma.gui::os-window))
+  (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window)))
 
 (defmethod dired-update-buffer-command (window p)
   (declare (ignore p))
   (unless (hemlock-bound-p 'dired-information)
     (editor-error "Not in Dired buffer."))
-  (let ((buffer (window-buffer window))
-        (dir-info (value dired-information)))
+  (let* ((buffer (window-buffer window))
+        (dir-info (variable-value 'dired-information :buffer buffer)))
     (update-dired-buffer window (dired-info-pathname dir-info)
                          (dired-info-pattern dir-info)
                          buffer)))
@@ -501,39 +506,42 @@
 ;;; slime must fall).
 ;;;
 (defun dired-in-buffer (current-window directory pattern dot-files-p buffer)
-  (let ((point (buffer-point buffer)))
+  (with-buffer-globals (buffer)
+    (let ((point (buffer-point buffer)))
 
-    (with-writable-buffer (buffer)
-      (let* ((pathnames (call-print-directory
-                         current-window
-			             (if pattern
-			                 (merge-pathnames directory pattern)
-                             (osicat::pathname-as-directory directory)
-			                 #+NOTYET(merge-pathnames directory "*.*.~*~"))
-                         point
-                         dot-files-p))
-             (dired-files (make-array (length pathnames))))
-        (declare (list pathnames) (simple-vector dired-files))
-        (with-buffer-globals (buffer)
+      (with-writable-buffer (buffer)
+        (let* ((pathnames (call-print-directory
+                           current-window
+			   (if pattern
+			       (merge-pathnames directory pattern)
+                               (osicat::pathname-as-directory directory)
+			       #+NOTYET(merge-pathnames directory "*.*.~*~"))
+                           point
+                           dot-files-p))
+               (dired-files (make-array (length pathnames))))
+          (declare (list pathnames) (simple-vector dired-files))
+
           (filter-region buffer #'(lambda (str)
-                                   (concatenate 'simple-string "  " str))
-                               (buffer-region buffer))
+                                    (if (integerp str)
+                                        (break))
+                                    (concatenate 'simple-string "  " str))
+                         (buffer-region buffer))
           (delete-characters buffer point -2)
           (delete-region buffer (line-to-region buffer (mark-line (buffer-start point buffer))))
-          (delete-characters buffer point))
-        (do ((p pathnames (cdr p))
-             (i 0 (1+ i)))
-            ((null p))
-          (setf (svref dired-files i) (make-dired-file (car p))))
-        (values (delete-if #'directoryp pathnames) dired-files)))))
+          (delete-characters buffer point)
+          (do ((p pathnames (cdr p))
+               (i 0 (1+ i)))
+              ((null p))
+            (setf (svref dired-files i) (make-dired-file (car p))))
+          (values (delete-if #'directoryp pathnames) dired-files))))))
 
 
 (defcommand dired-help-command (window p)
   (:pretty-name "Dired Help")
   (:documentation "How to use dired.")
   (:help-string "How to use dired.")
-  (:applicability (dired-context? krma.gui::app))
-  (:argument-computation (krma.gui::hemlock-arguments krma.gui::app)))
+  (:applicability (dired-context? krma.gui::os-window))
+  (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window)))
 
 (defmethod dired-help-command (window p)
   (declare (ignore p))
@@ -543,8 +551,8 @@
   (:pretty-name "Dired Next File")
   (:documentation "Moves to next undeleted file.")
   (:help-string "Moves to next undeleted file.")
-  (:applicability (dired-context? krma.gui::app))
-  (:argument-computation (krma.gui::hemlock-arguments krma.gui::app)))
+  (:applicability (dired-context? krma.gui::os-window))
+  (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window)))
 
 (defmethod dired-next-file-command (window p)
   (let ((buffer (window-buffer window)))
@@ -555,8 +563,8 @@
   (:pretty-name "Dired Previous File")
   (:documentation "Moves to previous undeleted file.")
   (:help-string "Moves to next undeleted file.")
-  (:applicability (dired-context? krma.gui::app))
-  (:argument-computation (krma.gui::hemlock-arguments krma.gui::app)))
+  (:applicability (dired-context? krma.gui::os-window))
+  (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window)))
 
 (defmethod dired-previous-file-command (window p)
   (let ((buffer (window-buffer window)))
@@ -608,8 +616,8 @@
    Query the user if value of \"Dired File Expunge Confirm\" is non-nil.  Do
    the same with directories and the value of \"Dired Directory Expunge
    Confirm\".")
-  (:applicability (dired-context? krma.gui::app))
-  (:argument-computation (krma.gui::hemlock-arguments krma.gui::app)))
+  (:applicability (dired-context? krma.gui::os-window))
+  (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window)))
 
 (defmethod dired-expunge-files-command (window p)
   (declare (ignore p))
@@ -621,8 +629,8 @@
   (:pretty-name "Dired Quit")
   (:documentation "Expunges the files in a dired buffer and then exits.")
   (:help-string "Expunges the files in a dired buffer and then exits.")
-  (:applicability (dired-context? krma.gui::app))
-  (:argument-computation (krma.gui::hemlock-arguments krma.gui::app)))
+  (:applicability (dired-context? krma.gui::os-window))
+  (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window)))
 
 (defmethod dired-quit-command (window p)
   (declare (ignore p))
@@ -638,7 +646,7 @@
           (dired:*yesp-function* #'dired-yesp-function)
           (we-did-something nil))
       (when (and marked-files
-                 (or (not (value dired-file-expunge-confirm))
+                 (or (not (variable-value 'dired-file-expunge-confirm :buffer (window-buffer current-window)))
                      (prompt-for-y-or-n current-window
                                         :prompt "Really delete files? "
                                         :default t
@@ -658,7 +666,7 @@
           (let ((dir (car dir-info))
                 (write-date (cdr dir-info)))
             (if (= write-date (file-write-date dir))
-                (when (or (not (value dired-directory-expunge-confirm))
+                (when (or (not (variable-value 'dired-directory-expunge-confirm :buffer (window-buffer current-window)))
                           (prompt-for-y-or-n
                            current-window
                            :prompt (list "~a is a directory. Delete it? "
@@ -680,18 +688,18 @@
   (:pretty-name "Dired Copy File")
   (:documentation "Copy the file under the point")
   (:help-string "Copy the file under the point")
-  (:applicability (dired-context? krma.gui::app))
-  (:argument-computation (krma.gui::hemlock-arguments krma.gui::app)))
+  (:applicability (dired-context? krma.gui::os-window))
+  (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window)))
 
 (defmethod dired-copy-file-command (window p)
   (declare (ignore p))
   (let* ((buffer (window-buffer window))
          (point (buffer-point buffer))
-         (confirm (value dired-copy-file-confirm))
+         (confirm (variable-value 'dired-copy-file-confirm :buffer (window-buffer window)))
          (source (dired-file-pathname
                   (array-element-from-mark
                    buffer
-                   point (dired-info-files (value dired-information)))))
+                   point (dired-info-files (variable-value 'dired-information :buffer (window-buffer window))))))
          (dest (prompt-for-file
                 window
                 :prompt (if (directoryp source)
@@ -711,8 +719,8 @@
   (:pretty-name "Dired Rename File")
   (:documentation "Rename the file or directory under the point")
   (:help-string "Rename the file or directory under the point")
-  (:applicability (dired-context? krma.gui::app))
-  (:argument-computation (krma.gui::hemlock-arguments krma.gui::app)))
+  (:applicability (dired-context? krma.gui::os-window))
+  (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window)))
 
 (defmethod dired-rename-file-command (window p)
   (declare (ignore p))
@@ -722,7 +730,7 @@
                                 (array-element-from-mark
                                  buffer
                                  point
-                                 (dired-info-files (value dired-information))))))
+                                 (dired-info-files (variable-value 'dired-information :buffer buffer))))))
          (dest (prompt-for-file
                 window
                 :prompt "New Filename: "
@@ -733,20 +741,20 @@
          (dired:*report-function* #'dired-report-function)
          (dired:*yesp-function* #'dired-yesp-function))
     ;; ARRAY-ELEMENT-FROM-MARK moves mark to line start.
-    (dired:rename-file source dest :clobber (value dired-rename-file-confirm)))
+    (dired:rename-file source dest :clobber (variable-value 'dired-rename-file-confirm :buffer buffer)))
   (maintain-dired-consistency window))
 
 (defcommand dired-copy-with-wildcard-command (window p)
   (:pretty-name "Dired Copy with Wildcard")
   (:documentation "Copy files that match a pattern containing ONE wildcard.")
   (:help-string "Copy files that match a pattern containing ONE wildcard.")
-  (:applicability (dired-context? krma.gui::app))
-  (:argument-computation (krma.gui::hemlock-arguments krma.gui::app)))
+  (:applicability (dired-context? krma.gui::os-window))
+  (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window)))
 
 (defmethod dired-copy-with-wildcard-command (window p)
   (declare (ignore p))
-  (let* ((dir-info (value dired-information))
-         (confirm (value dired-copy-file-confirm))
+  (let* ((dir-info (variable-value 'dired-information :buffer (window-buffer window)))
+         (confirm (variable-value 'dired-copy-file-confirm  :buffer (window-buffer window)))
          (pattern (prompt-for-string
                    window
                    :prompt "Filename pattern: "
@@ -771,12 +779,12 @@
   (:pretty-name "Dired Rename with Wildcard")
   (:documentation "Rename files that match a pattern containing ONE wildcard.")
   (:help-string "Rename files that match a pattern containing ONE wildcard.")
-  (:applicability (dired-context? krma.gui::app))
-  (:argument-computation (krma.gui::hemlock-arguments krma.gui::app)))
+  (:applicability (dired-context? krma.gui::os-window))
+  (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window)))
 
 (defmethod dired-rename-with-wildcard-command (window p)
   (declare (ignore p))
-  (let* ((dir-info (value dired-information))
+  (let* ((dir-info (variable-value 'dired-information :buffer (window-buffer window)))
          (pattern (prompt-for-string
                    window
                    :prompt "Filename pattern: "
@@ -793,7 +801,7 @@
          (dired:*yesp-function* #'dired-yesp-function)
          (dired:*report-function* #'dired-report-function))
     (dired:rename-file pattern destination
-                       :clobber (not (value dired-rename-file-confirm))
+                       :clobber (not (variable-value 'dired-rename-file-confirm :buffer (window-buffer window)))
                        :directory (dired-info-file-list dir-info)))
   (maintain-dired-consistency window))
 
@@ -801,8 +809,8 @@
   (:pretty-name "Delete File")
   (:documentation "Delete a file.  Specify directories with a trailing slash.")
   (:help-string "Delete a file.  Specify directories with a trailing slash.")
-  (:applicability (dired-context? krma.gui::app))
-  (:argument-computation (krma.gui::hemlock-arguments krma.gui::app)))
+  (:applicability (dired-context? krma.gui::os-window))
+  (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window)))
 
 (defmethod delete-file-command (window p)
   (declare (ignore p))
@@ -818,7 +826,7 @@
          (dired:*report-function* #'dired-report-function)
          (dired:*yesp-function* #'dired-yesp-function))
     (when (or (not directoryp)
-              (not (value dired-directory-expunge-confirm))
+              (not (variable-value 'dired-directory-expunge-confirm :buffer (window-buffer window)))
               (prompt-for-y-or-n
                window
                :prompt (list "~A is a directory. Delete it? "
@@ -826,19 +834,19 @@
                :default t :must-exist t :default-string "Y")))
     (dired:delete-file spec :recursive t
                        :clobber (or directoryp
-                                    (value dired-file-expunge-confirm))))
+                                    (variable-value 'dired-file-expunge-confirm :buffer (window-buffer window)))))
   (maintain-dired-consistency window))
 
 (defcommand copy-file-command (window p)
   (:pretty-name "Copy File")
   (:documentation "Copy a file, allowing ONE wildcard.")
   (:help-string "Copy a file, allowing ONE wildcard.")
-  (:applicability (dired-context? krma.gui::app))
-  (:argument-computation (krma.gui::hemlock-arguments krma.gui::app)))
+  (:applicability (dired-context? krma.gui::os-window))
+  (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window)))
 
 (defmethod copy-file-command (window p)
   (declare (ignore p))
-  (let* ((confirm (value dired-copy-file-confirm))
+  (let* ((confirm (variable-value 'dired-copy-file-confirm :buffer (window-buffer window)))
          (source (namestring
                   (prompt-for-file
                    window
@@ -865,8 +873,8 @@
   (:pretty-name "Rename File")
   (:documentation "Rename a file, allowing ONE wildcard.")
   (:help-string "Rename a file, allowing ONE wildcard.")
-  (:applicability (dired-context? krma.gui::app))
-  (:argument-computation (krma.gui::hemlock-arguments krma.gui::app)))
+  (:applicability (dired-context? krma.gui::os-window))
+  (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window)))
 
 (defmethod rename-file-command (window p)
   (declare (ignore p))
@@ -889,7 +897,7 @@
          (dired:*report-function* #'dired-report-function)
          (dired:*yesp-function* #'dired-yesp-function))
     (dired:rename-file source dest
-                       :clobber (not (value dired-rename-file-confirm))))
+                       :clobber (not (variable-value 'dired-rename-file-confirm :buffer (window-buffer window)))))
   (maintain-dired-consistency window))
 
 (defun maintain-dired-consistency (current-window)
@@ -909,8 +917,8 @@
 ;;; and a list of directory specs that have been marked for deletion.  This
 ;;; assumes the current buffer is a "Dired" buffer.
 ;;;
-(defun get-marked-dired-files ()
-  (let* ((files (dired-info-files (value dired-information)))
+(defun get-marked-dired-files (window)
+  (let* ((files (dired-info-files (variable-value 'dired-information :buffer (window-buffer window))))
          (length (length files))
          (marked-files ())
          (marked-dirs ()))
@@ -971,8 +979,8 @@
    for scrolling convenience.")
   (:help-string "Reads a file in as if by \"Find File\", but read-only.  Commands exist
    for scrolling convenience.")
-  (:applicability (dired-context? krma.gui::app))
-  (:argument-computation (krma.gui::hemlock-arguments krma.gui::app)))
+  (:applicability (dired-context? krma.gui::os-window))
+  (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window)))
 
 (defmethod view-file-command (window p &optional pathname)
   (declare (ignore p))
@@ -993,8 +1001,8 @@
   (:pretty-name "View Return")
   (:documentation "Return to a parent buffer, if it exists.")
   (:help-string "Return to a parent buffer, if it exists.")
-  (:applicability (view-context? krma.gui::app))
-  (:argument-computation (krma.gui::hemlock-arguments krma.gui::app)))
+  (:applicability (view-context? krma.gui::os-window))
+  (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window)))
 
 (defmethod view-return-command (window p)
   (declare (ignore p))
@@ -1006,8 +1014,8 @@
   (:documentation "Delete a buffer in view mode.")
   (:help-string "Delete a buffer in view mode, invoking VIEW-RETURN-FUNCTION if it exists for
    this buffer.")
-  (:applicability (view-context? krma.gui::app))
-  (:argument-computation (krma.gui::hemlock-arguments krma.gui::app)))
+  (:applicability (view-context? krma.gui::os-window))
+  (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window)))
 
 (defmethod view-quit-command (window p)
   (declare (ignore p))
@@ -1019,9 +1027,9 @@
 ;;; CALL-VIEW-RETURN-FUN returns nil if there is no current
 ;;; view-return-function.  If there is one, it calls it and returns t.
 ;;;
-(defun call-view-return-fun ()
-  (if (hemlock-bound-p 'view-return-function)
-      (let ((fun (value view-return-function)))
+(defun call-view-return-fun (window)
+  (if (hemlock-bound-p 'view-return-function :buffer (window-buffer window))
+      (let ((fun (variable-value 'view-return-function :buffer (window-buffer window))))
         (cond (fun
                (funcall fun)
                t)))))
@@ -1040,14 +1048,14 @@
    If the end of the file is visible, then delete the buffer if \"View Scroll
    Deleting Buffer\" is set.  If the buffer is associated with a dired buffer,
    this returns there instead of to the previous buffer.")
-  (:applicability (view-context? krma.gui::app))
-  (:argument-computation (krma.gui::hemlock-arguments krma.gui::app)))
+  (:applicability (view-context? krma.gui::os-window))
+  (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window)))
 
 (defmethod view-scroll-down-command (window p)
   (if (and (not p)
            (displayed-p (buffer-end-mark (window-buffer window))
                         window)
-           (value view-scroll-deleting-buffer))
+           (variable-value 'view-scroll-deleting-buffer :buffer (window-buffer window)))
       (view-quit-command window nil)
       (scroll-window-down-command window p)))
 
@@ -1055,8 +1063,8 @@
   (:pretty-name "View Edit File")
   (:documentation "Turn off \"View\" mode in this buffer.")
   (:help-string "Turn off \"View\" mode in this buffer.")
-  (:applicability (view-context? krma.gui::app))
-  (:argument-computation (krma.gui::hemlock-arguments krma.gui::app)))
+  (:applicability (view-context? krma.gui::os-window))
+  (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window)))
 
 (defmethod view-edit-file-command (window p)
   (declare (ignore p))
@@ -1068,8 +1076,8 @@
   (:pretty-name "View Help")
   (:documentation "Shows \"View\" mode help message.")
   (:help-string "Shows \"View\" mode help message.")
-  (:applicability (view-context? krma.gui::app))
-  (:argument-computation (krma.gui::hemlock-arguments krma.gui::app)))
+  (:applicability (view-context? krma.gui::os-window))
+  (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window)))
 
 (defmethod view-help-command (window p) 
   (declare (ignore p))

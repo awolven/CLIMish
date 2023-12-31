@@ -1887,7 +1887,8 @@
 (defmethod lisp-mode-command (window p)
   (declare (ignore p))
   (let ((buffer (window-buffer window)))
-    (setf (buffer-major-mode buffer window) "LISP")))
+    (setf (buffer-major-mode buffer nil) :lisp))
+  (krma.gui::rm-redraw-node (adhoc:send window krma.gui::modeline)))
 
 
 

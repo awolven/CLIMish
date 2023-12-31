@@ -109,7 +109,7 @@
           (with-buffer-globals (buffer)
             (with-slots (the-sentinel) window
               ;; Make the-sentinel in this buffer so we don't delete it.
-              (setf (line-%buffer (dis-line-line (car the-sentinel))) .buffer.)
+              ;;(setf (line-%buffer (dis-line-line (car the-sentinel))) .buffer.)
               ;; this functions need to be able to capture the variable .buffer.
               ;; and still be visibile to each other, that's why they are now in
               ;; a labels form instead of toplevel defuns

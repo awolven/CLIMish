@@ -217,8 +217,8 @@
     (setf (car (buffer-modes buffer)) name)
     (funcall (mode-object-setup-function mode) buffer)
     (invoke-hook (%value (mode-object-hook-name mode)) buffer t))
-  (when (boundp 'krma::*app*)
-    (krma.gui::rebuild-command-table (krma.gui::compute-applicable-commands)))
+  (when (boundp 'krma.gui::*app*)
+    (krma.gui::compute-applicable-commands (krma.gui::main-window krma.gui::*app*)))
   nil)
 
 

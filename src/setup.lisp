@@ -11,8 +11,8 @@
 
 (defvar *object-id->object-table*
   #+ccl
-  (make-hash-table :test #'eq :weak t)
-  #+sbcl(make-hash-table :test #'eq :weakness :value))
+  (make-hash-table :test #'eq)
+  #+sbcl(make-hash-table :test #'eq))
 
 (defun (setf krma::object-from-id) (object id)
   (setf (gethash id *object-id->object-table*) object))

@@ -374,6 +374,7 @@
        (modifying-buffer buffer
          (.modifying-line. end-line end)
          (cond ((eq start-line end-line)
+                
                 (let* ((res (fcs ,function-sym (subseq open-chars first last)))
                        (rlen (length res))
                        (new-left (+ first rlen))

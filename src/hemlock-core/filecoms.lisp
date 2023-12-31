@@ -116,17 +116,17 @@
       (let* ((pos (position #\, str :start lastpos))
              (keyword (intern (string-upcase (trim-subseq str lastpos pos)) :keyword)))
         (cond ((gethash keyword *mode-names*)
-               (cond ((mode-major-p substr)
+               (cond ((mode-major-p keyword)
                       (when seen-major-mode-p
                         (loud-message
                          "Major mode already processed. Using ~S now."
-                         substr))
+                         keyword))
                       (setf seen-major-mode-p t)
-                      (setf (buffer-major-mode buffer nil) substr))
+                      (setf (buffer-major-mode buffer nil) keyword))
                      (t
-                      (setf (buffer-minor-mode buffer substr nil) t))))
+                      (setf (buffer-minor-mode buffer keyword nil) t))))
               (t
-               (loud-message "~S is not a defined mode -- ignored." substr)))
+               (loud-message "~S is not a defined mode -- ignored." keyword)))
         (unless pos
           (return seen-major-mode-p))
         (setf lastpos (1+ pos))))))
@@ -886,7 +886,7 @@
               (setf (window-buffer w) new))
             (setf (current-buffer (window-buffer (krma.gui::focused-window (clui::window-parent *echo-area-window*)))) new)))
           (dolist (w (buffer-windows buffer))
-            (delete-window w)))
+            (krma.gui::destroy-window w)))
       (delete-buffer buffer *echo-area-window*)
       (krma.gui::rm-redraw-node-recursively window))))
 
@@ -1505,7 +1505,7 @@
     (editor-error "Cannot delete only window."))
   (let ((window window))
     (previous-window-command window nil)
-    (delete-window window)))
+    (krma.gui::destroy-window window)))
 
 (defhcommand line-to-top-of-window-command (window p)
   (:pretty-name "Line to Top of Window")
@@ -1527,7 +1527,7 @@
   (declare (ignore p))
   (if (<= (length *window-list*) 2)
       (editor-error "Cannot delete only window")
-      (delete-window (krma.gui::next window))))
+      (krma.gui::destroy-window (krma.gui::next window))))
 
 (defhcommand go-to-one-window-command (window p)
   (:pretty-name "Go to One Window")
@@ -1553,7 +1553,7 @@
     (dolist (w *window-list*)
       (unless (or (eq w win)
                   (eq w *echo-area-window*))
-        (delete-window w)))))
+        (krma.gui::destroy-window w)))))
 
 (defhcommand line-to-center-of-window (window p)
   (:pretty-name "Line to Center of Window")

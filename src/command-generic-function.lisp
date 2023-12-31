@@ -26,50 +26,53 @@
 		   ,fn)))
        ,@(if (assoc :applicability initargs)
 	     `((setf (slot-value ,fn 'applicability)
-		   (lambda (app)
-		     (declare (ignorable app))
+		   (lambda (os-window)
+		     (declare (ignorable os-window))
 		     ,(second (assoc :applicability initargs)))))
 	     `((setf (slot-value ,fn 'applicability)
-		   (lambda (app)
-		     (declare (ignorable app))
+		   (lambda (os-window)
+		     (declare (ignorable os-window))
 		     t))))
        ,@(when (assoc :argument-computation initargs)
 	   `((setf (slot-value ,fn 'argument-computation)
-		   (lambda (app)
-		     (declare (ignorable app))		     
+		   (lambda (os-window)
+		     (declare (ignorable os-window))		     
 		     ,(second (assoc :argument-computation initargs))))))
        ,@(when (assoc :help-string initargs)
 	   `((setf (slot-value ,fn 'help-string)
-		   (lambda (app)
-		     (declare (ignorable app))		     
+		   (lambda (os-window)
+		     (declare (ignorable os-window))		     
 		     ,(second (assoc :help-string initargs))))))
        (pushnew ,fn *application-commands*)
        ,fn)))
 
 (defmacro hemlock::defhcommand (name arglist &rest initargs)
   `(defcommand ,name ,arglist
-     (:argument-computation (krma.gui::hemlock-arguments krma.gui::app))
-     (:applicability (krma.gui::hemlock-applicability krma.gui::app))
+     (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window))
+     (:applicability (krma.gui::hemlock-applicability krma.gui::os-window))
      ,@initargs))
     
 
-(defmethod invoke-command (command-generic-function)
+(defmethod invoke-command (command-generic-function os-window)
   (apply command-generic-function
-	 (funcall (slot-value command-generic-function 'argument-computation) *app*)))
+	 (funcall (slot-value command-generic-function 'argument-computation) os-window)))
 
-(defun compute-applicable-commands ()
-  (remove-if #'null (mapcar #'(lambda (cgf)
-					    (when (funcall (slot-value cgf 'applicability) *app*)
-					      cgf))
-					*application-commands*)))
+(defun compute-applicable-commands (os-window)
+  (prog1 (setf (applicable-commands os-window)
+	       (remove-if #'null (mapcar #'(lambda (cgf)
+					     (when (funcall (slot-value cgf 'applicability) os-window)
+					       cgf))
+					 *application-commands*)))
+    (rebuild-command-table os-window)))
 
-(defun hemlock-arguments (app)
-  (list (or (focused-window (main-window app)) *echo-area-window*) nil))
+(defun hemlock-arguments (os-window)
+  (list (or (focused-window os-window) *echo-area-window*) nil))
 
-(defun hemlock-applicability (app)
+(defun hemlock-applicability (os-window)
+  (declare (ignorable os-window))
   t
   #+NIL
-  (typep (focused-window (main-window app)) 'text-editor-view-mixin))
+  (typep (focused-window os-window) 'text-editor-view-mixin))
 
 (defvar *accelerator-table*
   (make-hash-table :test #'eq))
@@ -86,20 +89,23 @@
   ;; this is the command table the event-queue loop (aka input-editor) checks
   (make-hash-table :test #'eq))
 
-(defun rebuild-command-table (applicable-commands)
-  (clrhash *command-table*)
-  (loop for command in applicable-commands
-	do (let ((gestures (gethash command *accelerator-table*)))
-	     (loop for gesture in gestures
-		   do (let ((table *command-table*))
-			(when gesture
-			  (loop for event-ids on gesture
-				do (if (null (rest event-ids))
-				       (setf (gethash (first event-ids) table) command)
-				       (let ((existing (gethash (first event-ids) table)))
-					 (if (typep existing 'hash-table)
-					     (setq table (setf (gethash (first event-ids) table) existing))
-					     (setq table (setf (gethash (first event-ids) table) (make-hash-table :test #'eq)))))))))))))
+(defun rebuild-command-table (os-window)
+  (let ((applicable-commands (applicable-commands os-window))
+	(command-table (command-table os-window)))
+    (clrhash command-table)	
+    (loop for command in applicable-commands
+	  do (let ((gestures (gethash command *accelerator-table*)))
+	       (loop for gesture in gestures
+		     do (let ((table command-table))
+			  (when gesture
+			    (loop for event-ids on gesture
+				  do (if (null (rest event-ids))
+					 (setf (gethash (first event-ids) table) command)
+					 (let ((existing (gethash (first event-ids) table)))
+					   (if (typep existing 'hash-table)
+					       (setq table (setf (gethash (first event-ids) table) existing))
+					       (setq table (setf (gethash (first event-ids) table) (make-hash-table :test #'eq))))))))))))
+    command-table))
 					     
 
 

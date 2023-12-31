@@ -149,6 +149,7 @@
 
 ;;;; More stuff.
 
+#+DISABLE
 (defhcommand delete-previous-character-expanding-tabs-command (window p)
   (:pretty-name "Delete Previous Character Expanding Tabs")
   (:documentation "Delete the previous character.
@@ -217,6 +218,7 @@
                       :default (buffer-major-mode (window-buffer current-window)))))
       (:global :global))))
 
+#+DISABLE
 (defhcommand bind-key-command (window p)
   (:pretty-name "Bind Key")
   (:documentation "Bind a command to a key.
@@ -238,7 +240,7 @@
     (prompt-for-place window "Kind of binding: "
                       "The kind of binding to make.")))
 
-#+NIL
+#+DISABLE
 (defcommand "Delete Key Binding" (window p)
   "Delete a key binding.
   The key and place to remove the binding are prompted for."
@@ -255,7 +257,7 @@
         (editor-error "No such binding: ~S" key))
       (delete-key-binding key kind where))))
 
-
+#+DISABLE
 (defhcommand set-variable-command (window p)
   (:pretty-name "Set Variable")
   (:documentation "Prompt for a Hemlock variable and a new value.")
@@ -275,7 +277,7 @@
                    window
                   :prompt "Value: "
                   :help "Expression to evaluate for new value.")))));;)
-
+#+DISABLE
 (defhcommand defhvar-command (window p)
   (:pretty-name "Defhvar")
   (:documentation
@@ -333,6 +335,7 @@
                 (format s "~A~68T~D Line~:P~%"
                         n (count-lines (buffer-region b))))))))))
 
+#+DISABLE
 (defhcommand select-random-typeout-buffer-command (window p)
   (:pretty-name "Select Random Typeout Buffer")
   (:documentation "Select last random typeout buffer.")
@@ -382,6 +385,7 @@
       (setf (current-buffer (window-buffer (krma.gui::focused-window (clui::window-parent *echo-area-window*)))) buf)
       )))
 
+#+DISABLE
 (defhcommand exit-recursive-edit-command (window p)
   (:pretty-name "Exit Recursive Edit")
   (:documentation "Exit a level of recursive edit.  Signals an error when not in a
@@ -395,6 +399,7 @@
   (unless (in-recursive-edit) (editor-error "Not in a recursive edit!"))
   (exit-recursive-edit ()))
 
+#+DISABLE
 (defhcommand abort-recursive-edit-command (window p)
   (:pretty-name "Abort Recursive Edit")
   (:documentation
@@ -473,6 +478,7 @@
       (delete-mark delete3))))
 
 
+#+DISABLE
 (defhcommand goto-absolute-line-command (window p)
   (:pretty-name "Goto Absolute Line")
   (:documentation  
@@ -499,6 +505,7 @@
 
 ;;;; Mouse Commands.
 
+#+DISABLE
 (defhcommand do-nothing-command (window p)
   (:pretty-name "Do Nothing")
   (:documentation "Do nothing.
@@ -527,6 +534,7 @@
       (unless (eq (window-buffer current-window) buffer)
         (setf (window-buffer current-window) buffer)))))
 
+#+DISABLE
 (defhcommand top-of-line-to-here-command (window p)
   (:pretty-name "Top Line to Here")
   (:documentation "Move the top line to the line the mouse is on.
@@ -764,6 +772,7 @@
            (editor-error "No page numbered ~D." ,i-sym))
          (move-mark ,mark-sym m)))))
 
+#+DISABLE
 (defhcommand goto-page-command (window p)
   (:pretty-name "Goto Page")
   (:documentation
@@ -816,6 +825,7 @@
         (line-start (move-mark (window-display-start window) point))
         (hi::update-window-image window)))))
 
+#+DISABLE
 (defhcommand view-page-directory-command (window p)
   (:pretty-name "View Page Directory")
   (:documentation "Print a listing of the first non-blank line after each page mark
@@ -832,6 +842,7 @@
       (with-pop-up-display (s :height (1+ (the fixnum (length dir))) :current-window window)
         (display-page-directory s dir)))))
 
+#+DISABLE
 (defhcommand insert-page-directory-command (window p)
   (:pretty-name "Insert Page Directory")
   (:documentation
@@ -902,6 +913,7 @@
                  (return))))))))
 
 
+#+DISABLE
 (defhcommand previous-page-command (window p)
   (:pretty-name "Previous Page")
   (:documentation "Move to the beginning of the current page.
@@ -916,6 +928,7 @@
     (line-start (move-mark (window-display-start window) point))
     (krma.gui:redraw-buffer window)))
 
+#+DISABLE
 (defhcommand next-page-command (window p)
   (:pretty-name "Next Page")
   (:documentation
@@ -932,6 +945,7 @@
     (line-start (move-mark (window-display-start window) point))
     (krma.gui::redraw-buffer window)))
 
+#+DISABLE
 (defhcommand mark-page-command (window p)
   (:pretty-name "Mark Page")
   (:directory "Put point at beginning, mark at end of current page.
@@ -997,6 +1011,7 @@
 
 ;;;; Counting some stuff
 
+#+DISABLE
 (defhcommand count-lines-page-command (window p)
   (:pretty-name "Count Lines Page")
   (:documentation
@@ -1029,6 +1044,7 @@
         (after (count-lines (region mark end))))
     (message "~A: ~D lines, ~D/~D" msg (+ before after) before after)))
 
+#+DISABLE
 (defhcommand count-lines-command (window p)
   (:pretty-name "Count Lines")
   (:documentation "Display number of lines in the region.")
@@ -1040,6 +1056,7 @@
     (message "~:[After point~;Active region~]: ~A lines"
              activep (count-lines region))))
 
+#+DISABLE
 (defhcommand count-words-command (window p)
   (:pretty-name "Count Words")
   (:documentation
@@ -1068,6 +1085,8 @@
 
 ;;;; Some modes:
 
+
+
 (defhcommand fundamental-mode-command (window p)
   (:pretty-name "Fundamental Mode")
   (:documentation "Put the current buffer into \"Fundamental\" mode.")
@@ -1076,7 +1095,9 @@
 (defmethod fundamental-mode-command (window p)
   (declare (ignore p))
   (let ((buffer (window-buffer window)))
-    (setf (buffer-major-mode buffer buffer) :fundamental)))
+    (setf (buffer-major-mode buffer nil) :fundamental))
+  (krma.gui::rm-redraw-node (adhoc:send window krma.gui::modeline)))
+
 
 ;;;
 ;;; Text mode.
@@ -1092,14 +1113,15 @@
 (defmethod text-mode-command (window p)
   (declare (ignore p))
     (let ((buffer (window-buffer window)))
-      (setf (buffer-major-mode buffer buffer) "Text")))
+      (setf (buffer-major-mode buffer nil) :text))
+  (krma.gui::rm-redraw-node (adhoc:send window krma.gui::modeline)))
 
 ;;;
 ;;; Caps-lock mode.
 ;;;
 
 
-
+#+DISABLE
 (defhcommand caps-lock-mode-command (window p)
   (:pretty-name "Caps Lock Mode")
   (:documentation
@@ -1113,10 +1135,10 @@
 
 (defmethod caps-lock-mode-command (window p)
   (let ((buffer (window-buffer window)))
-    (setf (buffer-minor-mode buffer "CAPS-LOCK" buffer)
+    (setf (buffer-minor-mode buffer :caps-lock buffer)
           (if p
               (plusp p)
-              (not (buffer-minor-mode buffer "CAPS-LOCK"))))))
+              (not (buffer-minor-mode buffer :caps-lock))))))
 
 
 #+NOTYET

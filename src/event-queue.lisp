@@ -66,18 +66,18 @@
   (:documentation "This command is the value for the default command.")
   (:help-string "This command is the value for the default command.")
   (:argument-computation (list
-			   (focused-window (main-window app))
+			  (or (focused-window os-window) *echo-area-window*)
 
 			   ;; potential race condition:
 			   ;; character-event has 1/100th of a second to show up in queue
 			   ;; otherwse event is ignored
 			   ;; so if computer is running very slowly character events will be dropped
-			   (let ((event (get-next-event (main-window app) 0.01)))
+			   (let ((event (get-next-event os-window 0.01)))
 			     
 			     (if event
 
 				 (progn
-				   (setf (window-last-event (main-window app)) event)
+				   (setf (window-last-event os-window) event)
 				   (let ((event-id (input-event-id event)))
 				     
 				   (if (characterp event-id)
@@ -88,15 +88,19 @@
 
 				 (throw :reset nil)))
 
-			   (universal-argument app)))
+			   (universal-argument os-window)))
   
-  (:applicability (hemlock-applicability app)))
+  (:applicability (hemlock-applicability os-window)))
 
 (defmethod insert-character-command (window character p)
   (handle-character-input window character (or p 1)))
 			   
 
-(defun command-loop (window)
+(defun command-loop (os-window)
+  (compute-applicable-commands os-window)
+  (command-loop-1 os-window (command-table os-window)))
+
+(defun command-loop-1 (os-window command-table)  
   (let ((event)
 	(event-id)
 	(table-chain)
@@ -104,6 +108,7 @@
 	(result)
 	#+NIL
 	(#+CCL *debugger-hook* #+SBCL sb-ext:*invoke-debugger-hook* #'gui-debug-condition))
+
 
 
     (restart-bind ((ignore #'(lambda (&optional c)
@@ -129,11 +134,11 @@
 
 	   RESET 
 	     (setq event-chain ())
-	     (setq table-chain (list *command-table*))
+	     (setq table-chain (list command-table))
        
-	   GET (setq event (get-next-event window))
+	   GET (setq event (get-next-event os-window))
 	     (unless event (go GET))
-	     (setf (window-last-event window) event)
+	     (setf (window-last-event os-window) event)
 	     (setq event-id (input-event-id event))
 
 	   CHECK 
@@ -165,8 +170,8 @@
 		      (cond ((null result)
 
 			     (catch :reset
-			       (when (default-command *app*)
-				 (invoke-command (default-command *app*))))
+			       (when (default-command os-window)
+				 (invoke-command (default-command os-window) os-window)))
 			   
 			     (go RESET))
 		       
@@ -177,13 +182,13 @@
 			    (t (catch 'ignore
 				 (catch 'hi::command-loop-catcher
 				   ;;(funcall hi::*invoke-hook* result w p)))
-				   (invoke-command result)))
+				   (invoke-command result os-window)))
 			       (go RESET))))))))))
 
-(defun start-command-loop (window)
+(defun start-command-loop (os-window)
   (bt:make-thread #'(lambda ()
-		      (bt:wait-on-semaphore (command-loop-go-semaphore window))
-		      (command-loop window)) :name "command loop")
+		      (bt:wait-on-semaphore (command-loop-go-semaphore os-window))
+		      (command-loop os-window)) :name "command loop")
   #+SBCL(sb-thread:release-foreground (bt:current-thread)))
 
 (defmethod initialize-instance :after ((window krma-gui-window-mixin) &rest initargs)

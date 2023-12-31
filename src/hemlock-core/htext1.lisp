@@ -155,19 +155,24 @@
 
              (t
               (.close-line.)
-              (let* ((chars (line-chars ,line-sym))
-                     (len (length chars)))
-                (declare (simple-string chars))
-                (when (> len line-cache-length)
-                  (setq line-cache-length (* len 2))
-                  (setq open-chars (make-string line-cache-length)))
-                (setq open-line ,line-sym)
-                (setq left-open-pos (mark-charpos ,mark-sym))
-                (setq right-open-pos
-                      (- line-cache-length (- (length chars) left-open-pos)))
-                (%sp-byte-blt chars 0 open-chars 0 left-open-pos)
-                (%sp-byte-blt chars left-open-pos open-chars right-open-pos
-                              line-cache-length)))))))
+              (if (and (not (stringp (line-chars ,line-sym))) (null open-line))
+                  ;; if the buffer is brand new and gets sent to (open-line)
+                  ;; open-line will be null, but ,line-sym is an open-line!!
+                  ;; fixup!
+                  (setq open-line ,line-sym)
+                  (let* ((chars (line-chars ,line-sym))
+                         (len (length chars)))
+                    (declare (simple-string chars))
+                    (when (> len line-cache-length)
+                      (setq line-cache-length (* len 2))
+                      (setq open-chars (make-string line-cache-length)))
+                    (setq open-line ,line-sym)
+                    (setq left-open-pos (mark-charpos ,mark-sym))
+                    (setq right-open-pos
+                          (- line-cache-length (- (length chars) left-open-pos)))
+                    (%sp-byte-blt chars 0 open-chars 0 left-open-pos)
+                    (%sp-byte-blt chars left-open-pos open-chars right-open-pos
+                                  line-cache-length))))))))
 
 (defun open-line (buffer line mark)
   (with-buffer-globals (buffer)

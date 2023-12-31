@@ -10,7 +10,11 @@
    (drag-last-y :initform nil :accessor drag-last-y)
    (last-event :initform nil :accessor window-last-event)
    (popup-window :initform nil :accessor popup-window)
-   (command-loop-go-semaphore :initform (bt:make-semaphore :name "command-loop-go-semaphore") :accessor command-loop-go-semaphore)))
+   (command-loop-go-semaphore :initform (bt:make-semaphore :name "command-loop-go-semaphore") :accessor command-loop-go-semaphore)
+   (default-command :initform #'insert-character-command :accessor default-command)
+   (universal-argument :initform nil :accessor universal-argument)
+   (applicable-commands :initform nil :accessor applicable-commands)
+   (command-table :initform (make-hash-table :test 'eq) :accessor command-table)))
 
 (defclass krma-gui-window (krma-gui-window-mixin)
   ())
@@ -714,7 +718,7 @@
 		finally (setf (the z-index) (length siblings))
 			(mapcar #'rm-redraw-node-recursively (nconc siblings (list self)))
 			(setf (focused-window (window-parent (the root))) self))
-	  (krma.gui::rebuild-command-table (krma.gui::compute-applicable-commands))
+	  (krma.gui::compute-applicable-commands (window-parent (the root)))
 	  (values)))))
 
 (defmethod %unfocus-window ((self homemade-window-mixin))

@@ -68,33 +68,32 @@
   (:pretty-name "Enter")
   (:documentation "")
   (:help-string "")
-  (:argument-computation (let* ((os-window (krma.gui::main-window krma.gui::app))
-				(window (or (krma.gui::focused-window os-window) *echo-area-window*))
+  (:argument-computation (let* ((window (or (krma.gui::focused-window krma.gui::os-window)
+					    *echo-area-window*))
 				(buffer (and (typep window 'krma.gui::text-editor-view-mixin)
 					     (window-buffer window)))
 				(major-mode (and buffer (buffer-major-mode buffer)))
-				(universal-argument (krma.gui::universal-argument krma.gui::app)))
+				(universal-argument
+				  (krma.gui::universal-argument krma.gui::os-window)))
 			   (list window buffer major-mode universal-argument)))
   (:applicability t))
 
 (defmethod enter-command (window buffer major-mode p)
-  (let ((buffer (window-buffer window)))
-    (if (buffer-active-region-p buffer)
-	(ring-push (hi::current-region buffer) hemlock::*kill-ring*)
-	(krma.gui::handle-character-input window #\Newline (or p 1)))))
+  (if (buffer-active-region-p buffer)
+      (ring-push (hi::current-region buffer) hemlock::*kill-ring*)
+      (if (buffer-minor-mode buffer :interactive-character-stream)
+	  (enter-command window buffer :interactive-character-stream nil)
+	  (krma.gui::handle-character-input window #\Newline (or p 1)))))
 
 (defmethod enter-command (window buffer (major-mode (eql :lisp)) p)
   ;; indent-new-line
   (let* ((point (buffer-point buffer)))
     (let ((prefix (hi::value fill-prefix)))
       (delete-horizontal-space buffer point)
-      (if (buffer-minor-mode buffer :interactive-character-stream)
-          (enter-command window buffer :interactive-character-stream nil)
-          (progn
-            (enter-command window buffer nil p)
-            (if prefix
-                (insert-string buffer point prefix)
-                (funcall (hi::value indent-function) buffer point)))))
+      (enter-command window buffer nil p)
+      (if prefix
+          (insert-string buffer point prefix)
+          (funcall (hi::value indent-function) buffer point)))
     (krma.gui::redraw-buffer window)))
 
 (defmethod enter-command (window buffer (major-mode (eql :echo-area)) p)
@@ -301,10 +300,16 @@
     (krma.gui::find-or-create-text-editor-window-for-buffer buffer)
     buffer))
 
-(defhcommand mousewheel-scroll-command (window p)
-    (:pretty-name "Mousewheel Scroll")
-    (:documentation "Use mousewheel to scroll.")
-  (:help-string "Use mousewheel to scroll."))
+(defcommand mousewheel-scroll-command (window p)
+  (:pretty-name "Mousewheel Scroll")
+  (:documentation "Use mousewheel to scroll.")
+  (:help-string "Use mousewheel to scroll.")
+  (:applicability (let* ((focused (krma.gui::focused-window krma.gui::os-window)))
+		    (and focused (typep focused 'krma.gui::text-editor-view-mixin)
+			 (not (eql focused *echo-area-window*)))))
+  (:argument-computation (let* ((focused (krma.gui::focused-window krma.gui::os-window)))
+			   (list focused (krma.gui::universal-argument krma.gui::os-window)))))
+			   
 
 (defmethod mousewheel-scroll-command (window p)
   (declare (ignore p))
