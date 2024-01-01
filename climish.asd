@@ -1,5 +1,5 @@
 (defsystem climish
-  :description "A platform independent gui library."
+  :description "A CLIM-like platform independent gui library."
   :depends-on (:krma
 	       :adhoc
 	       :trivial-gray-streams

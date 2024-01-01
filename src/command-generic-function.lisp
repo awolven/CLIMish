@@ -2,7 +2,7 @@
 
 (defvar *application-commands* nil)
 
-(defclass command-generic-function (standard-generic-function)
+(defclass command (standard-generic-function)
   ((pretty-name :accessor hemlock::command-name)
    (applicability)
    (argument-computation)
@@ -18,7 +18,7 @@
 	     (cl:defgeneric ,name ,arglist
 	       ,@(when (assoc :documentation initargs)
 		   `((:documentation ,(second (assoc :documentation initargs)))))
-	       (:generic-function-class command-generic-function))))
+	       (:generic-function-class command))))
        ,@(when (assoc :pretty-name initargs)
 	   `((setf (slot-value ,fn 'pretty-name)
 		   ,(second (assoc :pretty-name initargs)))
@@ -53,9 +53,9 @@
      ,@initargs))
     
 
-(defmethod invoke-command (command-generic-function application-frame)
-  (apply command-generic-function
-	 (funcall (slot-value command-generic-function 'argument-computation) application-frame)))
+(defmethod invoke-command (command application-frame)
+  (apply command
+	 (funcall (slot-value command 'argument-computation) application-frame)))
 
 (defun compute-applicable-commands (application-frame)
   (prog1 (setf (applicable-commands application-frame)
