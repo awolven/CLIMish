@@ -26,11 +26,11 @@
 
 (defun invoke-with-pop-up-display (current-window cont buffer-name height)
   (declare (ignore height))
-  (let ((*standard-output* (krma.gui::make-popup-window)))
+  (let ((*standard-output* (climish::make-popup-window)))
     (funcall cont *standard-output*))
   
   #+NIL
-  (let* ((window (krma.gui::find-or-create-typeout-window "Random Typeout"))
+  (let* ((window (climish::find-or-create-typeout-window "Random Typeout"))
          (buf (window-buffer window)))
     (cond ((eq current-window *echo-area-window*)
            ;; Can't pop-up in the echo area window, so choose another.
@@ -38,13 +38,13 @@
            (change-to-buffer buf window)
            (with-output-to-mark (stream buf (buffer-point buf))
              (funcall cont stream))
-           ;;(krma.gui::rm-redraw-node-recursively window)
+           ;;(climish::rm-redraw-node-recursively window)
            (buffer-start (buffer-point buf) buf)
            (setf (buffer-modified buf) nil
                  (buffer-writable buf) nil)
            ;; Switch back to the echo window and buffer.
            #+NIL
-           (krma.gui::focus-window *echo-area-window*)
+           (climish::focus-window *echo-area-window*)
            (change-to-buffer *echo-area-buffer* current-window))
           ((eq window current-window)
            (break))
@@ -52,7 +52,7 @@
            ;;(change-to-buffer buf window)
            (with-output-to-mark (stream buf (buffer-point buf))
              (funcall cont stream))
-           ;;(krma.gui::rm-redraw-node-recursively window)
+           ;;(climish::rm-redraw-node-recursively window)
            (buffer-start (buffer-point buf) buf)
            (setf (buffer-modified buf) nil
                  (buffer-writable buf) nil)))))

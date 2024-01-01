@@ -1,4 +1,4 @@
-(in-package :krma.gui)
+(in-package :climish)
 
 (defobject popup-stream-mixin (trivial-gray-streams::fundamental-character-output-stream homemade-window-mixin)
 
@@ -103,15 +103,15 @@
 	      new-color))))
   
 (defun set-popup-timer ()
-  (let ((os-window (main-window *app*)))
+  (let ((application-frame (main-window clim:*default-frame-manager*)))
     (bt:make-thread
      #'(lambda ()
-	 (let ((popup-window (popup-window os-window))
+	 (let ((popup-window (popup-window application-frame))
 	       (alpha #x99)
 	       (count 0))
 	   (unless popup-window
 	     (setq popup-window
-		   (setf (popup-window os-window) (make-instance 'popup-stream))))
+		   (setf (popup-window application-frame) (make-instance 'popup-stream))))
 	   (rm-redraw-node-recursively popup-window)
 	   (loop
 	     (when (> (incf count) 20)
@@ -125,13 +125,13 @@
 		   (change-alpha (send popup-window fg-color) (decf alpha #x05)))
 	     (rm-redraw-node-recursively popup-window))
 	   (destroy-window popup-window)
-	   (setf (popup-window os-window) nil))))))
+	   (setf (popup-window application-frame) nil))))))
 
 (defun make-popup-window ()
-  (let ((popup-window (popup-window (krma:main-window krma:*app*))))
+  (let ((popup-window (popup-window (krma:main-window clim:*default-frame-manager*))))
     (unless popup-window
       (setq popup-window
-	    (setf (popup-window (krma:main-window krma:*app*)) (make-instance 'popup-stream))))
+	    (setf (popup-window (krma:main-window clim:*default-frame-manager*)) (make-instance 'popup-stream))))
     (set-popup-timer)
     popup-window))
 	   

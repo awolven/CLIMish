@@ -693,7 +693,7 @@
     (dolist (w (buffer-windows buffer))
       (setf (window-buffer w) new-buf))
     (when (eq buffer current-buffer)
-      (setf (current-buffer (window-buffer (krma.gui::focused-window (krma::main-window krma::*app*)))) new-buf)))
+      (setf (current-buffer (window-buffer (climish::focused-window (krma::main-window clim:*default-frame-manager*)))) new-buf)))
   (delete-buffer buffer current-buffer))
 
 
@@ -737,7 +737,7 @@
     (when (eq buf *echo-area-buffer*)
       (editor-error "Cannot select Echo Area buffer."))
     (change-to-buffer buf window)
-    (krma.gui::rm-redraw-node-recursively window)))
+    (climish::rm-redraw-node-recursively window)))
 
 
 (defvar *buffer-history-ptr* ()
@@ -762,7 +762,7 @@
         ;; "Select Previous Buffer".
         (setf *buffer-history-ptr* (cddr *buffer-history*))
         (setf (last-command-type) :previous-buffer)))
-  (krma.gui::redraw-buffer window))
+  (climish::redraw-buffer window))
 
 (defhcommand circulate-buffers-command (window p)
   (:pretty-name "Circulate Buffers")
@@ -781,11 +781,11 @@
             (setf *buffer-history-ptr*
                   (or (cdr *buffer-history*) *buffer-history*))
             (setf b (car *buffer-history*)))
-          (setf (current-buffer (window-buffer (krma.gui::focused-window (krma::main-window krma::*app*)))) b)
+          (setf (current-buffer (window-buffer (climish::focused-window (krma::main-window clim:*default-frame-manager*)))) b)
           (setf (window-buffer window) b) ;; setf window buffer happens in render thread
           (setf (last-command-type) :previous-buffer))
         (select-previous-buffer-command window nil))
-  (krma.gui::redraw-buffer window)))
+  (climish::redraw-buffer window)))
 
 
 (defhcommand buffer-not-modified-command (window p)
@@ -884,11 +884,11 @@
               (editor-error "You must select a different buffer."))
             (dolist (w (buffer-windows buffer))
               (setf (window-buffer w) new))
-            (setf (current-buffer (window-buffer (krma.gui::focused-window (clui::window-parent *echo-area-window*)))) new)))
+            (setf (current-buffer (window-buffer (climish::focused-window (clui::window-parent *echo-area-window*)))) new)))
           (dolist (w (buffer-windows buffer))
-            (krma.gui::destroy-window w)))
+            (climish::destroy-window w)))
       (delete-buffer buffer *echo-area-window*)
-      (krma.gui::rm-redraw-node-recursively window))))
+      (climish::rm-redraw-node-recursively window))))
 
 
 (defhcommand rename-buffer-command (window p)
@@ -910,7 +910,7 @@
       (cond ((or (not foundp) (eq entry buf))
              (setf (buffer-name buf) new))
             (t (editor-error "Name ~S already in use." new))))
-    (krma.gui::rm-redraw-node-recursively window)))
+    (climish::rm-redraw-node-recursively window)))
 
 
 (defhcommand insert-buffer-command (window p)
@@ -1427,9 +1427,9 @@
 
 (defmethod next-window-command (window p)
   (declare (ignore p))
-  (let* ((next (krma.gui::next window)))
-    (setf (current-buffer (window-buffer (krma.gui::focused-window (krma::main-window krma::*app*)))) (window-buffer next))
-    (krma.gui::focus-window next)))
+  (let* ((next (climish::next window)))
+    (setf (current-buffer (window-buffer (climish::focused-window (krma::main-window clim:*default-frame-manager*)))) (window-buffer next))
+    (climish::focus-window next)))
 
 (defhcommand previous-window-command (window p)
   (:pretty-name "Previous Window")
@@ -1442,9 +1442,9 @@
 
 (defmethod previous-window-command (window p)
   (declare (ignore p))
-  (let* ((previous (krma.gui::prev window)))
-    (setf (current-buffer (window-buffer (krma.gui::focused-window (krma::main-window krma::*app*)))) (window-buffer previous))
-    (krma.gui::focus-window previous)))
+  (let* ((previous (climish::prev window)))
+    (setf (current-buffer (window-buffer (climish::focused-window (krma::main-window clim:*default-frame-manager*)))) (window-buffer previous))
+    (climish::focus-window previous)))
 
 (defhcommand split-window-command (window p)
   (:pretty-name "Split Window")
@@ -1458,9 +1458,9 @@
 
 (defmethod split-window-command (window p)
   (declare (ignore p))
-  (let ((new (make-instance 'krma.gui::text-editor-window :display-start (window-display-start window))))
+  (let ((new (make-instance 'climish::text-editor-window :display-start (window-display-start window))))
     (unless new (editor-error "Could not make a new window."))
-    (krma.gui::focus-window new)))
+    (climish::focus-window new)))
 
 (defun hi::enlarge-window (window offset)
   "offset in lines.  Can be negative."
@@ -1488,10 +1488,10 @@
 
 (defmethod new-window-command (window p)
   (declare (ignore p))
-  (let ((new (make-instance 'krma.gui::text-editor-window :display-start (window-display-start window)
+  (let ((new (make-instance 'climish::text-editor-window :display-start (window-display-start window)
                           :ask-user t)))
     (unless new (editor-error "Could not make a new window."))
-    (krma.gui::focus-window new)))
+    (climish::focus-window new)))
 
 (defhcommand delete-window-command (window p)
   (:pretty-name "Delete Window")
@@ -1505,7 +1505,7 @@
     (editor-error "Cannot delete only window."))
   (let ((window window))
     (previous-window-command window nil)
-    (krma.gui::destroy-window window)))
+    (climish::destroy-window window)))
 
 (defhcommand line-to-top-of-window-command (window p)
   (:pretty-name "Line to Top of Window")
@@ -1527,7 +1527,7 @@
   (declare (ignore p))
   (if (<= (length *window-list*) 2)
       (editor-error "Cannot delete only window")
-      (krma.gui::destroy-window (krma.gui::next window))))
+      (climish::destroy-window (climish::next window))))
 
 (defhcommand go-to-one-window-command (window p)
   (:pretty-name "Go to One Window")
@@ -1542,18 +1542,18 @@
 
 (defmethod go-to-one-window-command (window p)
   (declare (ignore p))
-  (let ((win (make-instance 'krma.gui::text-editor-window
+  (let ((win (make-instance 'climish::text-editor-window
                             :display-start (window-display-start window)
                           :ask-user t
                           :x (value default-initial-window-x)
                           :y (value default-initial-window-y)
                           :width (value default-initial-window-width)
                           :height (value default-initial-window-height))))
-    (krma.gui::focus-window win)
+    (climish::focus-window win)
     (dolist (w *window-list*)
       (unless (or (eq w win)
                   (eq w *echo-area-window*))
-        (krma.gui::destroy-window w)))))
+        (climish::destroy-window w)))))
 
 (defhcommand line-to-center-of-window (window p)
   (:pretty-name "Line to Center of Window")
@@ -1595,7 +1595,7 @@
   (funcall (let ((old-window window))
              (unwind-protect
                   (progn
-                    (setf (krma.gui::focused-window (clui::window-parent *echo-area-window*)) *echo-area-window*)
+                    (setf (climish::focused-window (clui::window-parent *echo-area-window*)) *echo-area-window*)
                     (hi::display-prompt-nicely "Quickselect? [?hrCcSb]")
                     (hi::key-event-case
                      ((#k"r") 'quickselect-slave-repl)
@@ -1605,6 +1605,6 @@
                      ((#k"c" #k"S") 'list-slaves-command)
                      ((#k"b") 'bufed-command)
                      (t (lambda ()))))
-               (krma.gui::focus-window old-window)
-               (setf (krma.gui::focused-window (clui::window-parent *echo-area-window*)) old-window)))
+               (climish::focus-window old-window)
+               (setf (climish::focused-window (clui::window-parent *echo-area-window*)) old-window)))
            nil))

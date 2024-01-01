@@ -34,15 +34,15 @@
   (let* ((bufs (remove *echo-area-buffer* *buffer-list*))
          (buf (or (find-if #'buffer-windows bufs)
                   (car bufs)
-                  (make-instance 'krma.gui::text-editor-buffer :name "Main"))))
-    (setf (window-buffer (krma.gui::focused-window (krma::main-window krma::*app*))) buf)
+                  (make-instance 'climish::text-editor-buffer :name "Main"))))
+    (setf (window-buffer (climish::focused-window (krma::main-window clim:*default-frame-manager*))) buf)
     (dolist (w *window-list*)
       (when (and (eq (window-buffer w) *echo-area-buffer*)
                    (not (eq w *echo-area-window*)))
           (setf (window-buffer w) buf)))
-    (setf (krma.gui::focused-window (krma::main-window krma::*app*))
+    (setf (climish::focused-window (krma::main-window clim:*default-frame-manager*))
           (or (car (buffer-windows buf))
-              (make-instance 'krma.gui::text-editor-view-mixin :start-mark (buffer-start-mark buf)))))
+              (make-instance 'climish::text-editor-view-mixin :start-mark (buffer-start-mark buf)))))
   (editor-error "Wham!  We tried to confirm a parse that wasn't in progress?"))
 
 (defvar *parse-string-tables* ()
@@ -82,7 +82,7 @@
   (clear-output *echo-area-stream*)
   (delete-region *echo-area-buffer* *echo-area-region*)
   (setf (buffer-modified *echo-area-buffer*) nil)
-  (krma.gui::redraw-buffer *echo-area-window*)
+  (climish::redraw-buffer *echo-area-window*)
   nil)
 
 ;;; Message  --  Public
@@ -146,7 +146,7 @@
            (finish-output *echo-area-stream*))
           (t
            (insert-string *echo-area-buffer* point prompt)))
-    (krma.gui::redraw-buffer *echo-area-window*)
+    (climish::redraw-buffer *echo-area-window*)
 
     #+(or)                              ;we insert the default directly now
     (when default
@@ -163,7 +163,7 @@
       (clui::focus-window *echo-area-window*))
     (move-mark *parse-starting-mark* point)
     (insert-string *echo-area-buffer* point (or *parse-default-string* *parse-default*))
-    (krma.gui:redraw-buffer *echo-area-window*)
+    (climish:redraw-buffer *echo-area-window*)
     (unwind-protect
          (progn
            (recursive-edit nil))
@@ -479,7 +479,7 @@
   (let ((old-window current-window))
     (unwind-protect
          (progn
-           (setf (krma.gui::focused-window (krma::main-window krma::*app*)) *echo-area-window*)
+           (setf (climish::focused-window (krma::main-window clim:*default-frame-manager*)) *echo-area-window*)
           (display-prompt-nicely prompt (or default-string
                                             (if defaultp (if default "Y" "N"))))
           (loop
@@ -499,7 +499,7 @@
                     (t
                      (unless must-exist (return key-event))
                      (beep))))))
-      (setf (krma.gui::focused-window (krma::main-window krma::*app*)) old-window))))
+      (setf (climish::focused-window (krma::main-window clim:*default-frame-manager*)) old-window))))
 
 
 
@@ -513,16 +513,16 @@
   (unwind-protect
        (progn
          (when change-window
-           (krma.gui::focus-window *echo-area-window*))
+           (climish::focus-window *echo-area-window*))
          (display-prompt-nicely prompt)
          (get-key-event *editor-input* t))
-    (when change-window (krma.gui::focus-window current-window))))
+    (when change-window (climish::focus-window current-window))))
 
-(defmethod get-key-event ((input-source clui::os-window-mixin) &optional ignore-abort-attempts-p)
+(defmethod get-key-event ((input-source climish::application-frame-mixin) &optional ignore-abort-attempts-p)
   (let ((event-id))
     (tagbody
      again
-       (setq event-id (krma.gui::input-event-id (krma.gui::get-next-event input-source)))
+       (setq event-id (climish::input-event-id (climish::get-next-event input-source)))
        (when (eq event-id #k"MouseMove")
          (go again))
        (when (and ignore-abort-attempts-p (eq event-id #k"Ctrl-g"))
@@ -542,7 +542,7 @@
 
     (unwind-protect
          (progn
-           (setf (krma.gui::focused-window (krma::main-window krma::*app*)) *echo-area-window*)
+           (setf (climish::focused-window (krma::main-window clim:*default-frame-manager*)) *echo-area-window*)
            (display-prompt-nicely prompt string)
            (setf (fill-pointer *prompt-key*) 0)
            (prog ((key *prompt-key*) key-event)
@@ -584,7 +584,7 @@
               (beep)
               (go TOP)))
       (force-output *echo-area-stream*)
-      (setf (krma.gui::focused-window (krma::main-window krma::*app*)) old-window))))
+      (setf (climish::focused-window (krma::main-window clim:*default-frame-manager*)) old-window))))
 
 
 
@@ -735,7 +735,7 @@
           ((null o))
         (let ((option (caar o)))
           (if (and (consp option)
-                   (typep (car option) 'krma.gui::input-event-id))
+                   (typep (car option) 'climish::input-event-id))
               (princ (car option) s)
               (if (consp option)
                   (loop for o in option

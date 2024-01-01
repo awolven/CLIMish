@@ -1,4 +1,4 @@
-(in-package :krma.gui)
+(in-package :climish)
 
 (defobject modeline (selectable-mixin group-mixin view-mixin)
   :inputs
@@ -19,7 +19,7 @@
     (let ((scene (the scene))
 	  (group (the group)))
     
-      (push (scene-add-filled-2d-rectangle-list-primitive
+      (push (medium-add-filled-2d-rectangle-list-primitive
 	     scene group nil (the bg-color)
 	     (list (the x0) (the y0) (the x1) (the y1))
 	     (the object-id)
@@ -28,7 +28,7 @@
 
       (let ((modeline (hi::window-modeline-buffer (the superior))))
 	(when modeline
-	  (push (scene-add-text-primitive scene group nil (the superior font) (the fg-color) (the x0) (the y0)
+	  (push (medium-add-text-primitive scene group nil (the superior font) (the fg-color) (the x0) (the y0)
 					  (subseq modeline 0
 						  (min (length modeline)
 						       (hi::window-modeline-buffer-len (the superior))))

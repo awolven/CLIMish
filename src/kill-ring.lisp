@@ -19,7 +19,7 @@
 
 ;;;; The kill-ring data structures:
 ;;;
-(defclass kill-ring-element-mixin (krma.gui::ring-element-mixin)
+(defclass kill-ring-element-mixin (climish::ring-element-mixin)
   ())
 
 (defclass kill-ring-head (kill-ring-element-mixin)
@@ -49,59 +49,59 @@
   (let ((head (make-instance 'kill-ring-head
                              :display display
                              :max-size size)))
-    (krma.gui::ring-initialize head)
+    (climish::ring-initialize head)
     head))
 
 (defgeneric ring-push (object ring)
   (:documentation "Push an object into a ring, deleting an element if necessary."))
 
 (defmethod ring-push ((region region) (ring kill-ring-head))
-  (let ((window (krma.gui::focused-window (krma::main-window krma::*app*))))
+  (let ((window (climish::focused-window (krma::main-window clim:*default-frame-manager*))))
     (when window
       (let* ((string (region-to-string (window-buffer window) region))
              (new (make-instance 'kill-ring-element))
-             (prev (krma.gui::prev ring)))
+             (prev (climish::prev ring)))
     
         (when (= (kill-ring-max-size ring)
                  (1+ (kill-ring-element-index prev)))
           ;; drop off the oldest one
-          (setf (krma.gui::next prev) ring
-                (krma.gui::prev ring) (krma.gui::prev prev)))
+          (setf (climish::next prev) ring
+                (climish::prev ring) (climish::prev prev)))
 
         (setf (kill-ring-element-value new)
               (kill-ring-element-value ring))
 
-        (setf (krma.gui::next new) (krma.gui::next ring))
-        (setf (krma.gui::prev new) ring)
-        (setf (krma.gui::next ring) new)
+        (setf (climish::next new) (climish::next ring))
+        (setf (climish::prev new) ring)
+        (setf (climish::next ring) new)
         (setf (kill-ring-element-value ring) string)
-        (unless (eq (krma.gui::prev ring) ring)
-          (setf (kill-ring-element-index (krma.gui::prev ring))
+        (unless (eq (climish::prev ring) ring)
+          (setf (kill-ring-element-index (climish::prev ring))
                 (1+ (kill-ring-element-index
-                     (krma.gui::prev (krma.gui::prev ring))))))))
+                     (climish::prev (climish::prev ring))))))))
     (values)))
 
 (defmethod ring-push ((string string) (ring kill-ring-head))
   (let* ((new (make-instance 'kill-ring-element))
-         (prev (krma.gui::prev ring)))
+         (prev (climish::prev ring)))
     
     (when (= (kill-ring-max-size ring)
              (1+ (kill-ring-element-index prev)))
       ;; drop off the oldest one
-      (setf (krma.gui::next prev) ring
-            (krma.gui::prev ring) (krma.gui::prev prev)))
+      (setf (climish::next prev) ring
+            (climish::prev ring) (climish::prev prev)))
     
     (setf (kill-ring-element-value new)
           (kill-ring-element-value ring))
 
-    (setf (krma.gui::next new) (krma.gui::next ring))
-    (setf (krma.gui::prev new) ring)
-    (setf (krma.gui::next ring) new)
+    (setf (climish::next new) (climish::next ring))
+    (setf (climish::prev new) ring)
+    (setf (climish::next ring) new)
     (setf (kill-ring-element-value ring) string)
-    (unless (eq (krma.gui::prev ring) ring)
-      (setf (kill-ring-element-index (krma.gui::prev ring))
+    (unless (eq (climish::prev ring) ring)
+      (setf (kill-ring-element-index (climish::prev ring))
             (1+ (kill-ring-element-index
-                 (krma.gui::prev (krma.gui::prev ring))))))))
+                 (climish::prev (climish::prev ring))))))))
 
 
 ;;; ring-pop  --  Public
@@ -112,13 +112,13 @@
   (:documentation "Pop an object from a ring and return it."))
 
 (defmethod ring-pop ((ring kill-ring-head))
-  (unless (eq (krma.gui::next ring) ring)
-    (let* ((next (krma.gui::next ring))
+  (unless (eq (climish::next ring) ring)
+    (let* ((next (climish::next ring))
            (value (kill-ring-element-value next)))
       (clui::copy-string-to-clipboard
        (kill-ring-display ring)
        (kill-ring-element-value next))
-      (setf (krma.gui::prev next) (krma.gui::prev ring))
+      (setf (climish::prev next) (climish::prev ring))
       (change-class next 'kill-ring-head
                     :display (kill-ring-display ring)
                     :max-size (kill-ring-max-size ring))
@@ -135,7 +135,7 @@
   (:documentation "Return as values the current and maximum size of a ring."))
 
 (defmethod ring-length ((ring kill-ring-head))
-  (values (1+ (kill-ring-element-index (krma.gui::prev ring)))
+  (values (1+ (kill-ring-element-index (climish::prev ring)))
           (kill-ring-max-size ring)))
   
 
@@ -153,10 +153,10 @@
     (let ((real-index
             (mod index
                  (1+
-                  (kill-ring-element-index (krma.gui::prev ring))))))
+                  (kill-ring-element-index (climish::prev ring))))))
       
       (do ((i 0 (1+ i))
-           (current ring (krma.gui::next current)))
+           (current ring (climish::next current)))
            (nil)
           (when (= i real-index)
             (return (kill-ring-element-value current)))))))
@@ -174,10 +174,10 @@
     (let ((real-index
             (mod index
                  (1+
-                  (kill-ring-element-index (krma.gui::prev ring))))))
+                  (kill-ring-element-index (climish::prev ring))))))
       
       (do ((i 0 (1+ i))
-           (current ring (krma.gui::next current)))
+           (current ring (climish::next current)))
           (nil)
           (when (= i real-index)
             (return (setf (kill-ring-element-value current) value)))))))
@@ -188,21 +188,21 @@
 ;;;
 (defun kill-ring-shift-right (element)
   (let ((old-value))
-    (dotimes (i (kill-ring-element-index (krma.gui::prev element)))
-      (setq old-value (kill-ring-element-value (krma.gui::next element)))
-      (setf (kill-ring-element-value (krma.gui::next element))
+    (dotimes (i (kill-ring-element-index (climish::prev element)))
+      (setq old-value (kill-ring-element-value (climish::next element)))
+      (setf (kill-ring-element-value (climish::next element))
             (kill-ring-element-value element))
-      (setq element (krma.gui::next element)))
+      (setq element (climish::next element)))
     
     (setf (kill-ring-element-value element) old-value))
   (values))
 
 (defun kill-ring-shift-left (element)
   (let ((old-value (kill-ring-element-value element)))
-    (dotimes (i (kill-ring-element-index (krma.gui::prev element)))
+    (dotimes (i (kill-ring-element-index (climish::prev element)))
       (setf (kill-ring-element-value element)
-            (kill-ring-element-value (krma.gui::next element)))
-      (setq element (krma.gui::next element)))
+            (kill-ring-element-value (climish::next element)))
+      (setq element (climish::next element)))
     
     (setf (kill-ring-element-value element) old-value))
   (values))

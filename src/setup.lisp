@@ -1,4 +1,4 @@
-(in-package :krma.gui)
+(in-package :climish)
 
 (defvar *style*)
 

@@ -494,7 +494,7 @@
    Window return NIL.  The wait may be aborted if there is pending input."
   (let* ((result t))
     (catch 'redisplay-catcher
-      (krma.gui::redraw-buffer window)
+      (climish::redraw-buffer window)
       (setf result
             (let* ((buffer (window-buffer window))
                    (point (buffer-point buffer))

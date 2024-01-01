@@ -1,4 +1,4 @@
-(in-package :krma.gui)
+(in-package :climish)
 
 (defaccelerator "Next Line" #k"DownArrow")
 (defaccelerator "Next Line" #k"Ctrl-n")
@@ -84,8 +84,8 @@
 (defaccelerator "Forward Search" #k"Meta-s")
 (defaccelerator "Reverse Search" #k"Meta-r")
 
-(defaccelerator "Universal Argument" #k"Ctrl-u")
-(defaccelerator "Universal Argument" #k"Ctrl-u")
+;;(defaccelerator "Universal Argument" #k"Ctrl-u")
+
 
 (defaccelerator "Help" #k"Ctrl-h")
 (defaccelerator "Help" #k"Shift-Ctrl-\-")
@@ -94,7 +94,7 @@
 (defaccelerator "Describe Key" #k"Shift-Meta-/")
 (defaccelerator "Describe Key" #k"Shift-Meta-/")
 
-(defaccelerator "Top Line to Here" #k"RightMouse")
+;;(defaccelerator "Top Line to Here" #k"RightMouse")
 
 
 (defaccelerator "Generic Pointer Up" #k"LeftMouse_Up")
@@ -127,7 +127,7 @@
 (defaccelerator "Circulate Buffers" #k"Shift-Ctrl-Meta-l")
 (defaccelerator "Create Buffer" #k"Ctrl-x" #k"Meta-b")
 (defaccelerator "Kill Buffer" #k"Ctrl-x" #k"k")
-(defaccelerator "Select Random Typeout Buffer" #k"Hyper-t")
+;;(defaccelerator "Select Random Typeout Buffer" #k"Hyper-t")
 
 (defaccelerator "Cycle Windows" #k"Ctrl-Tab")
 (defaccelerator "Cycle Windows" #k"Ctrl-x" #k"o")
@@ -139,7 +139,7 @@
 
 (defaccelerator "Reverse Cycle Windows" #k"Shift-Ctrl-Tab")
 
-(defaccelerator "Exit Recursive Edit" "Ctrl-Meta-z")
+;;(defaccelerator "Exit Recursive Edit" "Ctrl-Meta-z")
 
 (defaccelerator "Interrupt Lisp" #k"Ctrl-c" #k"Ctrl-c")
 

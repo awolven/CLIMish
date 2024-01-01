@@ -227,7 +227,7 @@
 
 (defmethod bind-key-command (window p)
   (declare (ignore p))
-  (multiple-value-call #'krma.gui::define-gesture
+  (multiple-value-call #'climish::define-gesture
     (values (prompt-for-keyword
              window
              (list *command-names*)
@@ -382,7 +382,7 @@
       (setf (current-window) win)
       (unless (eq (window-buffer win) buf)
         (setf (window-buffer win) buf))
-      (setf (current-buffer (window-buffer (krma.gui::focused-window (clui::window-parent *echo-area-window*)))) buf)
+      (setf (current-buffer (window-buffer (climish::focused-window (clui::window-parent *echo-area-window*)))) buf)
       )))
 
 #+DISABLE
@@ -544,15 +544,15 @@
 
 (defmethod top-of-line-to-here-command (window p)
   (declare (ignore p))
-  ;;(when (typep window 'krma.gui::text-editor-view-mixin)
-    (let ((last-event (krma.gui::window-last-event (clui::window-parent window))))
+  ;;(when (typep window 'climish::text-editor-view-mixin)
+    (let ((last-event (climish::window-last-event (clui::window-parent window))))
       ;;(when (typep last-event 'clui::pointer-button-press-event-mixin)
-        (let* ((x (clui::pointer-event-x last-event))
-               (y (clui::pointer-event-y last-event))
-               (coord (krma.gui::untransform-global-coordinate (3dm.f::vec3 x y 0) (adhoc::send window krma.gui::buffer-view)))
+        (let* ((x (clim:pointer-event-x last-event))
+               (y (clim:pointer-event-y last-event))
+               (coord (climish::untransform-global-coordinate (3dm.f::vec3 x y 0) (adhoc::send window climish::buffer-view)))
                (font (hi::window-font-family window))
-               (cursor-pos-x (floor (krma.gui::vx coord) (slot-value (slot-value font 'krma::data) '3b-bmfont-common::space-size)))
-               (cursor-pos-y (floor (krma.gui::vy coord) (krma.gui::font-size font))))
+               (cursor-pos-x (floor (climish::vx coord) (slot-value (slot-value font 'krma::data) '3b-bmfont-common::space-size)))
+               (cursor-pos-y (floor (climish::vy coord) (climish::font-size font))))
           (with-buffer-globals ((window-buffer window))
             ;;(unless cursor-pos-y (editor-error))
             (cond ((< cursor-pos-x 2)
@@ -562,7 +562,7 @@
                  (editor-finish-output window)))
               (t
                (hi::.scroll-window. window (- cursor-pos-y)))))))
-  (krma.gui::redraw-buffer window));;);;)
+  (climish::redraw-buffer window));;);;)
 
 
 #+NOTYET
@@ -657,20 +657,20 @@
 
 (defmethod point-to-here-command (window p)
   (declare (ignore p))
-  (when (typep window 'krma.gui::text-editor-view-mixin)
-    (let ((last-event (krma.gui::window-last-event (clui::window-parent window))))
+  (when (typep window 'climish::text-editor-view-mixin)
+    (let ((last-event (climish::window-last-event (clui::window-parent window))))
       (when (typep last-event 'clui::pointer-button-press-event-mixin)
-        (let* ((pixel-x (clui::pointer-event-x last-event))
-               (pixel-y (clui::pointer-event-y last-event))
-               (buffer-view (adhoc:send window krma.gui::buffer-view))
-               (coord (krma.gui::untransform-global-coordinate
-                       (krma.gui::vec3 pixel-x pixel-y 0) buffer-view)))
-          (when (and (<= 0 (krma.gui::vx coord) (adhoc:send buffer-view krma.gui::width))
-                     (<= 0 (krma.gui::vy coord) (adhoc:send buffer-view krma.gui::height)))
+        (let* ((pixel-x (clim:pointer-event-x last-event))
+               (pixel-y (clim:pointer-event-y last-event))
+               (buffer-view (adhoc:send window climish::buffer-view))
+               (coord (climish::untransform-global-coordinate
+                       (climish::vec3 pixel-x pixel-y 0) buffer-view)))
+          (when (and (<= 0 (climish::vx coord) (adhoc:send buffer-view climish::width))
+                     (<= 0 (climish::vy coord) (adhoc:send buffer-view climish::height)))
             (let* ((font (hi::window-font-family window))
-                   (x (floor (krma.gui::vx coord)
+                   (x (floor (climish::vx coord)
                              (slot-value (slot-value font 'krma::data) '3b-bmfont-common::space-size)))
-                   (y (floor (krma.gui::vy coord) (krma.gui::font-size font)))
+                   (y (floor (climish::vy coord) (climish::font-size font)))
                    (m (cursorpos-to-mark x y window)))
               (unless m (editor-error))
               (let* ((buffer (window-buffer window))
@@ -687,19 +687,19 @@
                                                       (point-to-here-up-action window))))))))))
 
 (defun point-to-here-move-action (window)
-  (when (typep window 'krma.gui::text-editor-view-mixin)
-    (let ((last-event (krma.gui::window-last-event (clui::window-parent window))))
-      (let* ((pixel-x (clui::pointer-event-x last-event))
-               (pixel-y (clui::pointer-event-y last-event))
-               (buffer-view (adhoc:send window krma.gui::buffer-view))
-               (coord (krma.gui::untransform-global-coordinate
-                       (krma.gui::vec3 pixel-x pixel-y 0) buffer-view)))
-          (when (and (<= 0 (krma.gui::vx coord) (adhoc:send buffer-view krma.gui::width))
-                     (<= 0 (krma.gui::vy coord) (adhoc:send buffer-view krma.gui::height)))
+  (when (typep window 'climish::text-editor-view-mixin)
+    (let ((last-event (climish::window-last-event (clui::window-parent window))))
+      (let* ((pixel-x (clim:pointer-event-x last-event))
+               (pixel-y (clim:pointer-event-y last-event))
+               (buffer-view (adhoc:send window climish::buffer-view))
+               (coord (climish::untransform-global-coordinate
+                       (climish::vec3 pixel-x pixel-y 0) buffer-view)))
+          (when (and (<= 0 (climish::vx coord) (adhoc:send buffer-view climish::width))
+                     (<= 0 (climish::vy coord) (adhoc:send buffer-view climish::height)))
             (let* ((font (hi::window-font-family window))
-                   (x (floor (krma.gui::vx coord)
+                   (x (floor (climish::vx coord)
                              (slot-value (slot-value font 'krma::data) '3b-bmfont-common::space-size)))
-                   (y (floor (krma.gui::vy coord) (krma.gui::font-size font)))
+                   (y (floor (climish::vy coord) (climish::font-size font)))
                    (m (cursorpos-to-mark x y window))
                    (buffer (window-buffer window)))
               (unless m (editor-error))
@@ -711,21 +711,21 @@
               ))))))
 
 (defun point-to-here-up-action (window)
-  (when (typep window 'krma.gui::text-editor-view-mixin)
-    (let ((last-event (krma.gui::window-last-event (clui::window-parent window))))
+  (when (typep window 'climish::text-editor-view-mixin)
+    (let ((last-event (climish::window-last-event (clui::window-parent window))))
       (when (typep last-event 'clui::pointer-button-release-event-mixin)
-        (let* ((pixel-x (clui::pointer-event-x last-event))
-               (pixel-y (clui::pointer-event-y last-event))
-               (buffer-view (adhoc:send window krma.gui::buffer-view))
-               (coord (krma.gui::untransform-global-coordinate
-                       (krma.gui::vec3 pixel-x pixel-y 0) buffer-view)))
-          (when (and (<= 0 (krma.gui::vx coord) (adhoc:send buffer-view krma.gui::width))
-                     (<= 0 (krma.gui::vy coord) (adhoc:send buffer-view krma.gui::height)))
+        (let* ((pixel-x (clim:pointer-event-x last-event))
+               (pixel-y (clim:pointer-event-y last-event))
+               (buffer-view (adhoc:send window climish::buffer-view))
+               (coord (climish::untransform-global-coordinate
+                       (climish::vec3 pixel-x pixel-y 0) buffer-view)))
+          (when (and (<= 0 (climish::vx coord) (adhoc:send buffer-view climish::width))
+                     (<= 0 (climish::vy coord) (adhoc:send buffer-view climish::height)))
 
             (let* ((font (hi::window-font-family window))
-                   (x (floor (krma.gui::vx coord)
+                   (x (floor (climish::vx coord)
                              (slot-value (slot-value font 'krma::data) '3b-bmfont-common::space-size)))
-                   (y (floor (krma.gui::vy coord) (krma.gui::font-size font)))
+                   (y (floor (climish::vy coord) (climish::font-size font)))
                    (m (cursorpos-to-mark x y window))
                    (buffer (window-buffer window)))
               (unless m (editor-error))
@@ -926,7 +926,7 @@
     (unless (page-offset buffer point (- (or p 1)))
       (editor-error "No such page."))
     (line-start (move-mark (window-display-start window) point))
-    (krma.gui:redraw-buffer window)))
+    (climish:redraw-buffer window)))
 
 #+DISABLE
 (defhcommand next-page-command (window p)
@@ -943,7 +943,7 @@
     (unless (page-offset buffer point (or p 1))
       (editor-error "No such page."))
     (line-start (move-mark (window-display-start window) point))
-    (krma.gui::redraw-buffer window)))
+    (climish::redraw-buffer window)))
 
 #+DISABLE
 (defhcommand mark-page-command (window p)
@@ -1096,7 +1096,7 @@
   (declare (ignore p))
   (let ((buffer (window-buffer window)))
     (setf (buffer-major-mode buffer nil) :fundamental))
-  (krma.gui::rm-redraw-node (adhoc:send window krma.gui::modeline)))
+  (climish::rm-redraw-node (adhoc:send window climish::modeline)))
 
 
 ;;;
@@ -1114,7 +1114,7 @@
   (declare (ignore p))
     (let ((buffer (window-buffer window)))
       (setf (buffer-major-mode buffer nil) :text))
-  (krma.gui::rm-redraw-node (adhoc:send window krma.gui::modeline)))
+  (climish::rm-redraw-node (adhoc:send window climish::modeline)))
 
 ;;;
 ;;; Caps-lock mode.

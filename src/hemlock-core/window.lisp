@@ -46,19 +46,7 @@
 (declaim (special *echo-area-buffer* ; defined in echo.lisp --amb
                   *things-to-do-once*)) ; defined in display.lisp --amb
 
-#+NIL
-(defmacro with-render-thread ((app) &body body)
-  ;; maybe should make new sem
-  ;; but then it has an extra sem to gc
-  #+NIL
-  `(let ((sem (vktk::window-update-complete-semaphore ,app)
-           #+NIL
-           (bt:make-semaphore :name "a window update semaphore")))
-     (schedule-window-operation
-      #'(lambda ()
-          (unwind-protect (progn ,@body)
-            (bt:signal-semaphore sem))))
-     (bt:wait-on-semaphore sem)))
+
 
 (defparameter window-width-limit 200 "Maximum possible width for any hunk.")
 
@@ -83,7 +71,7 @@
   redisplay in several ways, the most important of which is that is does
   recentering, ensuring that the Buffer-Point of the current window's
   Window-Buffer is always displayed.  This may be set with Setf."
-  (krma.gui::focused-window (krma::main-window krma::*app*)))
+  (climish::focused-window (krma::main-window clim:*default-frame-manager*)))
 
 #+NIL
 (defun (setf current-window) (new-window)
@@ -102,7 +90,7 @@
     (move-mark (window-point window) (buffer-point (window-buffer window)))
     (let ((buffer (window-buffer new-window)))
       (move-mark (buffer-point buffer) (window-point new-window))))
-  (setf (krma.gui::focused-window (krma::main-window krma::*app*)) new-window))
+  (setf (climish::focused-window (krma::main-window clim:*default-frame-manager*)) new-window))
 
 
 

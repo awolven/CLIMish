@@ -560,7 +560,7 @@ BOOL CreateProcessW(
       (bt:make-thread #'(lambda ()
                           (hi::cmdline stream))
                       :name "CMD"))
-    (krma.gui::find-or-create-text-editor-window-for-buffer buffer)))
+    (climish::find-or-create-text-editor-window-for-buffer buffer)))
 
 #+WIN32
 (cffi:defcfun (PeekNamedPipe "PeekNamedPipe") :bool

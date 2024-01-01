@@ -24,7 +24,7 @@
    the prefix is negative)."))
 
 (defmethod next-line-command (window p)
-  (when (typep window 'krma.gui::text-editor-window)
+  (when (typep window 'climish::text-editor-window)
     (let* ((buffer (window-buffer window))
 	   (point (buffer-point buffer)))
       (let* ((target (set-target-column buffer point)))
@@ -50,7 +50,7 @@
       (if (not (displayed-p point window))
 	  (progn
 	    (hi::center-window-on-mark window point)
-	    (krma.gui:redraw-buffer window))
+	    (climish:redraw-buffer window))
 	  (update-window-image window)))))
 
 
@@ -68,13 +68,13 @@
   (:pretty-name "Enter")
   (:documentation "")
   (:help-string "")
-  (:argument-computation (let* ((window (or (krma.gui::focused-window krma.gui::os-window)
+  (:argument-computation (let* ((window (or (climish::focused-window climish::application-frame)
 					    *echo-area-window*))
-				(buffer (and (typep window 'krma.gui::text-editor-view-mixin)
+				(buffer (and (typep window 'climish::text-editor-view-mixin)
 					     (window-buffer window)))
 				(major-mode (and buffer (buffer-major-mode buffer)))
 				(universal-argument
-				  (krma.gui::universal-argument krma.gui::os-window)))
+				  (climish::universal-argument climish::application-frame)))
 			   (list window buffer major-mode universal-argument)))
   (:applicability t))
 
@@ -83,7 +83,7 @@
       (ring-push (hi::current-region buffer) hemlock::*kill-ring*)
       (if (buffer-minor-mode buffer :interactive-character-stream)
 	  (enter-command window buffer :interactive-character-stream nil)
-	  (krma.gui::handle-character-input window #\Newline (or p 1)))))
+	  (climish::handle-character-input window #\Newline (or p 1)))))
 
 (defmethod enter-command (window buffer (major-mode (eql :lisp)) p)
   ;; indent-new-line
@@ -94,7 +94,7 @@
       (if prefix
           (insert-string buffer point prefix)
           (funcall (hi::value indent-function) buffer point)))
-    (krma.gui::redraw-buffer window)))
+    (climish::redraw-buffer window)))
 
 (defmethod enter-command (window buffer (major-mode (eql :echo-area)) p)
   (declare (ignore buffer p))
@@ -147,7 +147,7 @@
     (unless (line-offset buffer point (if p p 0)) (editor-error "No such line."))
     (line-start point)
     (setf (last-command-type) nil)
-    (krma.gui:redraw-buffer window)))
+    (climish:redraw-buffer window)))
 
 
 (defhcommand end-of-line-command (window p)
@@ -161,7 +161,7 @@
     (unless (line-offset buffer point (if p p 0)) (editor-error "No such line."))
     (line-end buffer point)
     (setf (last-command-type) nil)
-    (krma.gui:redraw-buffer window)))
+    (climish:redraw-buffer window)))
 
 (defhcommand forward-character-command (view p)
     (:pretty-name "Forward Character")
@@ -209,7 +209,7 @@
 	  ((and p (minusp p))
 	   (editor-error "Not enough previous characters."))
 	  (t (editor-error "Not enough next characters.")))
-    (krma.gui:redraw-buffer view)))
+    (climish:redraw-buffer view)))
 
 (defhcommand delete-previous-character-command (view p)
     (:pretty-name "Delete Previous Character")
@@ -247,7 +247,7 @@
 		   (setf (next-character buffer point) prev)))
 	      (when (plusp arg) (mark-after buffer point)))))))
   (setf (last-command-type) nil)
-  (krma.gui:redraw-buffer view))
+  (climish:redraw-buffer view))
 
 (defhcommand forward-word-command (view p)
     (:pretty-name "Forward Word")
@@ -266,7 +266,7 @@
            (buffer-end point buffer)
            (editor-error "No next word.")))
     (setf (last-command-type) nil)
-    (krma.gui::redraw-buffer view)))
+    (climish::redraw-buffer view)))
 
 (defhcommand backward-word-command (view p)
     (:pretty-name "Backward Word")
@@ -297,26 +297,26 @@
                   :help "Name of file to read into its own buffer."
                   :default (hemlock-ext:default-directory))))
          (buffer (find-file-buffer view pn)))
-    (krma.gui::find-or-create-text-editor-window-for-buffer buffer)
+    (climish::find-or-create-text-editor-window-for-buffer buffer)
     buffer))
 
 (defcommand mousewheel-scroll-command (window p)
   (:pretty-name "Mousewheel Scroll")
   (:documentation "Use mousewheel to scroll.")
   (:help-string "Use mousewheel to scroll.")
-  (:applicability (let* ((focused (krma.gui::focused-window krma.gui::os-window)))
-		    (and focused (typep focused 'krma.gui::text-editor-view-mixin)
+  (:applicability (let* ((focused (climish::focused-window climish::application-frame)))
+		    (and focused (typep focused 'climish::text-editor-view-mixin)
 			 (not (eql focused *echo-area-window*)))))
-  (:argument-computation (let* ((focused (krma.gui::focused-window krma.gui::os-window)))
-			   (list focused (krma.gui::universal-argument krma.gui::os-window)))))
+  (:argument-computation (let* ((focused (climish::focused-window climish::application-frame)))
+			   (list focused (climish::universal-argument climish::application-frame)))))
 			   
 
 (defmethod mousewheel-scroll-command (window p)
   (declare (ignore p))
-  (let ((last-event (krma.gui::window-last-event (clui::window-parent (adhoc:send window adhoc::root)))))
+  (let ((last-event (climish::window-last-event (clui::window-parent (adhoc:send window adhoc::root)))))
     (let* ((offset (clui::pointer-wheel-event-yoffset last-event)))
       (scroll-window window (- (* 2 (round offset))))
-      (krma.gui:redraw-buffer window))))
+      (climish:redraw-buffer window))))
 
 (defhcommand cycle-windows-command (window p)
     (:pretty-name "Cycle Windows")
@@ -325,10 +325,10 @@
 
 (defmethod cycle-windows-command (window p)
   (declare (ignore p))
-  (let ((next (krma.gui::next window)))
+  (let ((next (climish::next window)))
     (when (clui::window-iconified? next)
       (setf (clui::window-iconified? next) nil))
-    (krma.gui::focus-window next)))
+    (climish::focus-window next)))
 
 (defhcommand reverse-cycle-windows-command (window p)
     (:pretty-name "Reverse Cycle Windows")
@@ -337,10 +337,10 @@
 
 (defmethod reverse-cycle-windows-command (window p)
   (declare (ignore p))
-  (let ((prev (krma.gui::prev window)))
+  (let ((prev (climish::prev window)))
     (when (clui::window-iconified? prev)
       (setf (clui::window-iconified? prev) nil))
-    (krma.gui::focus-window prev)))
+    (climish::focus-window prev)))
 
 (defhcommand iconify-window-command (window p)
   (:pretty-name "Iconify Window")
@@ -349,8 +349,8 @@
 
 (defmethod iconify-window-command (window p)
   (declare (ignore p))
-  (let ((next (krma.gui::next window)))
-    (krma.gui::focus-window next)
+  (let ((next (climish::next window)))
+    (climish::focus-window next)
     (setf (clui::window-iconified? window) t)))
 
 (defhcommand beginning-of-buffer-command (window p)
@@ -364,7 +364,7 @@
     (with-buffer-globals (buffer)
       (buffer-start .point. .buffer.))
     (hi::maybe-recenter-window-on-mark window (buffer-point buffer))
-    (krma.gui::redraw-buffer window)))
+    (climish::redraw-buffer window)))
 
 (defhcommand end-of-buffer-command (window p)
   (:pretty-name "End of Buffer")
@@ -377,7 +377,7 @@
     (with-buffer-globals (buffer)
       (buffer-end .point. .buffer.))
     (hi::maybe-rebottom-window-on-mark window (buffer-point buffer))
-    (krma.gui::redraw-buffer window)))
+    (climish::redraw-buffer window)))
 
 (defhcommand scroll-window-down-command (window p)
   (:pretty-name "Scroll Window Down")
@@ -398,7 +398,7 @@
 		(overlap (value hemlock::scroll-overlap)))
 	    (hi::.scroll-window. window (if (<= height overlap)
 					    height (- height overlap))))))
-    (krma.gui::redraw-buffer window)))
+    (climish::redraw-buffer window)))
 
 (defhcommand scroll-window-up-command (window p)
   (:pretty-name "Scroll Window Up")
@@ -418,4 +418,4 @@
 		(overlap (- (value hemlock::scroll-overlap))))
 	    (hi::.scroll-window. window (if (>= height overlap)
 					    height (- height overlap))))))
-    (krma.gui::redraw-buffer window)))
+    (climish::redraw-buffer window)))

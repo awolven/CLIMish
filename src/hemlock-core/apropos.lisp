@@ -172,4 +172,4 @@
      ((null data)
       (message "No apropos results for: ~A" str))
      (t
-      (make-apropos-buffer (krma.gui::focused-window (clui::window-parent *echo-area-window*)) entries)))))
+      (make-apropos-buffer (climish::focused-window (clui::window-parent *echo-area-window*)) entries)))))

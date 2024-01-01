@@ -59,14 +59,14 @@
      (declare (ignore buffer window))
      "  Type ? for help.  "))
 
-(defun dired-context? (os-window)
-  (let* ((homemade-window (krma.gui::focused-window os-window))
+(defun dired-context? (application-frame)
+  (let* ((homemade-window (climish::focused-window application-frame))
          (buffer (window-buffer homemade-window))
          (major-mode (and buffer (buffer-major-mode buffer))))
     (eq major-mode :dired)))
 
-(defun view-context? (os-window)
-  (let* ((homemade-window (krma.gui::focused-window os-window))
+(defun view-context? (application-frame)
+  (let* ((homemade-window (climish::focused-window application-frame))
          (buffer (window-buffer homemade-window))
          (major-mode (and buffer (buffer-major-mode buffer))))
     (eq major-mode :view)))
@@ -92,7 +92,7 @@
                                  p)
                              directory)))
     (if (eq window *echo-area-window*)
-        (krma.gui::find-or-create-text-editor-window-for-buffer buffer)
+        (climish::find-or-create-text-editor-window-for-buffer buffer)
         (setf (window-buffer window) buffer))))
 
 (defhcommand dired-with-pattern-command (window p)
@@ -213,8 +213,8 @@
    for deletion.")
   (:help-string
    "Marks a file for deletion; signals an error if not in a dired buffer.")
-  (:applicability (dired-context? krma.gui::os-window))
-  (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window)))
+  (:applicability (dired-context? climish::application-frame))
+  (:argument-computation (climish::hemlock-arguments climish::application-frame)))
 
 (defmethod dired-delete-file-command (window p)
   (dired-frob-deletion window p t))
@@ -228,8 +228,8 @@
    for deletion.")
   (:help-string
    "Removes a mark for deletion; signals and error if not in a dired buffer.")
-  (:applicability (dired-context? krma.gui::os-window))
-  (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window)))
+  (:applicability (dired-context? climish::application-frame))
+  (:argument-computation (climish::hemlock-arguments climish::application-frame)))
 
 (defmethod dired-undelete-file-command (window p)
   (dired-frob-deletion window p nil))
@@ -240,8 +240,8 @@
    See \"Dired Delete File\".")
   (:help-string "Marks file for deletion and moves down a line.
    See \"Dired Delete File\".")
-  (:applicability (dired-context? krma.gui::os-window))
-  (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window)))
+  (:applicability (dired-context? climish::application-frame))
+  (:argument-computation (climish::hemlock-arguments climish::application-frame)))
 
 (defmethod dired-delete-file-and-down-line-command (window p)
   (declare (ignore p))
@@ -255,8 +255,8 @@
    See \"Dired Delete File\".")
   (:help-string "Marks file undeleted and moves down a line.
    See \"Dired Delete File\".")
-  (:applicability (dired-context? krma.gui::os-window))
-  (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window)))
+  (:applicability (dired-context? climish::application-frame))
+  (:argument-computation (climish::hemlock-arguments climish::application-frame)))
   
 
 (defmethod dired-undelete-file-and-down-line-command (window p)
@@ -271,8 +271,8 @@
    See \"Dired Delete File\".")
   (:help-string "Prompts for a pattern and marks matching files for deletion.
    See \"Dired Delete File\".")
-  (:applicability (dired-context? krma.gui::os-window))
-  (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window)))
+  (:applicability (dired-context? climish::application-frame))
+  (:argument-computation (climish::hemlock-arguments climish::application-frame)))
 
 (defmethod dired-delete-file-with-pattern-command (window p)
   (declare (ignore p))
@@ -286,8 +286,8 @@
    See \"Dired Delete File\".")
   (:help-string "Prompts for a pattern and marks matching files undeleted.
    See \"Dired Delete File\".")
-  (:applicability (dired-context? krma.gui::os-window))
-  (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window)))
+  (:applicability (dired-context? climish::application-frame))
+  (:argument-computation (climish::hemlock-arguments climish::application-frame)))
 
 (defmethod dired-undelete-file-with-pattern-command (window p)
   (declare (ignore p))
@@ -332,7 +332,7 @@
                         (file-write-date (dired-file-pathname dired-file)))
                   (setf (dired-file-write-date dired-file) nil))
               (setf (next-character current-buffer mark) note-char))))))
-    (krma.gui:redraw-buffer current-window)))
+    (climish:redraw-buffer current-window)))
 
 (defun dired-down-line (buffer point)
   (line-offset buffer point 1)
@@ -347,8 +347,8 @@
   (:pretty-name "Dired Edit File")
   (:documentation "Read in file or recursively \"Dired\" a directory.")
   (:help-string "Read in file or recursively \"Dired\" a directory.")
-  (:applicability (dired-context? krma.gui::os-window))
-  (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window)))
+  (:applicability (dired-context? climish::application-frame))
+  (:argument-computation (climish::hemlock-arguments climish::application-frame)))
 
 (defmethod dired-edit-file-command (window p)
   (declare (ignore p))
@@ -362,7 +362,7 @@
       (if (directoryp pathname)
           (dired-command window nil (directory-namestring pathname))
           (change-to-buffer (find-file-buffer window pathname) window)))
-    (krma.gui::rm-redraw-node-recursively window)))
+    (climish::rm-redraw-node-recursively window)))
 
 (defcommand dired-view-file-command (window p)
   (:pretty-name "Dired View File")
@@ -372,8 +372,8 @@
   (:help-string
    "Read in file as if by \"View File\".
    This associates the file's buffer with the dired buffer.")
-  (:applicability (dired-context? krma.gui::os-window))
-  (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window)))
+  (:applicability (dired-context? climish::application-frame))
+  (:argument-computation (climish::hemlock-arguments climish::application-frame)))
 
 (defmethod dired-view-file-command (window p)
   (declare (ignore p))
@@ -420,8 +420,8 @@
    buffer.")
   (:help-string "Invokes \"Dired\" on the directory up one level from the current Dired
    buffer.")
-  (:applicability (dired-context? krma.gui::os-window))
-  (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window)))
+  (:applicability (dired-context? climish::application-frame))
+  (:argument-computation (climish::hemlock-arguments climish::application-frame)))
 
 (defmethod dired-up-directory-command (window p)
   (declare (ignore p))
@@ -445,8 +445,8 @@
   (:help-string
    "Recompute the contents of a dired buffer.
    This maintains delete flags for files that have not been modified.")
-  (:applicability (dired-context? krma.gui::os-window))
-  (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window)))
+  (:applicability (dired-context? climish::application-frame))
+  (:argument-computation (climish::hemlock-arguments climish::application-frame)))
 
 (defmethod dired-update-buffer-command (window p)
   (declare (ignore p))
@@ -540,8 +540,8 @@
   (:pretty-name "Dired Help")
   (:documentation "How to use dired.")
   (:help-string "How to use dired.")
-  (:applicability (dired-context? krma.gui::os-window))
-  (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window)))
+  (:applicability (dired-context? climish::application-frame))
+  (:argument-computation (climish::hemlock-arguments climish::application-frame)))
 
 (defmethod dired-help-command (window p)
   (declare (ignore p))
@@ -551,8 +551,8 @@
   (:pretty-name "Dired Next File")
   (:documentation "Moves to next undeleted file.")
   (:help-string "Moves to next undeleted file.")
-  (:applicability (dired-context? krma.gui::os-window))
-  (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window)))
+  (:applicability (dired-context? climish::application-frame))
+  (:argument-computation (climish::hemlock-arguments climish::application-frame)))
 
 (defmethod dired-next-file-command (window p)
   (let ((buffer (window-buffer window)))
@@ -563,8 +563,8 @@
   (:pretty-name "Dired Previous File")
   (:documentation "Moves to previous undeleted file.")
   (:help-string "Moves to next undeleted file.")
-  (:applicability (dired-context? krma.gui::os-window))
-  (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window)))
+  (:applicability (dired-context? climish::application-frame))
+  (:argument-computation (climish::hemlock-arguments climish::application-frame)))
 
 (defmethod dired-previous-file-command (window p)
   (let ((buffer (window-buffer window)))
@@ -616,8 +616,8 @@
    Query the user if value of \"Dired File Expunge Confirm\" is non-nil.  Do
    the same with directories and the value of \"Dired Directory Expunge
    Confirm\".")
-  (:applicability (dired-context? krma.gui::os-window))
-  (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window)))
+  (:applicability (dired-context? climish::application-frame))
+  (:argument-computation (climish::hemlock-arguments climish::application-frame)))
 
 (defmethod dired-expunge-files-command (window p)
   (declare (ignore p))
@@ -629,8 +629,8 @@
   (:pretty-name "Dired Quit")
   (:documentation "Expunges the files in a dired buffer and then exits.")
   (:help-string "Expunges the files in a dired buffer and then exits.")
-  (:applicability (dired-context? krma.gui::os-window))
-  (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window)))
+  (:applicability (dired-context? climish::application-frame))
+  (:argument-computation (climish::hemlock-arguments climish::application-frame)))
 
 (defmethod dired-quit-command (window p)
   (declare (ignore p))
@@ -688,8 +688,8 @@
   (:pretty-name "Dired Copy File")
   (:documentation "Copy the file under the point")
   (:help-string "Copy the file under the point")
-  (:applicability (dired-context? krma.gui::os-window))
-  (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window)))
+  (:applicability (dired-context? climish::application-frame))
+  (:argument-computation (climish::hemlock-arguments climish::application-frame)))
 
 (defmethod dired-copy-file-command (window p)
   (declare (ignore p))
@@ -719,8 +719,8 @@
   (:pretty-name "Dired Rename File")
   (:documentation "Rename the file or directory under the point")
   (:help-string "Rename the file or directory under the point")
-  (:applicability (dired-context? krma.gui::os-window))
-  (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window)))
+  (:applicability (dired-context? climish::application-frame))
+  (:argument-computation (climish::hemlock-arguments climish::application-frame)))
 
 (defmethod dired-rename-file-command (window p)
   (declare (ignore p))
@@ -748,8 +748,8 @@
   (:pretty-name "Dired Copy with Wildcard")
   (:documentation "Copy files that match a pattern containing ONE wildcard.")
   (:help-string "Copy files that match a pattern containing ONE wildcard.")
-  (:applicability (dired-context? krma.gui::os-window))
-  (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window)))
+  (:applicability (dired-context? climish::application-frame))
+  (:argument-computation (climish::hemlock-arguments climish::application-frame)))
 
 (defmethod dired-copy-with-wildcard-command (window p)
   (declare (ignore p))
@@ -779,8 +779,8 @@
   (:pretty-name "Dired Rename with Wildcard")
   (:documentation "Rename files that match a pattern containing ONE wildcard.")
   (:help-string "Rename files that match a pattern containing ONE wildcard.")
-  (:applicability (dired-context? krma.gui::os-window))
-  (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window)))
+  (:applicability (dired-context? climish::application-frame))
+  (:argument-computation (climish::hemlock-arguments climish::application-frame)))
 
 (defmethod dired-rename-with-wildcard-command (window p)
   (declare (ignore p))
@@ -809,8 +809,8 @@
   (:pretty-name "Delete File")
   (:documentation "Delete a file.  Specify directories with a trailing slash.")
   (:help-string "Delete a file.  Specify directories with a trailing slash.")
-  (:applicability (dired-context? krma.gui::os-window))
-  (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window)))
+  (:applicability (dired-context? climish::application-frame))
+  (:argument-computation (climish::hemlock-arguments climish::application-frame)))
 
 (defmethod delete-file-command (window p)
   (declare (ignore p))
@@ -841,8 +841,8 @@
   (:pretty-name "Copy File")
   (:documentation "Copy a file, allowing ONE wildcard.")
   (:help-string "Copy a file, allowing ONE wildcard.")
-  (:applicability (dired-context? krma.gui::os-window))
-  (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window)))
+  (:applicability (dired-context? climish::application-frame))
+  (:argument-computation (climish::hemlock-arguments climish::application-frame)))
 
 (defmethod copy-file-command (window p)
   (declare (ignore p))
@@ -873,8 +873,8 @@
   (:pretty-name "Rename File")
   (:documentation "Rename a file, allowing ONE wildcard.")
   (:help-string "Rename a file, allowing ONE wildcard.")
-  (:applicability (dired-context? krma.gui::os-window))
-  (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window)))
+  (:applicability (dired-context? climish::application-frame))
+  (:argument-computation (climish::hemlock-arguments climish::application-frame)))
 
 (defmethod rename-file-command (window p)
   (declare (ignore p))
@@ -979,8 +979,8 @@
    for scrolling convenience.")
   (:help-string "Reads a file in as if by \"Find File\", but read-only.  Commands exist
    for scrolling convenience.")
-  (:applicability (dired-context? krma.gui::os-window))
-  (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window)))
+  (:applicability (dired-context? climish::application-frame))
+  (:argument-computation (climish::hemlock-arguments climish::application-frame)))
 
 (defmethod view-file-command (window p &optional pathname)
   (declare (ignore p))
@@ -1001,8 +1001,8 @@
   (:pretty-name "View Return")
   (:documentation "Return to a parent buffer, if it exists.")
   (:help-string "Return to a parent buffer, if it exists.")
-  (:applicability (view-context? krma.gui::os-window))
-  (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window)))
+  (:applicability (view-context? climish::application-frame))
+  (:argument-computation (climish::hemlock-arguments climish::application-frame)))
 
 (defmethod view-return-command (window p)
   (declare (ignore p))
@@ -1014,8 +1014,8 @@
   (:documentation "Delete a buffer in view mode.")
   (:help-string "Delete a buffer in view mode, invoking VIEW-RETURN-FUNCTION if it exists for
    this buffer.")
-  (:applicability (view-context? krma.gui::os-window))
-  (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window)))
+  (:applicability (view-context? climish::application-frame))
+  (:argument-computation (climish::hemlock-arguments climish::application-frame)))
 
 (defmethod view-quit-command (window p)
   (declare (ignore p))
@@ -1048,8 +1048,8 @@
    If the end of the file is visible, then delete the buffer if \"View Scroll
    Deleting Buffer\" is set.  If the buffer is associated with a dired buffer,
    this returns there instead of to the previous buffer.")
-  (:applicability (view-context? krma.gui::os-window))
-  (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window)))
+  (:applicability (view-context? climish::application-frame))
+  (:argument-computation (climish::hemlock-arguments climish::application-frame)))
 
 (defmethod view-scroll-down-command (window p)
   (if (and (not p)
@@ -1063,8 +1063,8 @@
   (:pretty-name "View Edit File")
   (:documentation "Turn off \"View\" mode in this buffer.")
   (:help-string "Turn off \"View\" mode in this buffer.")
-  (:applicability (view-context? krma.gui::os-window))
-  (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window)))
+  (:applicability (view-context? climish::application-frame))
+  (:argument-computation (climish::hemlock-arguments climish::application-frame)))
 
 (defmethod view-edit-file-command (window p)
   (declare (ignore p))
@@ -1076,8 +1076,8 @@
   (:pretty-name "View Help")
   (:documentation "Shows \"View\" mode help message.")
   (:help-string "Shows \"View\" mode help message.")
-  (:applicability (view-context? krma.gui::os-window))
-  (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window)))
+  (:applicability (view-context? climish::application-frame))
+  (:argument-computation (climish::hemlock-arguments climish::application-frame)))
 
 (defmethod view-help-command (window p) 
   (declare (ignore p))

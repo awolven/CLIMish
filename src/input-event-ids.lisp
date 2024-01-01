@@ -1,4 +1,4 @@
-(in-package :krma.gui)
+(in-package :climish)
 
 (defstruct (input-event-id (:print-function %print-input-event-id)
 			       (:constructor %make-input-event-id (scancode modifier-bits action-bit)))

@@ -530,7 +530,7 @@
                        (transpose-words-backward buffer point mark start)
                        (editor-error))))
                 (t (editor-error)))))
-      (mapcar #'krma.gui::redraw-buffer (buffer-windows buffer)))))
+      (mapcar #'climish::redraw-buffer (buffer-windows buffer)))))
 
 
 (defun transpose-words-forward (buffer mark1 end mark2)

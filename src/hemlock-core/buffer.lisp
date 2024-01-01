@@ -217,8 +217,8 @@
     (setf (car (buffer-modes buffer)) name)
     (funcall (mode-object-setup-function mode) buffer)
     (invoke-hook (%value (mode-object-hook-name mode)) buffer t))
-  (when (boundp 'krma.gui::*app*)
-    (krma.gui::compute-applicable-commands (krma.gui::main-window krma.gui::*app*)))
+  (when (boundp 'clim::*default-frame-manager**)
+    (climish::compute-applicable-commands (climish::main-window clim::*default-frame-manager*)))
   nil)
 
 
@@ -298,7 +298,7 @@
                      (delq mode (buffer-mode-objects buffer)))))
         ;; We always use the same string, so we can delq it (How Tense!)
         (setf (buffer-modes buffer) (delq name (buffer-modes buffer))))))
-    (mapcar #'krma.gui::rebuild-command-table (buffer-windows buffer))
+    (mapcar #'climish::rebuild-command-table (buffer-windows buffer))
     new-value))
 
 ;;;; CURRENT-BUFFER, CURRENT-POINT, and buffer using setup and cleanup.
@@ -382,8 +382,8 @@
 	(catch 'leave-recursive-edit
 	  (if handle-abort
 	      (loop (catch 'editor-top-level-catcher
-		      (krma.gui::command-loop (krma.gui::main-window krma.gui::*app*))))
-	      (krma.gui::command-loop (krma.gui::main-window krma.gui::*app*)))))
+		      (climish::command-loop (climish::main-window clim::*default-frame-manager*))))
+	      (climish::command-loop (climish::main-window clim::*default-frame-manager*)))))
     (case flag
       (:abort (apply #'editor-error args))
       (:exit (values-list args))
@@ -533,7 +533,7 @@
            (error ":delete-hook is a list of functions -- ~S." delete-hook))
          (let* ((region (make-empty-region)) ;; makes line with disembodied buffer
                 (object (gethash :fundamental *mode-names*))
-                (buffer (make-instance 'krma.gui::text-editor-buffer
+                (buffer (make-instance 'climish::text-editor-buffer
                          :%name name
                          :%region region
                          :modes (list (mode-object-name object))

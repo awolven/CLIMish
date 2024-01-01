@@ -109,7 +109,7 @@
                   (%i-search current-window buffer "" point here direction nil))
                 :control-g)
         (move-mark point save-start)
-        (krma.gui::redraw-buffer current-window)
+        (climish::redraw-buffer current-window)
         (invoke-hook abort-hook)
         (editor-error))
       (if (region-active-p buffer)
@@ -177,7 +177,7 @@
     (let ((peek-event (my-listen *editor-input*)))
       (case (%i-search-char-eval current-window
                                  buffer
-                                 (krma.gui::input-event-id peek-event) string point trailer
+                                 (climish::input-event-id peek-event) string point trailer
                                  direction failure)
         (:cancel
          (%i-search-echo-refresh string direction failure)
@@ -199,20 +199,20 @@
   (let ((event nil))
     (loop
       until (setq event
-                  (krma.gui::peek-next-event input))
+                  (climish::peek-next-event input))
       do (sleep 0.001)
       finally (return event))))
 
 (defun next-event-character/id (input)
-  (krma.gui::input-event-id
-   (krma.gui::get-next-event input)))
+  (climish::input-event-id
+   (climish::get-next-event input)))
 
 (defun discard-next-event (input)
-  (krma.gui::get-next-event input))
+  (climish::get-next-event input))
 
 (defun maybe-discard-char-event (input)
   (sleep 0.01) ;; race condition problem.
-  (let ((peeked-event (krma.gui::peek-next-event input)))
+  (let ((peeked-event (climish::peek-next-event input)))
     (when (typep peeked-event 'clui::character-event-mixin)
       (discard-next-event input))))
   
@@ -347,7 +347,7 @@
   (let* ((event (my-listen *editor-input*))
          (tchar (clui::input-event-character event)))
     (if (null tchar)
-        (unless (%i-search-test-peeked-event current-window buffer (krma.gui::input-event-id event)
+        (unless (%i-search-test-peeked-event current-window buffer (climish::input-event-id event)
                                              string point trailer direction failure)
           (editor-error "Not a text character -- ~S"
                         (next-event-character/id *editor-input*)))
@@ -390,7 +390,7 @@
            (push-buffer-mark buffer trailer t)
 
            (if (hi::maybe-recenter-window-on-mark current-window point)
-               (krma.gui::redraw-buffer current-window)
+               (climish::redraw-buffer current-window)
                (hi::update-window-image current-window))
 
            (%i-search current-window buffer string point trailer direction nil))
@@ -399,7 +399,7 @@
              (move-mark point backup)
              (move-mark trailer backup)
              (if (hi::maybe-recenter-window-on-mark current-window point)
-                 (krma.gui::redraw-buffer current-window)
+                 (climish::redraw-buffer current-window)
                  (hi::update-window-image current-window)))
            (%i-search-echo-refresh string direction "Failing")
            (if (interactive)

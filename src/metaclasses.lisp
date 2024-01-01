@@ -1,4 +1,4 @@
-(in-package :krma.gui)
+(in-package :climish)
 
 (defclass homemade-window-class (adhoc:adhoc-class)
   ((command-table :initform (make-hash-table :test #'eq))))

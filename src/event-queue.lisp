@@ -1,4 +1,4 @@
-(in-package :krma.gui)
+(in-package :climish)
 
 (defclass event-queue-mixin ()
   ((input-event-queue
@@ -13,11 +13,7 @@
       (lparallel.queue:try-pop-queue (input-event-queue window) :timeout timeout)
       (lparallel.queue:pop-queue (input-event-queue window))))
 
-(defmethod clui:handle-event :after ((window krma-gui-window-mixin)
-				     (event clui::character-event-mixin))
-  (let ((character (clui::input-event-character event)))
-    (declare (ignorable character))
-    (lparallel.queue:push-queue event (input-event-queue window))))
+
 
 (defun modifier-key-p (event-id)
   (or (eq (input-event-id-scancode event-id) clui::+key-left-alt+)
@@ -29,29 +25,9 @@
       (eq (input-event-id-scancode event-id) clui::+key-left-shift+)
       (eq (input-event-id-scancode event-id) clui::+key-right-shift+)))
 
-(defmethod clui:handle-event :after ((window krma-gui-window-mixin)
-				     (event clui::key-press-event-mixin))
-  (let ((event-id (input-event-id event)))
-    (unless (modifier-key-p event-id)
-      (lparallel.queue:push-queue event (input-event-queue window)))))
 
-(defmethod clui:handle-event :after ((window krma-gui-window-mixin)
-				     (event clui::pointer-button-press-event-mixin))
-  (lparallel.queue:push-queue event (input-event-queue window)))
 
-(defmethod clui:handle-event :after ((window krma-gui-window-mixin)
-				     (event clui::pointer-wheel-event-mixin))
-  (lparallel.queue:push-queue event (input-event-queue window)))
-
-(defmethod clui:handle-event :after ((window krma-gui-window-mixin)
-				     (event clui::spaceball-event-mixin))
-  (lparallel.queue:push-queue event (input-event-queue window)))
-
-(defmethod clui:handle-event :after ((window krma-gui-window-mixin)
-				     (event clui::joystick-event-mixin))
-  (lparallel.queue:push-queue event (input-event-queue window)))
-
-;; handle-event :after krma-gui-window-mixin pointer-press-event and pointer-release-event
+;; handle-event :after application-frame-mixin pointer-press-event and pointer-release-event
 ;; are in views.lisp
 
 (defun message (format-string &rest args)
@@ -61,46 +37,14 @@
 (defmethod handle-character-input (window char p)
   (declare (ignore window char p)))
 
-(defcommand insert-character-command (window character p)
-  (:pretty-name "Insert Character")
-  (:documentation "This command is the value for the default command.")
-  (:help-string "This command is the value for the default command.")
-  (:argument-computation (list
-			  (or (focused-window os-window) *echo-area-window*)
 
-			   ;; potential race condition:
-			   ;; character-event has 1/100th of a second to show up in queue
-			   ;; otherwse event is ignored
-			   ;; so if computer is running very slowly character events will be dropped
-			   (let ((event (get-next-event os-window 0.01)))
-			     
-			     (if event
-
-				 (progn
-				   (setf (window-last-event os-window) event)
-				   (let ((event-id (input-event-id event)))
-				     
-				   (if (characterp event-id)
-				       
-				       event-id
-				       
-				       (throw :reset nil))))
-
-				 (throw :reset nil)))
-
-			   (universal-argument os-window)))
-  
-  (:applicability (hemlock-applicability os-window)))
-
-(defmethod insert-character-command (window character p)
-  (handle-character-input window character (or p 1)))
 			   
 
-(defun command-loop (os-window)
-  (compute-applicable-commands os-window)
-  (command-loop-1 os-window (command-table os-window)))
+(defun command-loop (application-frame)
+  (compute-applicable-commands application-frame)
+  (command-loop-1 application-frame (command-table application-frame)))
 
-(defun command-loop-1 (os-window command-table)  
+(defun command-loop-1 (application-frame command-table)  
   (let ((event)
 	(event-id)
 	(table-chain)
@@ -136,9 +80,9 @@
 	     (setq event-chain ())
 	     (setq table-chain (list command-table))
        
-	   GET (setq event (get-next-event os-window))
+	   GET (setq event (get-next-event application-frame))
 	     (unless event (go GET))
-	     (setf (window-last-event os-window) event)
+	     (setf (window-last-event application-frame) event)
 	     (setq event-id (input-event-id event))
 
 	   CHECK 
@@ -170,8 +114,8 @@
 		      (cond ((null result)
 
 			     (catch :reset
-			       (when (default-command os-window)
-				 (invoke-command (default-command os-window) os-window)))
+			       (when (default-command application-frame)
+				 (invoke-command (default-command application-frame) application-frame)))
 			   
 			     (go RESET))
 		       
@@ -182,17 +126,14 @@
 			    (t (catch 'ignore
 				 (catch 'hi::command-loop-catcher
 				   ;;(funcall hi::*invoke-hook* result w p)))
-				   (invoke-command result os-window)))
+				   (invoke-command result application-frame)))
 			       (go RESET))))))))))
 
-(defun start-command-loop (os-window)
+(defun start-command-loop (application-frame)
   (bt:make-thread #'(lambda ()
-		      (bt:wait-on-semaphore (command-loop-go-semaphore os-window))
-		      (command-loop os-window)) :name "command loop")
+		      (bt:wait-on-semaphore (command-loop-go-semaphore application-frame))
+		      (command-loop application-frame)) :name "command loop")
   #+SBCL(sb-thread:release-foreground (bt:current-thread)))
 
-(defmethod initialize-instance :after ((window krma-gui-window-mixin) &rest initargs)
-  (declare (ignore initargs))
-  (start-command-loop window)
-  (values))
+
 

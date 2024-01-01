@@ -405,7 +405,7 @@
   (defun command-case-tag (tag key-event char)
     (cond ((and (characterp tag) (standard-char-p tag))
            `(and ,char (char= ,char ,tag)))
-          ((and (typep tag 'krma.gui::input-event-id))
+          ((and (typep tag 'climish::input-event-id))
            `(eq ,key-event ,tag))                
           ((and (symbolp tag) (keywordp tag))
            `(logical-key-event-p ,key-event ,tag))
@@ -674,7 +674,7 @@
        (hemlock::simple-backtrace *standard-output*)
        (invoke-debugger condition))
       ((and *stack-trace-on-error* (not message-only-p))
-       (let ((cw (krma.gui::focused-window (clui::window-parent *echo-area-window*))))
+       (let ((cw (climish::focused-window (clui::window-parent *echo-area-window*))))
          (with-pop-up-display (s :height 100 :current-window cw)
            (format s "An error of type ~A has been caught and ignored:~%  ~A~%~%"
                    (type-of condition)
@@ -684,7 +684,7 @@
            (format s "~%Restarts would have been:~%~%")
            (simple-print-restarts s)
            (hemlock::beginning-of-buffer-command cw nil)
-           (krma.gui::rm-redraw-node-recursively cw)))
+           (climish::rm-redraw-node-recursively cw)))
        (throw 'command-loop-catcher nil))
       (message-only-p
        (message "Error: ~A" condition)
@@ -714,3 +714,123 @@
 
 (defmacro later (&body body)
   `(invoke-later *connection-backend* (lambda () ,@body)))
+
+;; cursor.lisp macros
+;;;  Do a find-character-with-attribute on the *losing-character-mask*.
+(defmacro %fcwa (str start end mask)
+  `(%sp-find-character-with-attribute
+    ,str ,start ,end *losing-character-mask* ,mask))
+
+;;; Get the print-representation of a character.
+(defmacro get-rep (ch)
+  `(char-set-ref *print-representation-char-set* (char-code ,ch)))
+
+;;; cached-real-line-length
+;;;
+;;;    The same as Real-Line-Length, except does it for the cached line.
+;;; the line argument is ignored, but present to make the arglists the
+;;; same.
+;;;
+(defmacro .cached-real-line-length. (line width start end)
+  (let ((line-sym (gensym))
+        (width-sym (gensym))
+        (start-sym (gensym))
+        (end-sym (gensym)))
+    `(let ((,line-sym ,line)
+           (,width-sym ,width)
+           (,start-sym ,start)
+           (,end-sym ,end))
+       (declare (fixnum ,width-sym ,start-sym ,end-sym))
+       (declare (ignore ,line-sym))
+       (let ((offset (- right-open-pos left-open-pos))
+             (bound 0))
+         (declare (fixnum offset bound))
+         (cond
+           ((>= ,start-sym left-open-pos)
+            (setq ,start-sym (+ ,start-sym offset)
+                  bound (setq ,end-sym (+ ,end-sym offset))))
+           ((> ,end-sym left-open-pos)
+            (setq bound left-open-pos
+                  ,end-sym (+ ,end-sym offset)))
+           (t
+            (setq bound ,end-sym)))
+
+         (do ((xpos 0)
+              (ypos 0)
+              (losing 0)
+              (dy 0))
+             (())
+           (declare (fixnum xpos ypos dy)
+                    (type (or fixnum null) losing))
+           (when (= ,start-sym bound)
+             (when (= ,start-sym ,end-sym) (return (values xpos ypos)))
+             (setq ,start-sym right-open-pos  bound ,end-sym))
+           (setq losing (%fcwa open-chars ,start-sym bound losing-char))
+           (cond
+             (losing
+              (multiple-value-setq (dy xpos)
+                (truncate (+ xpos (- losing ,start-sym)) ,width-sym))
+              (setq ypos (+ ypos dy)  ,start-sym losing)
+              (do ((last (or (%fcwa open-chars ,start-sym bound winning-char) bound)) str)
+                  ((= ,start-sym last))
+                (declare (fixnum last))
+                (setq str (get-rep (schar open-chars ,start-sym)))
+                (incf ,start-sym)
+                (unless (simple-string-p str) (setq str (funcall str xpos)))
+                (multiple-value-setq (dy xpos)
+                  (truncate (+ xpos (strlen str)) ,width-sym))
+                (setq ypos (+ ypos dy))))
+             (t
+              (multiple-value-setq (dy xpos)
+                (truncate (+ xpos (- bound ,start-sym)) ,width-sym))
+              (setq ypos (+ ypos dy)  ,start-sym bound))))))))
+
+;;; real-line-length
+;;;
+;;;    Return as values the X position and the number of times wrapped if
+;;; one to display the characters from Start to End of Line starting at an
+;;; X position of 0 wrapping Width wide.
+;;; %SP-Find-Character-With-Attribute is used to find charaters
+;;; with funny representation much as in Compute-Line-Image.
+;;;
+(defmacro .real-line-length. (line width start end)
+  (let ((line-sym (gensym))
+        (width-sym (gensym))
+        (start-sym (gensym))
+        (end-sym (gensym)))
+    `(let ((,line-sym ,line)
+           (,width-sym ,width)
+           (,start-sym ,start)
+           (,end-sym ,end))
+       (declare (fixnum ,width-sym ,start-sym ,end-sym))
+       (do ((xpos 0)
+            (ypos 0)
+            (chars (line-chars ,line-sym))
+            (losing 0)
+            (dy 0))
+           ((cond ((= ,start-sym ,end-sym) t)
+                  ((>= ,start-sym (1- (length chars)))
+                   (setq xpos (1- (length chars)))
+                   t)
+                  ((> ,end-sym (length chars))
+                   t)
+                  ((> ,start-sym ,end-sym)
+                   (setq xpos (length chars))
+                   t))
+            (values xpos ypos))
+         (declare (fixnum xpos ypos dy) (simple-string chars)
+                  (type (or fixnum null) losing))
+         (setq losing (%fcwa chars ,start-sym ,end-sym losing-char))
+         (when (null losing)
+           (multiple-value-setq (dy xpos) (truncate (+ xpos (- ,end-sym ,start-sym)) ,width-sym))
+           (return (values xpos (+ ypos dy))))
+         (multiple-value-setq (dy xpos) (truncate (+ xpos (- losing ,start-sym)) ,width-sym))
+         (setq ypos (+ ypos dy)  ,start-sym losing)
+         (do ((last (or (%fcwa chars ,start-sym ,end-sym winning-char) ,end-sym)) str)
+             ((= ,start-sym last))
+           (declare (fixnum last))
+           (setq str (get-rep (schar chars ,start-sym)))
+           (incf ,start-sym)
+           (unless (simple-string-p str) (setq str (funcall str xpos)))
+           (multiple-value-setq (dy xpos) (truncate (+ xpos (strlen str)) ,width-sym))
+           (setq ypos (+ ypos dy)))))))

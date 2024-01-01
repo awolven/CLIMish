@@ -74,7 +74,7 @@
 ;;;
 
 (defun control-g-deactivate-region ()
-  (let ((window (krma.gui::focused-window (krma::main-window krma::*app*))))
+  (let ((window (climish::focused-window (krma::main-window clim:*default-frame-manager*))))
     (when window
       (deactivate-region (window-buffer window)))))
 ;;;
@@ -260,7 +260,7 @@
 (defmethod kill-next-word-command (window p)
   (let ((buffer (window-buffer window)))
     (kill-next-word buffer p)
-    (krma.gui:redraw-buffer window)))
+    (climish:redraw-buffer window)))
 
 (defhcommand kill-previous-word-command (window p)
   (:pretty-name "Kill Previous Word")
@@ -274,7 +274,7 @@
 (defmethod kill-previous-word-command (window p)
   (let ((buffer (window-buffer window)))
     (kill-next-word buffer (- (or p 1)))
-    (krma.gui:redraw-buffer window)))
+    (climish:redraw-buffer window)))
 
 (defun kill-line (buffer &optional (p 1))
   (let* ((point (buffer-point buffer))
@@ -313,7 +313,7 @@
 (defmethod kill-line-command (window p)
   (let ((buffer (window-buffer window)))
     (kill-line buffer p)
-    (krma.gui:redraw-buffer window)))
+    (climish:redraw-buffer window)))
 
 (defhcommand backward-kill-line-command (window p)
   (:pretty-name "Backward Kill Line")
@@ -402,7 +402,7 @@
       (deactivate-region buffer))
     ;; displayed-p is giving a poor result here, so we're not going to check
     (hi::bottom-window-on-mark window point)
-    (krma.gui:redraw-buffer window)))
+    (climish:redraw-buffer window)))
 ;;;
 (push :unkill *ephemerally-active-command-types*)
 

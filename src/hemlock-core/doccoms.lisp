@@ -182,7 +182,7 @@
        (list *command-names*)
        :prompt "Describe command: "
        :help "Name of a command to document.")
-    (let ((bindings (krma.gui::command-bindings window com)))
+    (let ((bindings (climish::command-bindings window com)))
       (with-pop-up-display (s :current-window window)
         (format s "Documentation for ~S:~%   ~A~%"
                 nam (command-documentation com))

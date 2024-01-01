@@ -136,7 +136,7 @@
       (mapcar #'(lambda (window)
 		  (bt::with-recursive-lock-held ((hi::window-lock window))
 		    (hi::maybe-rebottom-window-on-mark window .point.)
-		    (krma.gui::redraw-buffer window)))
+		    (climish::redraw-buffer window)))
 	    buffer-windows))))
 
 (defmethod stream-finish-output ((stream hemlock-character-io-stream))
@@ -179,7 +179,7 @@
     (delete-region (hemlock-character-io-stream-buffer stream)
 		   (region (hemlock-character-io-stream-mark stream)
                            (buffer-end-mark (hemlock-character-io-stream-buffer stream))))
-    (mapcar #'krma.gui::redraw-buffer (buffer-windows buffer))
+    (mapcar #'climish::redraw-buffer (buffer-windows buffer))
     (values)))
 
 (defmethod stream-clear-input ((stream hemlock-character-io-stream))

@@ -1,4 +1,4 @@
-(in-package :krma.gui)
+(in-package :climish)
 
 (defobject context-menu-mixin (homemade-window-mixin)
   :inputs
@@ -33,7 +33,7 @@
 
 (defobject context-menu (context-menu-mixin))
   
-(defmethod clui:handle-event ((self context-menu-mixin) (event clui::pointer-exit-event-mixin))
+(defmethod clim:handle-event ((self context-menu-mixin) (event clim:pointer-exit-event))
   (destroy-window self))
 
 (defobject button-mixin (selectable-mixin group-mixin view-mixin)
@@ -49,10 +49,10 @@
   ((color (the style window-bg-color))))
 
 (defmethod rm-draw-node ((self button-mixin))
-  (scene-add-filled-2d-rectangle-list-primitive
+  (medium-add-filled-2d-rectangle-list-primitive
    (the scene) (the group) nil (the color)
    (list (the x0) (the y0) (the x1) (the y1))
    (the object-id)
    (the elevation))
-  (scene-add-text (the scene) (the group) (the style current-font) #x000000ff (the x0) (the y0) (the title) (the object-id) (1+ (the elevation))))
+  (medium-add-text (the scene) (the group) (the style current-font) #x000000ff (the x0) (the y0) (the title) (the object-id) (1+ (the elevation))))
   

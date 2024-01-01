@@ -1,4 +1,4 @@
-(in-package :krma.gui)
+(in-package :climish)
 
 (defun print-pretty-gesture (gesture stream)
   (loop for keys on gesture

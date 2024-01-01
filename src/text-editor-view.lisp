@@ -1,4 +1,4 @@
-(in-package :krma.gui)
+(in-package :climish)
 
 (defun hemlock::canonicalize-slave-package-name (str)
   (cl-ppcre:regex-replace "^SB!" (hi::canonical-case str) "SB-"))
@@ -86,7 +86,7 @@
 			       (space-width (slot-value font-data '3b-bmfont-common::space-size))
 			       (xval (+ (* x space-width) ox))
 			       (yval (+ (* y font-size) oy)))
-			  (scene-draw-filled-2d-rectangle-list
+			  (medium-draw-filled-2d-rectangle-list
 			   scene :cursor #xffff0077
 			   (list xval yval (+ xval space-width) (+ yval font-size))
 			   0 (1+ (the buffer-view text elevation)))))))))))))))
@@ -423,7 +423,7 @@
 					(let ((ypos (hi::dis-line-position (car dis-line-m0))))
 
 					  (flet ((draw (y x0 x1)
-						   (scene-draw-filled-2d-rectangle-list
+						   (medium-draw-filled-2d-rectangle-list
 						    scene :cursor #xff770033
 						    (list (+ (* x0 space-width) ox) (+ (* y font-size) oy)
 							  (+ (* x1 space-width) ox) (+ (* (1+ y) font-size) oy))
@@ -451,15 +451,15 @@
 (defmethod initialize-instance :around ((self text-editor-view-mixin) &rest initargs)
   (declare (ignore initargs))
   (call-next-method)
-  (let ((os-window (window-parent (the root))))
-    (setf (krma::immediate-mode-work-function-1 (clui::window-display os-window))
-	  (draw-cursor-closure-generator os-window (the scene)))
-    (setf (krma::immediate-mode-work-function-2 (clui::window-display os-window))
-	  (draw-active-region-closure-generator os-window (the scene))))
+  (let ((application-frame (window-parent (the root))))
+    (setf (krma::immediate-mode-work-function-1 (clui::window-display application-frame))
+	  (draw-cursor-closure-generator application-frame (the scene)))
+    (setf (krma::immediate-mode-work-function-2 (clui::window-display application-frame))
+	  (draw-active-region-closure-generator application-frame (the scene))))
   self)
 
 #+NIL
-(setf (krma::immediate-mode-work-function-1 (clui::window-display (main-window *app*))) nil)
+(setf (krma::immediate-mode-work-function-1 (clui::window-display (main-window clim:*default-frame-manager*))) nil)
 
 
 (defconstant hi::+default-fg-color+ 0)

@@ -1,14 +1,27 @@
-(in-package :krma.gui)
+(in-package :climish)
 
-(defclass application-mixin (krma-application-mixin)
+
+
+(defclass frame-manager-mixin (krma-frame-manager-mixin)
   ())
 
-(defclass application (application-mixin)
+(defclass frame-manager (frame-manager-mixin)
   ())
 
 (in-package :hemlock)
 
-(defun krma.gui::post-init-hemlock (hemlock::initial-buffer)
+(defconstant completion-table-size 991)
+
+(defvar *completions* (make-array completion-table-size :initial-element nil))
+
+(defvar default-lisp-wordchars
+  '(#\~ #\! #\@ #\$ #\% #\^ #\& #\+ #\= #\: #\< #\> #\. #\/ #\?))
+
+(defvar default-other-wordchars
+  '(#\- #\* #\' #\_))
+
+
+(defun climish::post-init-hemlock (hemlock::initial-buffer)
 	     (defmode :echo-area :major-p t :current-buffer initial-buffer)
 	     
 	     (setq hi::*echo-area-buffer* (make-instance 'hi:buffer :name "Echo Area" :modes '(:echo-area) :current-buffer initial-buffer))
@@ -808,18 +821,11 @@
 
   (defmode :lisp-listener :major-p nil :current-buffer initial-buffer)
 
-  (defconstant completion-table-size 991)
 
-  (defvar *completions* (make-array completion-table-size :initial-element nil))
-
-  (defvar default-lisp-wordchars
-    '(#\~ #\! #\@ #\$ #\% #\^ #\& #\+ #\= #\: #\< #\> #\. #\/ #\?))
 
   (defattribute "Completion Wordchar"
   "1 for characters we consider to be constituents of words.")
 
-  (defvar default-other-wordchars
-  '(#\- #\* #\' #\_))
 
   (do-alpha-chars (char :both)
   (setf (character-attribute :completion-wordchar char) 1))
@@ -857,7 +863,7 @@
 
   (defhvar "Completion Function" ""
     :mode :editor :value #'(lambda ()
-			      (editor-complete-symbol (krma.gui::focused-window (clui::window-parent *echo-area-window*))))
+			      (editor-complete-symbol (climish::focused-window (clui::window-parent *echo-area-window*))))
     :current-buffer initial-buffer)
 
   (defmode :completion :transparent-p t :precedence 10.0
@@ -880,24 +886,24 @@
   
   )
 
-(in-package :krma.gui)
+(in-package :climish)
 
-(defmethod initialize-instance :after ((app application-mixin) &rest initargs)
+(defmethod initialize-instance :after ((self frame-manager-mixin) &rest initargs)
   (declare (ignore initargs))
 
 
   (setq hemlock::*kill-ring* (hi::make-kill-ring
-			      (clui::window-display (krma::main-window app))
+			      (clui::window-display (krma::main-window self))
 			      10))
 
   (unless (boundp '*style*)
     (setq *style* (make-instance 'light-style
-				 'display (application-display app)
-				 'monitor (clui::get-primary-monitor (application-display app)))))
+				 'display (frame-manager-display self)
+				 'monitor (clui::get-primary-monitor (frame-manager-display self)))))
 
-  (krma.gui::make-echo-area-window :app app)
+  (climish::make-echo-area-window :frame-manager self)
 
-  (bt:signal-semaphore (command-loop-go-semaphore (main-window app)))
+  (bt:signal-semaphore (command-loop-go-semaphore (main-window self)))
 
   (values))
 

@@ -1,10 +1,10 @@
-(in-package :krma.gui)
+(in-package :climish)
 
 (defobject echo-area-window-mixin (text-editor-window-mixin)
   :metaclass echo-area-window-class
 
   :inputs
-  ((parent (main-window *app*))
+  ((parent (main-window clim:*default-frame-manager*))
    (iconified? nil)
    (resizable? nil)
    (memu-bar? nil)
@@ -27,14 +27,14 @@
 
 (defobject echo-area-window (echo-area-window-mixin))
 
-(defun make-echo-area-window (&key app)
+(defun make-echo-area-window (&key (frame-manager clim:*default-frame-manager*))
   (setq hi::*echo-area-stream*
 	(hemlock::make-hemlock-interactive-character-io-stream
 	 hi::*echo-area-buffer*))
   (setq hi::*echo-area-window*
 	(make-instance 'echo-area-window :buffer hi::*echo-area-buffer*
-		       'scene (application-scene app)
-		       'parent (main-window app)))
+		       'scene (krma::frame-manager-default-medium frame-manager)
+		       'parent (main-window frame-manager)))
   (when (send hi::*echo-area-window* visible?)
     (rm-draw-node-recursively hi::*echo-area-window*))
   hi::*echo-area-window*)

@@ -161,7 +161,7 @@
             (if prefix
                 (insert-string buffer point prefix)
                 (funcall (hi::value indent-function) buffer point)))))
-    (krma.gui::redraw-buffer window)))
+    (climish::redraw-buffer window)))
 
 
 (defhcommand indent-command (window p)
@@ -187,7 +187,7 @@
                    (buffer-start mark buffer)))
              (indent-region-for-commands buffer (region mark point))
              (find-attribute buffer (line-start point) :whitespace #'zerop))))
-    (krma.gui::redraw-buffer window)))
+    (climish::redraw-buffer window)))
   
 
 (defhcommand indent-region-command (window p)

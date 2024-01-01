@@ -1,4 +1,4 @@
-(in-package :krma.gui)
+(in-package :climish)
 
 (defmethod compute-command-table (view continued-command)
   (declare (ignore continued-command))

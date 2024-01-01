@@ -1231,7 +1231,7 @@
     (with-mark ((m point))
       (unless (form-offset buffer m 1) (editor-error))
       (lisp-indent-region window buffer (region point m) "Indent Form"))
-    (krma.gui::redraw-buffer window)))
+    (climish::redraw-buffer window)))
 
 ;;; LISP-INDENT-REGION -- Internal.
 ;;;
@@ -1304,7 +1304,7 @@
             (editor-error)))
     (unless (displayed-p point window)
       (hi::center-window-on-mark window point))
-    (krma.gui:redraw-buffer window)))
+    (climish:redraw-buffer window)))
     
 
 ;;; "End of Defun", with a positive p (the normal case), does something weird.
@@ -1464,7 +1464,7 @@
             (if (minusp count)
                 (kill-region buffer (region m1 m2) :kill-backward)
                 (kill-region buffer (region m2 m1) :kill-forward))))))
-    (krma.gui:redraw-buffer window)))
+    (climish:redraw-buffer window)))
 
 (defhcommand backward-kill-form-command (window p)
   (:pretty-name "Backward Kill Form")
@@ -1511,7 +1511,7 @@
                      *kill-ring*)
           (ninsert-region buffer point r)
           (move-mark point form-start))))
-    (krma.gui:redraw-buffer window)))
+    (climish:redraw-buffer window)))
 
 (defhcommand extract-list-command (window p)
   (:pretty-name "Extract List")
@@ -1543,7 +1543,7 @@
                      *kill-ring*)
           (ninsert-region buffer point r)
           (move-mark point lstart))))
-    (krma.gui:redraw-buffer window)))
+    (climish:redraw-buffer window)))
 
 (defhcommand transpose-forms-command (window p)
   (:pretty-name "Transpose Forms")
@@ -1587,7 +1587,7 @@
               (ninsert-region buffer s1 (delete-and-save-region buffer (region s2 e2)))
               (ninsert-region buffer s2 (delete-and-save-region buffer (region s1 e1)))
               (move-mark point s2)))))
-    (krma.gui::redraw-buffer window)))
+    (climish::redraw-buffer window)))
 
 
 (defhcommand |insert-()-command| (window count)
@@ -1620,7 +1620,7 @@
            (insert-character buffer point #\()
            (insert-character buffer point #\))
            (mark-before buffer point)))
-    (krma.gui::redraw-buffer window)))
+    (climish::redraw-buffer window)))
 
 
 (defhcommand |move-over-)-command| (window p)
@@ -1888,7 +1888,7 @@
   (declare (ignore p))
   (let ((buffer (window-buffer window)))
     (setf (buffer-major-mode buffer nil) :lisp))
-  (krma.gui::rm-redraw-node (adhoc:send window krma.gui::modeline)))
+  (climish::rm-redraw-node (adhoc:send window climish::modeline)))
 
 
 
@@ -1915,7 +1915,7 @@
     (let* ((buffer (window-buffer win))
            (point (buffer-point buffer)))
       (insert-character buffer point #\))
-      (krma.gui::redraw-buffer window)
+      (climish::redraw-buffer window)
       (pre-command-parse-check buffer point)
       (when (valid-spot buffer point nil)
         (with-mark ((m point))
@@ -1932,7 +1932,7 @@
                       (clear-echo-area)
                       (message "~A" (line-string buffer (mark-line m))))))
               (editor-error))))
-      (krma.gui::redraw-buffer window))))
+      (climish::redraw-buffer window))))
 
 ;;; Since we use paren highlighting in Lisp mode, we do not want paren
 ;;; flashing too.

@@ -163,7 +163,7 @@
                                    (do-recursive-edit)
                                    (move-mark dest-point save))
                                  (reprompt window)))
-              (krma.gui:redraw-buffer window)
+              (climish:redraw-buffer window)
               (move-mark mark-a (region-end diff-a))
               (move-mark mark-b (region-end diff-b))
               (move-mark temp-a mark-a)

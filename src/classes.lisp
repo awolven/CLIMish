@@ -187,7 +187,7 @@
 	    (cons (make-window-dis-line (make-string (window-width view))) res)))
       ((= i (window-height view)) (setf (window-spare-lines view) res)))
   
-  (invoke-hook hemlock::make-window-hook view)
+  ;;(invoke-hook hemlock::make-window-hook view)
   view)
 
 

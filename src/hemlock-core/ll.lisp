@@ -81,7 +81,7 @@
 (defmethod lisp-listener-command (window p)
   (declare (ignore p))
   (let ((existing (find-window-named window "Lisp Listener")))
-    (or (and existing (progn (krma.gui::focus-window existing) existing))
+    (or (and existing (progn (climish::focus-window existing) existing))
 	(let ((buffer (make-instance 'buffer :name "Lisp Listener"))
 	      (current-buffer (hi::window-buffer window)))
 	  (setf (buffer-undo-p buffer) nil)
@@ -89,7 +89,7 @@
 	  (setf (buffer-minor-mode buffer current-buffer :interactive-character-stream) t)
 	  (setf (buffer-minor-mode buffer current-buffer :lisp-listener) t)
 	  (setf (buffer-major-mode buffer current-buffer) :lisp)
-	  (krma.gui::find-or-create-text-editor-window-for-buffer buffer)
+	  (climish::find-or-create-text-editor-window-for-buffer buffer)
 	  (let* ((stream (variable-value 'hemlock::buffer-stream :buffer buffer))
 		 (thread (bt:make-thread #'(lambda ()
 					     (repl stream))
@@ -102,20 +102,20 @@
 	    
 	    (values))))))
 
-(defmethod find-window-named ((w clui::os-window-mixin) name)
-  (find-window-named-1 (krma.gui::focused-window w) name))
+(defmethod find-window-named ((w climish::application-frame-mixin) name)
+  (find-window-named-1 (climish::focused-window w) name))
 
-(defmethod find-window-named ((w krma.gui::homemade-window-mixin) name)
+(defmethod find-window-named ((w climish::homemade-window-mixin) name)
   (find-window-named-1 w name))
 
 (defun find-window-named-1 (w name)
   (flet ((is-named? (win)
-	   (when (eq name (adhoc:send win krma.gui::title))
+	   (when (eq name (adhoc:send win climish::title))
 	     (return-from find-window-named-1 win))))
     
     (is-named? w)
 	   
-    (do ((next (krma.gui::next w) (krma.gui::next next)))
+    (do ((next (climish::next w) (climish::next next)))
 	((eq next w))
       (is-named? next))))
 

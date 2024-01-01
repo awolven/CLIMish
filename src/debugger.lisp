@@ -1,4 +1,4 @@
-(in-package :krma.gui)
+(in-package :climish)
 
 (defobject debugger-window (text-editor-window)
   :inputs
@@ -31,7 +31,7 @@
       (focus-window window)
       
       (setf (debugger-window-command-loop-thread window)
-	    (let* ((main-window (krma::main-window krma::*app*)))
+	    (let* ((main-window (krma::main-window clim::*default-frame-manager*)))
 	      (bt:make-thread #'(lambda () (command-loop main-window))
 			      :name "debug command loop")))
       (unwind-protect (my-debugger window buffer condition hook-value)
@@ -39,7 +39,7 @@
 
 (in-package :hemlock)
 
-(defun krma.gui::my-debugger (window buffer condition hook-value)
+(defun climish::my-debugger (window buffer condition hook-value)
   (declare (ignorable hook-value))
   (let* ((stream (hemlock::variable-value 'hemlock::buffer-stream :buffer buffer))
 	 (*terminal-io* stream) ;; set up our streams
@@ -57,7 +57,7 @@
 		 (let ((hi::*debug-on-error* t)
 		       (#+CCL *debugger-hook* #+sbcl sb-ext:*invoke-debugger-hook*
 			      #'(lambda (condition hook-value)
-					    (krma.gui::my-debugger
+					    (climish::my-debugger
 					     window
 					     buffer
 					     condition hook-value))))
@@ -66,17 +66,17 @@
 		     (sb-debug:print-backtrace)
 		     (terpri *debug-io*)
 		     (terpri *debug-io*)
-		     (when (typep krma.gui::condition 'simple-condition)
+		     (when (typep climish::condition 'simple-condition)
 		       (apply #'format *debug-io*
-			      (simple-condition-format-control krma.gui::condition)
-			      (simple-condition-format-arguments krma.gui::condition))
+			      (simple-condition-format-control climish::condition)
+			      (simple-condition-format-arguments climish::condition))
 		       (fresh-line *debug-io*))
-		     (format *debug-io* "condition of type: ~A" (type-of krma.gui::condition))
+		     (format *debug-io* "condition of type: ~A" (type-of climish::condition))
 		     (terpri *debug-io*)
 		     (terpri *debug-io*)
 		     (princ "RESTARTS:" *debug-io*)
 		     (fresh-line *debug-io*)
-		     (let ((restarts (butlast (compute-restarts krma.gui::condition))))
+		     (let ((restarts (butlast (compute-restarts climish::condition))))
 		       (loop for restart in restarts
 			     for i from 0
 			     do (princ i *debug-io*)

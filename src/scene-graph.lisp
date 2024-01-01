@@ -1,4 +1,4 @@
-(in-package :krma.gui)
+(in-package :climish)
 
 (defun safe-euclid (vec4)
   (if (<= (abs (vw vec4)) single-float-epsilon)
@@ -82,7 +82,7 @@
     (quat 0 0 0 1))
    (scene :defaulting))
 
-  :default-initargs (scene (krma:application-scene krma::*app*))
+  :default-initargs (scene (krma::frame-manager-default-medium clim:*default-frame-manager*))
   
   :attributes
   ((rotation-matrix
@@ -113,12 +113,12 @@
 				     (typep child 'node-mixin))
 				 (the children)))))
 
-(defmethod add-to-scene (node &optional (scene (application-scene *app*)))
+(defmethod add-to-scene (node &optional (scene (krma::frame-manager-default-medium clim:*default-frame-manager*)))
   (push node (krma::node-children scene))
   (rm-redraw-node-recursively node)
   (values))  
 
-(defun remove-from-scene (node &optional (scene (application-scene *app*)))
+(defun remove-from-scene (node &optional (scene (krma::frame-manager-default-medium clim:*default-frame-manager*)))
   (rm-erase-node-recursively node)
   (setf (krma::node-children scene)
 	(remove node (krma::node-children scene)))
@@ -146,7 +146,7 @@
 (defmethod initialize-instance ((self group-owner-mixin) &rest initargs)
   (declare (ignore initargs))
   (call-next-method)
-  (krma::scene-ensure-group (the scene) (the group)))
+  (krma::medium-ensure-group (the scene) (the group)))
 
 (defmethod node-parent ((self node-mixin))
   (the superior))
@@ -208,8 +208,8 @@
 
 (defun adhoc::adhoc-redefinition-hook ()
   #+NIL
-  (when (boundp '*app*)
-    (loop for node in (krma::node-children (krma::application-scene *app*))
+  (when (boundp 'clim:*default-frame-manager*)
+    (loop for node in (krma::node-children (krma::frame-manager-default-medium clim:*default-frame-manager*))
 	  do (rm-redraw-node-recursively node))))
 
 (defun touch-instance-recursively (self)
@@ -217,6 +217,7 @@
   (mapcar #'touch-instance-recursively (the children))
   (values))
 
+#+NOTNOW
 (defmethod update-instance-for-redefined-class :after ((self node-mixin)
 						       added-slots discarded-slots plist &rest initargs)
   (declare (ignore added-slots discarded-slots plist initargs))

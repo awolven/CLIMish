@@ -758,7 +758,7 @@
                   #'(lambda ()
                       (let ((hi::*debug-on-error* t))
                         (let* ((original-error-output *error-output*)
-                               (*error-output* (krma.gui::make-popup-window)))
+                               (*error-output* (climish::make-popup-window)))
                           (let (#+SBCL(sb-ext:*invoke-debugger-hook*
                                         #'(lambda (condition hook-value)
                                             (declare (ignorable hook-value))
@@ -958,7 +958,7 @@
           (obj (eval exp)))
      (with-pop-up-display (*standard-output* :current-window window)
        (describe obj)
-       (krma.gui::rm-redraw-node-recursively window)
+       (climish::rm-redraw-node-recursively window)
        ))))
 
 #+NIL

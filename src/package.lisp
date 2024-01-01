@@ -1,4 +1,4 @@
-(adhoc:defpackage :krma.gui
+(adhoc:defpackage :climish
   (:use :cl :clui :krma :3dm
 	:hemlock-interface)
 
@@ -27,8 +27,8 @@
 	   #:inverse-matrix
 	   #:inverse-global-matrix
 	   #:translate-node
-	   #:krma-gui-window-mixin
-	   #:krma-gui-window
+	   #:application-frame-mixin
+	   #:application-frame
 	   #:transform-coordinate
 	   #:global-transform-coordinate
 	   #:untransform-coordinate

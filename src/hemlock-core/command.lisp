@@ -88,7 +88,7 @@
       (if (and p (> p 1))
           (hi::.insert-string. .point. (make-string p :initial-element char))
           (hi::.insert-character. .point. char)))
-    (mapcar #'krma.gui:redraw-buffer (buffer-windows buffer))))
+    (mapcar #'climish:redraw-buffer (buffer-windows buffer))))
 
 #+MOVED
 (defcommand "Forward Character" (window p)
@@ -434,7 +434,7 @@
   (:help-string "Do a \"Scroll Window Down\" on the next window."))
 
 (defmethod scroll-next-window-down-command (window p)
-  (let ((win (krma.gui::next window)))
+  (let ((win (climish::next window)))
     (when (eq win window) (editor-error "Only one window."))
     (scroll-window-down-command p win)))
 
@@ -445,7 +445,7 @@
   (:help-string "Do a \"Scroll Window Up\" on the next window."))
 
 (defmethod scroll-next-window-up-command (window p)
-  (let ((win (krma.gui::next window)))
+  (let ((win (climish::next window)))
     (when (eq win window) (editor-error "Only one window."))
     (scroll-window-up-command p win)))
 
@@ -495,7 +495,7 @@
     (let* ((buffer (window-buffer window))
            (point (buffer-point buffer)))
       (hi::center-window-on-mark window point)
-      (krma.gui:redraw-buffer window))))
+      (climish:redraw-buffer window))))
 
 
 #+DISABLE
@@ -530,11 +530,11 @@
                                    (list *command-names*)
                                    :prompt "Extended Command: "
                                    :help "Name of a Hemlock command")))
-    (krma.gui::redraw-buffer *echo-area-window*)
+    (climish::redraw-buffer *echo-area-window*)
     (let ((cmd (getstring name *command-names*)))
       (clear-echo-area)
       (message (command-name cmd))
-      (krma.gui::invoke-command cmd (krma.gui::send *echo-area-window* krma.gui::parent)))))
+      (climish::invoke-command cmd (climish::send *echo-area-window* climish::parent)))))
 
 #+DISABLE
 (defhcommand eval-expression-command (window p)

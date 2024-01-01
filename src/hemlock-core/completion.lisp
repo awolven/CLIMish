@@ -653,7 +653,7 @@
 
 (defmethod complete-for-mode-command (window p)
   (funcall (value completion-function) window p)
-  (krma.gui::redraw-buffer window))
+  (climish::redraw-buffer window))
 
 (defhcommand indent-or-complete-command (window p)
   (:pretty-name "Indent Or Complete")
@@ -669,7 +669,7 @@
             (find (previous-character buffer mark) '(#\space #\tab #\newline))))
       (indent-command window p)
       (complete-for-mode-command window p))
-  (krma.gui::redraw-buffer window))
+  (climish::redraw-buffer window))
 
 ;;; Mode
 

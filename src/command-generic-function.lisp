@@ -1,4 +1,4 @@
-(in-package :krma.gui)
+(in-package :climish)
 
 (defvar *application-commands* nil)
 
@@ -26,53 +26,53 @@
 		   ,fn)))
        ,@(if (assoc :applicability initargs)
 	     `((setf (slot-value ,fn 'applicability)
-		   (lambda (os-window)
-		     (declare (ignorable os-window))
+		   (lambda (application-frame)
+		     (declare (ignorable application-frame))
 		     ,(second (assoc :applicability initargs)))))
 	     `((setf (slot-value ,fn 'applicability)
-		   (lambda (os-window)
-		     (declare (ignorable os-window))
+		   (lambda (application-frame)
+		     (declare (ignorable application-frame))
 		     t))))
        ,@(when (assoc :argument-computation initargs)
 	   `((setf (slot-value ,fn 'argument-computation)
-		   (lambda (os-window)
-		     (declare (ignorable os-window))		     
+		   (lambda (application-frame)
+		     (declare (ignorable application-frame))		     
 		     ,(second (assoc :argument-computation initargs))))))
        ,@(when (assoc :help-string initargs)
 	   `((setf (slot-value ,fn 'help-string)
-		   (lambda (os-window)
-		     (declare (ignorable os-window))		     
+		   (lambda (application-frame)
+		     (declare (ignorable application-frame))		     
 		     ,(second (assoc :help-string initargs))))))
        (pushnew ,fn *application-commands*)
        ,fn)))
 
 (defmacro hemlock::defhcommand (name arglist &rest initargs)
   `(defcommand ,name ,arglist
-     (:argument-computation (krma.gui::hemlock-arguments krma.gui::os-window))
-     (:applicability (krma.gui::hemlock-applicability krma.gui::os-window))
+     (:argument-computation (hemlock-arguments climish::application-frame))
+     (:applicability (hemlock-applicability climish::application-frame))
      ,@initargs))
     
 
-(defmethod invoke-command (command-generic-function os-window)
+(defmethod invoke-command (command-generic-function application-frame)
   (apply command-generic-function
-	 (funcall (slot-value command-generic-function 'argument-computation) os-window)))
+	 (funcall (slot-value command-generic-function 'argument-computation) application-frame)))
 
-(defun compute-applicable-commands (os-window)
-  (prog1 (setf (applicable-commands os-window)
+(defun compute-applicable-commands (application-frame)
+  (prog1 (setf (applicable-commands application-frame)
 	       (remove-if #'null (mapcar #'(lambda (cgf)
-					     (when (funcall (slot-value cgf 'applicability) os-window)
+					     (when (funcall (slot-value cgf 'applicability) application-frame)
 					       cgf))
 					 *application-commands*)))
-    (rebuild-command-table os-window)))
+    (rebuild-command-table application-frame)))
 
-(defun hemlock-arguments (os-window)
-  (list (or (focused-window os-window) *echo-area-window*) nil))
+(defun hemlock-arguments (application-frame)
+  (list (or (focused-window application-frame) *echo-area-window*) nil))
 
-(defun hemlock-applicability (os-window)
-  (declare (ignorable os-window))
+(defun hemlock-applicability (application-frame)
+  (declare (ignorable application-frame))
   t
   #+NIL
-  (typep (focused-window os-window) 'text-editor-view-mixin))
+  (typep (focused-window application-frame) 'text-editor-view-mixin))
 
 (defvar *accelerator-table*
   (make-hash-table :test #'eq))
@@ -89,9 +89,9 @@
   ;; this is the command table the event-queue loop (aka input-editor) checks
   (make-hash-table :test #'eq))
 
-(defun rebuild-command-table (os-window)
-  (let ((applicable-commands (applicable-commands os-window))
-	(command-table (command-table os-window)))
+(defun rebuild-command-table (application-frame)
+  (let ((applicable-commands (applicable-commands application-frame))
+	(command-table (command-table application-frame)))
     (clrhash command-table)	
     (loop for command in applicable-commands
 	  do (let ((gestures (gethash command *accelerator-table*)))
