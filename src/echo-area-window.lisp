@@ -27,14 +27,15 @@
 
 (defobject echo-area-window (echo-area-window-mixin))
 
-(defun make-echo-area-window (&key (frame-manager clim:*default-frame-manager*))
+(defun make-echo-area-window (&key (frame (main-window clim:*default-frame-manager*))
+				(scene (krma:default-medium)))
   (setq hi::*echo-area-stream*
 	(hemlock::make-hemlock-interactive-character-io-stream
 	 hi::*echo-area-buffer*))
   (setq hi::*echo-area-window*
 	(make-instance 'echo-area-window :buffer hi::*echo-area-buffer*
-		       'scene (krma::frame-manager-default-medium frame-manager)
-		       'parent (main-window frame-manager)))
+		       'scene scene
+		       'parent frame))
   (when (send hi::*echo-area-window* visible?)
     (rm-draw-node-recursively hi::*echo-area-window*))
   hi::*echo-area-window*)

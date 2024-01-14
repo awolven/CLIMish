@@ -35,7 +35,7 @@
     (%init-syntax-table)
     ;;
     ;; Define print representations for funny characters.
-    (%init-line-image)
+    (%init-line-image initial-buffer)
     (setq *hemlock-initialized* t)
     initial-buffer))
 

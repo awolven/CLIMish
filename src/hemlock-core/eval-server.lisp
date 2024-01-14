@@ -374,7 +374,7 @@
       (if name
           (values name (format nil "Background ~A" name))
           (pick-slave-buffer-names))
-    (when (value confirm-slave-creation)
+    (when (value (window-buffer current-window) confirm-slave-creation)
       (setf slave (prompt-for-string
                    current-window
                    :prompt "New slave name? "
@@ -453,7 +453,7 @@
       (if name
           (values name (format nil "Background ~A" name))
           (pick-slave-buffer-names))
-    (when (value confirm-slave-creation)
+    (when (value (window-buffer current-window) confirm-slave-creation)
       (setf slave (prompt-for-string
                    current-window
                    :prompt "New slave name? "
@@ -532,7 +532,7 @@
 
 (defun maybe-create-server ()
   (if (hemlock-bound-p 'current-eval-server)
-      (value current-eval-server)
+      (value buffer current-eval-server)
       (let ((maybe-buffer (hi::find-buffer "Lisp Listener")))
         (unless maybe-buffer
           (lisp-listener-command 1)
@@ -549,7 +549,7 @@
              :background-buffer maybe-background-buffer
              :implementation-type (lisp-implementation-type)
              :implementation-version (lisp-implementation-version)))
-          (value current-eval-server)))))
+          (value buffer current-eval-server)))))
 
 
 (defvar *next-slave-index* 0
@@ -582,13 +582,13 @@
    confirmation.  Also, set the current server to be the newly created one."
   (setf errorp t)
   (let ((info (when (hemlock-bound-p 'current-eval-server)
-                (value current-eval-server))))
+                (value buffer current-eval-server))))
     (setq errorp nil)
     (cond (info)
           (errorp
            (editor-error "No current eval server."))
           (t
-           (setf (value current-eval-server) (maybe-create-server))))))
+           (setf (value buffer current-eval-server) (maybe-create-server))))))
 
 ;;; GET-CURRENT-COMPILE-SERVER -- Public.
 ;;;
@@ -598,7 +598,7 @@
 (defun get-current-compile-server (&optional errorp)
   "Returns the server-info struct for the current compile server. If there is
    no current compile server, return the current eval server."
-  (or (value current-compile-server)
+  (or (value buffer current-compile-server)
       (get-current-eval-server errorp)))
 
 

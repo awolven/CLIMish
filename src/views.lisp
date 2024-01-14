@@ -65,7 +65,7 @@
   :attributes
   ((parent (the superior))))
 
-(defobject view-mixin (2d-box-mixin node-mixin)
+(defobject view-mixin (2d-box-mixin node-mixin clui::window-mixin)
   
   :inputs
   ((parent (the superior))
@@ -130,7 +130,11 @@
   :inputs
   ((color #xffffff00)))
 
-
+(defmethod clim:handle-event :around ((view view-mixin) (event clim:pointer-event))
+  (setf (clim:pointer-event-native-x event) (clim:pointer-event-x event)
+	(clim:pointer-event-native-y event) (clim:pointer-event-y event))
+  (when (next-method-p)
+    (call-next-method)))
 
 (defmethod clim:handle-event ((self resize-border) (event clim:pointer-enter-event))
   (let* ((north-id (the root (resize-borders :north) object-id))
@@ -178,82 +182,11 @@
       (setf (window-to-resize (clui::window-parent (the root))) (the root)))
     (values)))
 
-(defmethod clim:handle-event :after ((self application-frame-mixin) (event clim:pointer-button-release-event))
-  (let ((resize-window (window-to-resize self)))
-    (when resize-window  
-      (setf (resize-mode resize-window) nil)
-      (setf (window-to-resize self) nil)
-      (clim:handle-event resize-window (make-instance 'clui:window-resize-event :window resize-window))))
-
-  (setf (window-to-drag self) nil)
-
-  ;; make sure the event-queue sees this event
-  (lparallel.queue:push-queue event (input-event-queue self))
-  (values))
 
 
 
-(defmethod clim:handle-event :after ((self application-frame-mixin) (event clim:pointer-motion-event))
-  (let ((resize-window (window-to-resize self)))
-    (when resize-window
-      (multiple-value-bind (x y) (clui:window-position resize-window)
-	(multiple-value-bind (width height) (clui:window-size resize-window)
-	  (ecase (resize-mode resize-window)
-	    (:north (resize-window resize-window
-				   x
-				   (clim:pointer-event-y event)
-				   width
-				   (max (+ (- y (clim:pointer-event-y event)) height) 20)))
-	    (:northwest (resize-window resize-window
-				       (clim:pointer-event-x event)
-				       (clim:pointer-event-y event)
-				       (max (+ width (- x (clim:pointer-event-x event))) 20)
-				       (max (+ (- y (clim:pointer-event-y event)) height) 20)))
-	    (:northeast (resize-window resize-window
-				       x
-				       (clim:pointer-event-y event)
-				       (max (- (clim:pointer-event-x event) x) 20)
-				       (max (+ (- y (clim:pointer-event-y event)) height) 20)))
-	    (:south (resize-window resize-window
-				   x
-				   y
-				   width
-				   (max (+ (- (clim:pointer-event-y event) y)) 20)))
-	    (:southwest (resize-window resize-window
-				       (clim:pointer-event-x event)
-				       y
-				       (max (+ width (- x (clim:pointer-event-x event))) 20)
-				       (max (+ (- (clim:pointer-event-y event) y)) 20)))
-	    (:southeast (resize-window resize-window
-				       x
-				       y
-				       (max (- (clim:pointer-event-x event) x) 20)
-				       (max (+ (- (clim:pointer-event-y event) y)) 20)))
-	    (:east (resize-window resize-window
-				  x
-				  y
-				  (max (- (clim:pointer-event-x event) x) 20)
-				  height))
-	    (:west (resize-window resize-window
-				  (clim:pointer-event-x event)
-				  y
-				  (max (+ width (- x (clim:pointer-event-x event))) 20)
-				  height)))))))
-  
-  (let ((drag-window (window-to-drag self)))
-    (when drag-window
 
-      (change-class event 'clui::pointer-button-hold-and-drag-event-mixin)
-      
-      (setf (clui::pointer-drag-delta-x event) (- (clim:pointer-event-x event) (drag-last-x self)))
-      
-      (setf (clui::pointer-drag-delta-y event) (- (clim:pointer-event-y event) (drag-last-y self)))
-	  
-      (clim:handle-event self event)))
 
-  ;; make sure the event-queue sees this event:
-  (lparallel.queue:push-queue event (input-event-queue self))
-  (values))
 
 (defgeneric resize-window (window new-x new-y new-width new-height))
 
@@ -319,7 +252,8 @@
   :inputs
   ((title)
    (button-size)
-   
+
+   (transparency-button? t)
    (iconify-button? t)
    (close-button? t))
   
@@ -339,7 +273,7 @@
 			   (the button-size)
 			   (* 2 (the style frame-padding-x))))
 
-   (iconfiy-button :type (if (the iconify-button?) 'iconify-button 'null-object)
+   (iconify-button :type (if (the iconify-button?) 'iconify-button 'null-object)
 		    group (the group)
 		    size (the button-size)
 		    x (ecase (the style window-menu-button-position)
@@ -350,7 +284,7 @@
 					    (the button-size))
 					4
 					(* 2 (the style frame-padding-x))))))
-   (transparency-button :type 'transparency-button
+   (transparency-button :type (if (the transparency-button?) 'transparency-button 'null-object)
 			group (the group)
 			size (the button-size)
 			x (ecase (the style window-menu-button-position)
@@ -442,7 +376,7 @@
 
   :inputs
   ((parent (main-window clim:*default-frame-manager*))
-   (scene (krma::frame-manager-default-medium clim:*default-frame-manager*))
+   (scene (krma:default-medium))
    (style *style*)
    (color (the style window-bg-color))
    (font (the style current-font))
@@ -464,6 +398,7 @@
    (title-bar? t)
    (iconify-button? t)
    (close-button? t)
+   (transparency-button? t)
    (rounding? nil)
    (alpha 0.7)
    
@@ -492,6 +427,7 @@
 	      title (the title)
 	      iconify-button? (the iconify-button?)
 	      close-button? (the close-button?)
+	      transparency-button? (the transparency-button?)
 	      button-size (font-size (the font)))
 
    (menu-bar :type (if (the menu-bar?) 'menu-bar 'null-object))
@@ -525,7 +461,7 @@
   (the parent))
 
 
-
+#+NOTNOW
 (defmethod clim:handle-event ((window krma-window-mixin) (event clim:pointer-event))
   (let ((x (clim:pointer-event-x event))
 	(y (clim:pointer-event-y event)))
@@ -543,15 +479,8 @@
 
 	  (call-next-method)))))
 
-(defmethod clim:handle-event ((window krma-window-mixin) (event clui::input-event-mixin))
-  (let ((2d-object (krma::most-specifically-hovered-2d-object
-		    (krma::krma-select-box-2d (clui::window-display window)) 0 0)))
 
-    (if (view-p 2d-object)
 
-	(clim:handle-event 2d-object event)
-	
-	(call-next-method))))
 
 (defmethod clim:handle-event ((self title-bar) (event clim:pointer-motion-event))
   (let ((last-event (clui::display-last-event
@@ -569,13 +498,7 @@
       
       (clim:handle-event (clui::window-parent (the root)) event))))
 
-(defmethod clim:handle-event ((self application-frame-mixin) (event clui::pointer-button-hold-and-drag-event-mixin))
-  (setf (drag-last-x self) (clim:pointer-event-x event))
-  (setf (drag-last-y self) (clim:pointer-event-y event))
-  (let* ((dx (clui::pointer-drag-delta-x event))
-	 (dy (clui::pointer-drag-delta-y event)))
-    (multiple-value-bind (x y) (window-position (window-to-drag self))
-      (set-window-position (window-to-drag self) (+ x dx) (+ y dy)))))
+
 
 (defmethod window-cursor-position ((self view-mixin))
   (multiple-value-bind (x y) (window-cursor-position (window-parent (the root)))
@@ -595,11 +518,6 @@
     (forget-object-recursively homemade-window)
     (unless (krma::node-children scene)
       (setf (krma::immediate-mode-work-function-1 (clui::window-display (window-parent homemade-window))) nil))
-    #+ccl(ccl:gc)
-    #+sbcl(sb-sys::gc :full t)
-    #+NOTNOW
-    (unless (eq (next homemade-window) *echo-area-window*)
-      (focus-window (next homemade-window)))
     (values)))
 
 (defmethod clim:handle-event ((button close-button) (event clim:pointer-button-press-event))
@@ -625,11 +543,7 @@
   (rm-redraw-node-recursively button)
   (values))
 
-(defmethod clim:handle-event :before ((self selectable-mixin) (event clim:pointer-enter-event))
-  (setf (the hovered?) t))
 
-(defmethod clim:handle-event :before ((self selectable-mixin) (event clim:pointer-exit-event))
-  (setf (the hovered?) nil))
 
 (defmethod clui::window-p ((window homemade-window-mixin))
   t)
@@ -653,7 +567,7 @@
 
 (defmethod %unfocus-window ((self homemade-window-mixin))
   (do ((next (next self) (next next)))
-	((eq next self))
+      ((eq next self))
     (unless (send next iconified?)
       (setf (send next focused?) t)
       (return))))
@@ -757,8 +671,9 @@
 	   (group (the group))
 	   (color (copy-seq (the color))))
       (when (the title-bar?)
-	(when (the title-bar transparency-button opaque?)
-	  (setf (aref color 3) 1.0f0)))
+	(when (the title-bar transparency-button?)
+	  (when (the title-bar transparency-button opaque?)
+	    (setf (aref color 3) 1.0f0))))
       ;; draw window background
       (medium-add-filled-2d-rectangle-list-primitive
        scene group nil color
@@ -1098,35 +1013,18 @@
 
 
 
-(defmethod clim:handle-event ((window homemade-window-mixin) (event clim:pointer-button-press-event))
-  (call-next-method)
-  (bt:make-thread #'(lambda ()
-		      (setf (send window focused?) t)))
+(defmethod clim:handle-event :before ((window homemade-window-mixin) (event clim:pointer-button-press-event))
+  ;;(when (next-method-p)
+    ;;(call-next-method))
+  (setf (send window focused?) t)
   (values))
 
-(defmethod clim:handle-event ((self title-bar) (event clim:pointer-button-press-event))
-  (call-next-method)
+(defmethod clim:handle-event :before ((self title-bar) (event clim:pointer-button-press-event))
+  ;;(when (next-method-p)
+    ;;(call-next-method))
   (unless (the window iconified?)
     (setf (the window focused?) t))
   (values))
-
-(defmethod clim:handle-event ((window krma-window-mixin) (event clim:pointer-button-press-event))
-  ;;(call-next-method)
-  (let* ((hovered (krma::most-specifically-hovered-2d (krma::krma-select-box-2d (clui::window-display window)) 0 0)))
-    (if hovered
-	(let ((object (krma::object-from-id hovered)))
-	  (when object
-	    (clim:handle-event object event)))
-	(if (eq (clui::input-event-code event) clui::+pointer-right-button+)
-	    (let ((menu (make-instance 'context-menu)))
-	      (set-window-position menu
-				   (- (clim:pointer-event-x event) 70)
-				   (- (clim:pointer-event-y event) 70))
-	      (focus-window menu))
-	    (focus-window *echo-area-window*)))
-    (values)))
-
-
 
 (defobject popup-window-mixin (homemade-window-mixin))
 
@@ -1136,13 +1034,14 @@
   
 (defobject homemade-window (homemade-window-mixin))
 
-(defun make-test-window (&optional (app clim:*default-frame-manager*))
+(defun make-test-window (&optional (parent (main-window clim:*default-frame-manager*))
+				   (scene (krma:default-medium)))
   
   (let ((w (make-instance 'homemade-window
 			  'origin (vec3 25 50 0)
 			  'width 300
 			  'height 200
-			  'parent (main-window app)
-			  'scene (krma::frame-manager-default-medium clim:*default-frame-manager*))))
+			  'parent parent
+			  'scene scene)))
     w))
 

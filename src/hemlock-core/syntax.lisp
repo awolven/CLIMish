@@ -311,11 +311,11 @@
 ;;;
 ;;;    Set the value of a character attribute.
 ;;;
-(defun (setf character-attribute) (new-value attribute character)
+(defun (setf character-attribute) (new-value buffer attribute character)
   "Set the value for a character attribute."
   (with-attribute attribute
-    (invoke-hook hemlock::character-attribute-hook attribute character new-value)
-    (invoke-hook (attribute-descriptor-hooks obj) attribute character new-value)
+    (invoke-hook buffer hemlock::character-attribute-hook attribute character new-value)
+    (invoke-hook buffer (attribute-descriptor-hooks obj) attribute character new-value)
     (cond
      ;;
      ;; Setting the value for a real character.
@@ -421,7 +421,7 @@
       (when (member obj (buffer-mode-objects current-buffer))
         (let ((vals (list cons)))
           (swap-one-attribute attribute char-set vals hooks)))
-      (invoke-hook hemlock::shadow-attribute-hook attribute character value mode)))
+      (invoke-hook current-buffer hemlock::shadow-attribute-hook attribute character value mode)))
   attribute)
 
 ;;; UNSHADOW-ATTRIBUTE  --  Public
@@ -436,7 +436,7 @@
       (error "~S is not a defined Character Attribute." attribute))
     (unless obj
       (error "~S is not a defined Mode." mode))
-    (invoke-hook hemlock::shadow-attribute-hook mode attribute character)
+    (invoke-hook current-buffer hemlock::shadow-attribute-hook mode attribute character)
     (let* ((value (attribute-descriptor-char-set desc))
            (hooks (attribute-descriptor-hooks desc))
            (current (assoc desc (mode-object-character-attributes obj)))

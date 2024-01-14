@@ -109,7 +109,7 @@
   (let ((buffer-pn (buffer-pathname buffer)))
     (if buffer-pn
         (pathname (format nil
-                          (value auto-save-filename-pattern)
+                          (value buffer auto-save-filename-pattern)
                           (directory-namestring buffer-pn)
                           (file-namestring buffer-pn))))))
 
@@ -180,7 +180,7 @@
            (when (write-checkpoint-file last-pathname buffer)
              (reset-auto-save-state buffer)))
           (t
-           (let* ((save-pn-hook (value auto-save-pathname-hook))
+           (let* ((save-pn-hook (value buffer auto-save-pathname-hook))
                   (new-pn (if save-pn-hook
                               (funcall save-pn-hook buffer))))
              (cond ((or (not new-pn)
@@ -221,7 +221,7 @@
 ;;;
 (defun cleanup-checkpoint (buffer)
   (let ((ckp-pathname (get-checkpoint-pathname buffer)))
-    (when (and (value auto-save-cleanup-checkpoints)
+    (when (and (value buffer auto-save-cleanup-checkpoints)
                ckp-pathname
                (probe-file ckp-pathname))
       (delete-file ckp-pathname))))
@@ -284,8 +284,8 @@
   #.*fast*
   (let ((buffer (window-buffer current-window)))
     (unless (eq buffer *echo-area-buffer*)
-      (let ((state (value auto-save-state))
-            (threshold (value auto-save-key-count-threshold)))
+      (let ((state (value buffer auto-save-state))
+            (threshold (value buffer auto-save-key-count-threshold)))
         (when (and state threshold)
           (let ((signature (buffer-signature buffer)))
             (declare (fixnum signature))

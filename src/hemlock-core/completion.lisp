@@ -110,7 +110,7 @@
     (declare (fixnum string-length))
     (when (> string-length 3)
       (let ((bucket (completion-bucket-for string string-length))
-            (limit (value completion-bucket-size)))
+            (limit (value buffer completion-bucket-size)))
         (do ((list bucket (cdr list))
              (last nil list)
              (length 1 (1+ length)))
@@ -391,7 +391,7 @@
    filename."))
 
 (defmethod save-completions-command (window p)
-  (let ((filename (or (and (not p) (value completion-database-filename))
+  (let ((filename (or (and (not p) (value (window-buffer window) completion-database-filename))
                       (prompt-for-file
                        window
                        :must-exist nil
@@ -422,7 +422,7 @@
    Database File\".  With an argument, prompts for a filename."))
 
 (defmethod read-completions-command (window p)
-  (let ((filename (or (and (not p) (value completion-database-filename))
+  (let ((filename (or (and (not p) (value (window-buffer window) completion-database-filename))
                       (prompt-for-file
                        window
                        :must-exist nil
@@ -448,7 +448,7 @@
                                             (svref *completions* index))))
             (setf (svref *completions* index) new-bucket)
             (do ((completion new-bucket (cdr completion))
-                 (end (1- (value completion-bucket-size)))
+                 (end (1- (value (window-buffer window) completion-bucket-size)))
                  (i 0 (1+ i)))
                 ((endp completion))
               (when (= i end) (setf (cdr completion) nil))))))
@@ -516,7 +516,7 @@
   (unless (eq (last-command-type) :completion-self-insert)
     (clear-completion-display)))
 ;;;
-(add-hook redisplay-hook #'completion-redisplay-fun)
+;;(add-hook redisplay-hook #'completion-redisplay-fun)
 
 
 ;;;; The following is an attempt at Lisp symbol completion..
@@ -652,7 +652,7 @@
   (:help-string ""))
 
 (defmethod complete-for-mode-command (window p)
-  (funcall (value completion-function) window p)
+  (funcall (value (window-buffer window) completion-function) window p)
   (climish::redraw-buffer window))
 
 (defhcommand indent-or-complete-command (window p)

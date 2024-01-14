@@ -27,7 +27,7 @@
 ;;;    Set up the print-representations for funny chars.  We make the
 ;;; attribute character-set by hand.
 ;;;
-(defun %init-line-image ()
+(defun %init-line-image (buffer)
   (defattribute "Print Representation"
     "The value of this attribute determines how a character is displayed
     on the screen.  If the value is a string this string is literally
@@ -41,7 +41,8 @@
   (setf (attribute-descriptor-char-set
          (gethash :print-representation *character-attributes*))
         *print-representation-char-set*)
-  (add-hook hemlock::character-attribute-hook
+
+  (add-hook buffer hemlock::character-attribute-hook
             #'redis-set-char-attribute-hook-fun)
   (do ((i (1- (char-code #\space)) (1- i)) str)
       ((minusp i))
@@ -49,10 +50,10 @@
     (setf (elt (the simple-string str) 0) #\^)
     (setf (elt (the simple-string str) 1)
           (code-char (+ i (char-code #\@))))
-    (setf (character-attribute :print-representation (code-char i)) str))
-  (setf (character-attribute :print-representation (code-char #o177)) "^?")
-  (setf (character-attribute :print-representation (code-char 13)) " ")
-  (setf (character-attribute :print-representation #\tab)
+    (setf (character-attribute buffer :print-representation (code-char i)) str))
+  (setf (character-attribute buffer :print-representation (code-char #o177)) "^?")
+  (setf (character-attribute buffer :print-representation (code-char 13)) " ")
+  (setf (character-attribute buffer :print-representation #\tab)
         #'redis-tab-display-fun))
 
 ;;; redis-set-char-attribute-hook-fun

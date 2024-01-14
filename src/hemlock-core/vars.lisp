@@ -96,24 +96,29 @@
     (:buffer
      (check-type where buffer)
      (let ((binding (find-binding name (buffer-var-values where))))
+       #+NIL
        (unless binding
          (error "~S is not a defined Hemlock variable in buffer ~S." name where))
-       (binding-object binding)))
+       (when binding
+	 (binding-object binding))))
     (:global
      (do ((obj (get name 'hemlock-variable-value)
                (variable-object-down obj))
           (prev nil obj))
          ((symbolp obj)
           (unless prev (undefined-variable-error name))
+	  #+NIL
           (unless (eq obj :global)
             (error "Hemlock variable ~S is not globally defined." name))
           prev)))
     (:mode
      (let ((binding (find-binding name (mode-object-var-values
                                         (get-mode-object where)))))
+       #+NIL
        (unless binding
          (error "~S is not a defined Hemlock variable in mode ~S." name where))
-       (binding-object binding)))
+       (when binding
+	 (binding-object binding))))
     (t
      (error "~S is not a defined value for Kind." kind))))
 
@@ -131,8 +136,21 @@
 ;;; current buffer is returned.
 ;;;
 
-(defun %value (name)
-  (let ((obj (get name 'hemlock-variable-value)))
+(defun search-for-variable (buffer name)
+  (or (and buffer (buffer-major-mode buffer) (get-variable-object name :mode (buffer-major-mode buffer)))
+      (and buffer
+	   (loop for mode in (buffer-modes buffer)
+		 when mode
+		   do (let ((variable (get-variable-object name :mode mode)))
+			(when variable
+			  (return variable)))
+		 finally (return nil)))
+      (and buffer (get-variable-object name :buffer buffer))
+      (get-variable-object name :global nil)
+      (get-variable-object name :current nil)))
+
+(defun %value (buffer name)
+  (let ((obj (search-for-variable buffer name)))
     (unless obj (undefined-variable-error name))
     (variable-object-value obj)))
 
@@ -140,10 +158,10 @@
 ;;;
 ;;;    The setf-inverse of Value, set the current value.
 ;;;
-(defun %set-value (var new-value)
-  (let ((obj (get var 'hemlock-variable-value)))
+(defun %set-value (buffer var new-value)
+  (let ((obj (search-for-variable buffer var)))
     (unless obj (undefined-variable-error var))
-    (invoke-hook (variable-object-hooks obj) var :current nil new-value)
+    (invoke-hook buffer (variable-object-hooks obj) var :current nil new-value)
     (setf (variable-object-value obj) new-value)))
 
 ;;; %SET-VARIABLE-VALUE  --  Internal
@@ -152,7 +170,7 @@
 ;;;
 (defun %set-variable-value (name kind where new-value)
   (let ((obj (get-variable-object name kind where)))
-    (invoke-hook (variable-object-hooks obj) name kind where new-value)
+    (invoke-hook where (variable-object-hooks obj) name kind where new-value)
     (setf (variable-object-value obj) new-value)))
 
 ;;; VARIABLE-HOOKS  --  Public
@@ -294,7 +312,7 @@
       (:buffer
        (let* ((values (buffer-var-values where))
               (binding (find-binding name values)))
-         (invoke-hook hemlock::delete-variable-hook name :buffer where)
+         (invoke-hook current-buffer hemlock::delete-variable-hook name :buffer where)
          (delete-string sname (buffer-variables where))
          (setf (buffer-var-values where) (delete-binding binding values))
          (when (eq where current-buffer)
@@ -303,7 +321,7 @@
        (let* ((mode (get-mode-object where))
               (values (mode-object-var-values mode))
               (binding (find-binding name values)))
-         (invoke-hook hemlock::delete-variable-hook name :mode where)
+         (invoke-hook current-buffer hemlock::delete-variable-hook name :mode where)
          (delete-string sname (mode-object-variables mode))
          (if (member mode (buffer-mode-objects current-buffer))
              (let ((l (unwind-bindings mode current-buffer)))
@@ -313,7 +331,7 @@
              (setf (mode-object-var-values mode)
                    (delete-binding binding values)))))
       (:global
-       (invoke-hook hemlock::delete-variable-hook name :global nil)
+       (invoke-hook current-buffer hemlock::delete-variable-hook name :global nil)
        (delete-string sname *global-variable-names*)
        (let ((l (unwind-bindings nil current-buffer)))
          (setf (get name 'hemlock-variable-value) nil)

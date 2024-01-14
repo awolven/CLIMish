@@ -480,7 +480,7 @@
     `(let ((,region-sym ,region)
            (,current-type-sym ,current-type))
        (let ((deleted-region (hi::delete-and-save-region .buffer. ,region-sym)))
-         (cond ((< *delete-char-count* (value hemlock::character-deletion-threshold))
+         (cond ((< *delete-char-count* (value .buffer. hemlock::character-deletion-threshold))
                 (hi::ninsert-region .buffer. (if (eq ,current-type-sym :char-kill-forward)
                                       (region-end *delete-char-region*)
                                       (region-start *delete-char-region*))
@@ -535,7 +535,7 @@
                    (cond ((or (eq last-type :kill-forward)
                               (eq last-type :kill-backward))
                           (setf *delete-char-count*
-                                (value hemlock::character-deletion-threshold))
+                                (value .buffer. hemlock::character-deletion-threshold))
                           (setf *delete-char-region* nil))
                          ((or (eq last-type :char-kill-backward)
                               (eq last-type :char-kill-forward))

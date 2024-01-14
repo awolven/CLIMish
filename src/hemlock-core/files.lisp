@@ -38,7 +38,7 @@
 ;;; Write-File:
 
 (defun write-file (buffer region pathname &key append
-                          (keep-backup (value hemlock::keep-backup-files))
+                          (keep-backup (value buffer hemlock::keep-backup-files))
                           access)
   "Writes the characters in region to the file named by pathname.  This writes
    region using a stream opened with :if-exists :rename-and-delete, unless

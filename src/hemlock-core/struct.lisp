@@ -722,15 +722,15 @@
 
 ;;;; Some defsetfs:
 
-(define-setf-expander value (var)
+(define-setf-expander value (buffer var)
   "Set the value of a Hemlock variable, calling any hooks."
   (let ((svar (gensym)))
     (values
      ()
      ()
      (list svar)
-     `(%set-value ',var ,svar)
-     `(value ,var))))
+     `(%set-value ,buffer ',var ,svar)
+     `(value ,buffer ,var))))
 
 (defsetf variable-value (name &optional (kind :current) where) (new-value)
   "Set the value of a Hemlock variable, calling any hooks."

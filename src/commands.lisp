@@ -64,19 +64,18 @@
 (defmethod previous-line-command (window p)
   (next-line-command window (- (or p 1))))
 
-(defcommand enter-command (window buffer major-mode p)
+(climish::define-everywhere-command enter-command (window buffer major-mode p)
   (:pretty-name "Enter")
   (:documentation "")
   (:help-string "")
-  (:argument-computation (let* ((window (or (climish::focused-window climish::application-frame)
+  (:preparation (let* ((window (or (climish::focused-window climish::application-frame)
 					    *echo-area-window*))
-				(buffer (and (typep window 'climish::text-editor-view-mixin)
-					     (window-buffer window)))
-				(major-mode (and buffer (buffer-major-mode buffer)))
-				(universal-argument
-				  (climish::universal-argument climish::application-frame)))
-			   (list window buffer major-mode universal-argument)))
-  (:applicability t))
+		       (buffer (and (typep window 'climish::text-editor-view-mixin)
+				    (window-buffer window)))
+		       (major-mode (and buffer (buffer-major-mode buffer)))
+		       (universal-argument
+			 (climish::universal-argument climish::application-frame)))
+		  (list window buffer major-mode universal-argument))))
 
 (defmethod enter-command (window buffer major-mode p)
   (if (buffer-active-region-p buffer)
@@ -88,16 +87,16 @@
 (defmethod enter-command (window buffer (major-mode (eql :lisp)) p)
   ;; indent-new-line
   (let* ((point (buffer-point buffer)))
-    (let ((prefix (hi::value fill-prefix)))
+    (let ((prefix (hi::value buffer fill-prefix)))
       (delete-horizontal-space buffer point)
       (enter-command window buffer nil p)
       (if prefix
           (insert-string buffer point prefix)
-          (funcall (hi::value indent-function) buffer point)))
+          (funcall (hi::value buffer indent-function) buffer point)))
     (climish::redraw-buffer window)))
 
-(defmethod enter-command (window buffer (major-mode (eql :echo-area)) p)
-  (declare (ignore buffer p))
+(defmethod enter-command ((window climish::echo-area-window) buffer major-mode p)
+  (declare (ignore p))
   (let* ((string (region-to-string *echo-area-buffer* *parse-input-region*))
          (empty (zerop (length string))))
     (declare (simple-string string))
@@ -107,13 +106,19 @@
                   (string/= string (ring-ref *echo-area-history* 0)))
           (ring-push string *echo-area-history*)))
     (multiple-value-bind (res flag)
-                         (funcall *parse-verification-function* string)
+	(funcall *parse-verification-function* string)
       (unless (or res flag) (editor-error))
-      (exit-recursive-edit res))))
+      (invoke-hook *echo-area-buffer* hemlock::exit-recursive-edit-hook res)
+      (print (type-of (first res)))
+      (print climish::*input-context*)
+      (climish::maybe-provide (first res) (first res))
+      (error "failed to provide input")
+      ;;(exit-recursive-edit res)
+      )))
 
 (defmethod enter-command (window buffer (major-mode (eql :interactive-character-stream)) p)
   (declare (ignore p))
-  (let* ((stream (variable-value 'buffer-stream :buffer buffer))
+  (let* ((stream (value buffer buffer-stream))
 	 (point (buffer-point buffer)))
     (insert-character buffer point #\Newline)
     (with-buffer-globals (buffer)
@@ -278,14 +283,16 @@
   (forward-word-command view (- (or p 1))))
 
 
-(defhcommand find-file-command (view p &optional pathname)
-    (:pretty-name "Find File")
-    (:documentation "Visit a file in its own buffer.
+(defcommand find-file-command (view p &optional pathname)
+  (:pretty-name "Find File")
+  (:documentation "Visit a file in its own buffer.
    If the file is already in some buffer, select that buffer,
    otherwise make a new buffer with the same name as the file and
    read the file into it.")
   (:help-string "Make a buffer containing the file Pathname current, creating a buffer
-   if necessary.  The buffer is returned."))
+   if necessary.  The buffer is returned.")
+  (:applicability (climish::hemlock-applicability climish::application-frame))
+  (:preparation (climish::hemlock-arguments climish::application-frame)))
 
 (defmethod find-file-command (view p &optional pathname)
   (declare (ignore p))
@@ -300,14 +307,14 @@
     (climish::find-or-create-text-editor-window-for-buffer buffer)
     buffer))
 
-(defcommand mousewheel-scroll-command (window p)
+(climish::define-everywhere-command mousewheel-scroll-command (window p)
   (:pretty-name "Mousewheel Scroll")
   (:documentation "Use mousewheel to scroll.")
   (:help-string "Use mousewheel to scroll.")
   (:applicability (let* ((focused (climish::focused-window climish::application-frame)))
 		    (and focused (typep focused 'climish::text-editor-view-mixin)
 			 (not (eql focused *echo-area-window*)))))
-  (:argument-computation (let* ((focused (climish::focused-window climish::application-frame)))
+  (:preparation (let* ((focused (climish::focused-window climish::application-frame)))
 			   (list focused (climish::universal-argument climish::application-frame)))))
 			   
 
@@ -395,7 +402,7 @@
       (if p
 	  (hi::.scroll-window. window p)
 	  (let ((height (window-height window))
-		(overlap (value hemlock::scroll-overlap)))
+		(overlap (value buffer hemlock::scroll-overlap)))
 	    (hi::.scroll-window. window (if (<= height overlap)
 					    height (- height overlap))))))
     (climish::redraw-buffer window)))
@@ -415,7 +422,30 @@
       (if p
 	  (hi::.scroll-window. window (- p))
 	  (let ((height (- (window-height window)))
-		(overlap (- (value hemlock::scroll-overlap))))
+		(overlap (- (value buffer hemlock::scroll-overlap))))
 	    (hi::.scroll-window. window (if (>= height overlap)
 					    height (- height overlap))))))
     (climish::redraw-buffer window)))
+
+(climish::define-everywhere-command options (frame)
+  (:pretty-name "Options")
+  (:help-string "Show the context menu.")
+  (:documentation "Show the context menu.")
+  (:applicability (not (typep (climish::focused-window climish::application-frame)
+			      'climish::context-menu-mixin)))
+  (:preparation (list climish::application-frame)))
+
+(defmethod options (frame)
+  (let* ((menu (make-instance 'climish::context-menu))
+	 (event (climish::window-last-event frame)))
+;;    (break "~S" (adhoc:send menu climish::visible?))
+    (climish::set-window-position menu
+				  (- (clim:pointer-event-x event) 70)
+				  (- (clim:pointer-event-y event) 70))
+    (climish::focus-window menu)
+    (values)))
+
+
+
+    
+    

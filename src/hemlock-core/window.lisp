@@ -85,7 +85,7 @@
 
 (defun (setf current-window) (new-window)
   "Set the current window."
-  (invoke-hook hemlock::set-window-hook new-window)
+  (invoke-hook (window-buffer new-window) hemlock::set-window-hook new-window)
   (let ((window (current-window)))
     (move-mark (window-point window) (buffer-point (window-buffer window)))
     (let ((buffer (window-buffer new-window)))
@@ -114,7 +114,7 @@
     (unless (bufferp new-buffer) (error "~S is not a buffer." new-buffer))
     (unless (windowp window) (error "~S is not a window." window))
     (unless (eq new-buffer (window-buffer window))
-      (invoke-hook hemlock::window-buffer-hook window new-buffer)
+      (invoke-hook new-buffer hemlock::window-buffer-hook window new-buffer)
       ;;
       ;; Move the window's marks to the new start.
       (let ((buffer (window-buffer window)))

@@ -161,8 +161,8 @@
   (or (buffer-pathname buffer)
       (if (every #'alphanumericp (the simple-string (buffer-name buffer)))
           (merge-pathnames (make-pathname :name (buffer-name buffer))
-                           (value pathname-defaults))
-          (funcall (value last-resort-pathname-defaults-function) buffer))))
+                           (value buffer pathname-defaults))
+          (funcall (value buffer last-resort-pathname-defaults-function) buffer))))
 
 (defun buffer-default-directory (buffer)
   "Like buffer-default-pathname, but prefer a directory."
@@ -170,8 +170,8 @@
          (or (buffer-pathname buffer)
              (if (every #'alphanumericp (buffer-name buffer))
                  (merge-pathnames (make-pathname :name (buffer-name buffer))
-                                  (value pathname-defaults))
-                 (funcall (value last-resort-pathname-defaults-function)
+                                  (value buffer pathname-defaults))
+                 (funcall (value buffer last-resort-pathname-defaults-function)
                           buffer)))))
     (make-pathname :name nil :type nil :defaults p)))
 
@@ -214,7 +214,7 @@
          (start (copy-mark point :right-inserting))
          (end (copy-mark point :left-inserting))
          (region (region start end)))
-    (setv pathname-defaults pn)
+    (setv buffer pathname-defaults pn)
     (push-buffer-mark buffer (copy-mark end))
     (read-file buffer pn end)
     (make-region-undo buffer :delete "Insert File" region)))
@@ -304,7 +304,7 @@
         (if p buffer-pn (revert-pathname buffer))
       (unless revert-pn
         (editor-error "No file associated with buffer to revert to!"))
-      (when (or (not (value revert-file-confirm))
+      (when (or (not (value buffer revert-file-confirm))
                 (not (buffer-modified buffer))
                 (prompt-for-y-or-n
                  window
@@ -477,9 +477,9 @@
     (let ((stored-pathname (or probed-pathname
                                (merge-pathnames pathname (hemlock-ext:default-directory)))))
       (setf (buffer-pathname buffer) stored-pathname)
-      (setf (value pathname-defaults) stored-pathname)
+      (setf (value buffer pathname-defaults) stored-pathname)
       (process-file-options buffer stored-pathname)
-      (invoke-hook read-file-hook buffer probed-pathname))))
+      (invoke-hook buffer read-file-hook buffer probed-pathname))))
 
 
 
@@ -510,7 +510,7 @@
                                       "Type No to abort writing the file or Yes to overwrite the disk version."
                                       :default nil)
           (editor-error "Write aborted."))))
-    (let ((val (value add-newline-at-eof-on-writing-file)))
+    (let ((val (value buffer add-newline-at-eof-on-writing-file)))
       (when val
         (let ((end (buffer-end-mark buffer)))
           (unless (start-line-p end)
@@ -524,7 +524,7 @@
                       t)
               (insert-character buffer end #\newline)
               (message "Added newline at EOF."))))))
-    (setv pathname-defaults pathname)
+    (setv buffer pathname-defaults pathname)
     (write-file buffer (buffer-region buffer) pathname)
     (let ((tn (truename pathname)))
       (message "~A written." (namestring tn))
@@ -535,7 +535,7 @@
       (let ((name (pathname-to-buffer-name tn)))
         (unless (getstring name *buffer-names*)
           (setf (buffer-name buffer) name)))))
-  (invoke-hook write-file-hook buffer))
+  (invoke-hook buffer write-file-hook buffer))
 
 (defhcommand write-file-command (window p &optional pathname buffer)
   (:pretty-name "Write File")
@@ -596,7 +596,7 @@
         (when
             (and (buffer-modified b)
                  pn
-                 (or (not (value save-all-files-confirm))
+                 (or (not (value buffer save-all-files-confirm))
                      (prompt-for-y-or-n
                       window
                       :prompt (list
@@ -873,7 +873,7 @@
           (progn 
           (let* ((previous (or (previous-buffer window)
                                (editor-error "Cannot kill last buffer.")))
-                 (new (if (value ask-for-new-buffer)
+                 (new (if (value buffer ask-for-new-buffer)
                           (prompt-for-buffer
                            window
                            :prompt "New Buffer: "
@@ -1320,17 +1320,18 @@
   (:help-string "Do a directory into a pop-up window."))
 
 (defmethod directory-command (window p)
-  (let* ((dpn (value pathname-defaults))
-         (pn (prompt-for-file
-              window
-              :prompt "Directory: "
-              :help "Pathname to do directory on."
-              :default (make-pathname :device (pathname-device dpn)
-                                      :directory (pathname-directory dpn))
-              :must-exist nil)))
-    (setf (value pathname-defaults) (merge-pathnames pn dpn))
-    (with-pop-up-display (s :current-window window)
-      (print-directory pn s :all p))))
+  (let ((buffer (window-buffer window)))
+    (let* ((dpn (value buffer pathname-defaults))
+           (pn (prompt-for-file
+                window
+                :prompt "Directory: "
+                :help "Pathname to do directory on."
+                :default (make-pathname :device (pathname-device dpn)
+                                        :directory (pathname-directory dpn))
+                :must-exist nil)))
+      (setf (value buffer pathname-defaults) (merge-pathnames pn dpn))
+      (with-pop-up-display (s :current-window window)
+        (print-directory pn s :all p)))))
 
 (defhcommand verbose-directory-command (window p)
   (:pretty-name "Verbose Directory")
@@ -1342,7 +1343,7 @@
    "Do a directory into a pop-up window."))
 
 (defmethod verbose-directory-command (window p)
-  (let* ((dpn (value pathname-defaults))
+  (let* ((dpn (value buffer pathname-defaults))
          (pn (prompt-for-file
               window
               :prompt "Verbose Directory: "
@@ -1350,7 +1351,7 @@
               :default (make-pathname :device (pathname-device dpn)
                                       :directory (pathname-directory dpn))
               :must-exist nil)))
-    (setf (value pathname-defaults) (merge-pathnames pn dpn))
+    (setf (value buffer pathname-defaults) (merge-pathnames pn dpn))
     (with-pop-up-display (s :current-window window)
       (print-directory pn s :verbose t :all p))))
 
@@ -1393,12 +1394,12 @@
     (unwind-protect
         (progn
           (find-file-command nil (merge-pathnames
-                                  (value log-file-name)
+                                  (value buffer log-file-name)
                                   (buffer-default-pathname buffer)))
           (let ((point (buffer-point buffer)))
             (buffer-start point)
             (with-output-to-mark (s buffer point :full)
-              (format s (value log-entry-template)
+              (format s (value buffer log-entry-template)
                       (namestring pathname)
                       (universal-time-to-string
                        (or (file-write-date pathname)
@@ -1545,10 +1546,10 @@
   (let ((win (make-instance 'climish::text-editor-window
                             :display-start (window-display-start window)
                           :ask-user t
-                          :x (value default-initial-window-x)
-                          :y (value default-initial-window-y)
-                          :width (value default-initial-window-width)
-                          :height (value default-initial-window-height))))
+                          :x (value buffer default-initial-window-x)
+                          :y (value buffer default-initial-window-y)
+                          :width (value buffer default-initial-window-width)
+                          :height (value buffer default-initial-window-height))))
     (climish::focus-window win)
     (dolist (w *window-list*)
       (unless (or (eq w win)

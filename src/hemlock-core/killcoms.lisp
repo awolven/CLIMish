@@ -44,7 +44,7 @@
 (defun check-region-active (buffer)
   "Signals an error when active regions are enabled and the current region
    is not active."
-  (when (and (value active-regions-enabled) (not (region-active-p buffer)))
+  (when (and (value buffer active-regions-enabled) (not (region-active-p buffer)))
       (editor-error "The current region is not active.")))
 
 (defun current-region (buffer &optional (error-if-not-active t)
@@ -135,9 +135,9 @@
            (push-buffer-mark buffer (copy-mark (buffer-point buffer)) t)
            (when (interactive)
              (message "Mark pushed.")))
-          ((= p (value universal-argument-default))
+          ((= p (value buffer universal-argument-default))
            (pop-and-goto-mark buffer nil))
-          ((= p (expt (value universal-argument-default) 2))
+          ((= p (expt (value buffer universal-argument-default) 2))
            (delete-mark (pop-buffer-mark buffer)))
           (t (editor-error)))))
 

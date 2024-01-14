@@ -68,6 +68,16 @@
 		(primitive-set-transform scene handle matrix))
 	    (the primitive-handles))))
 
+(defmethod clim:handle-event :around ((self selectable-mixin) (event clim:pointer-enter-event))
+  (setf (the hovered?) t)
+  (when (next-method-p)
+    (call-next-method)))
+
+(defmethod clim:handle-event :around ((self selectable-mixin) (event clim:pointer-exit-event))
+  (setf (the hovered?) nil)
+  (when (next-method-p)
+    (call-next-method)))
+
 (defobject node-mixin ()
   :slots
   ((primitive-handles :initform ()))
@@ -82,7 +92,7 @@
     (quat 0 0 0 1))
    (scene :defaulting))
 
-  :default-initargs (scene (krma::frame-manager-default-medium clim:*default-frame-manager*))
+  :default-initargs (scene (krma:default-medium))
   
   :attributes
   ((rotation-matrix
@@ -113,12 +123,12 @@
 				     (typep child 'node-mixin))
 				 (the children)))))
 
-(defmethod add-to-scene (node &optional (scene (krma::frame-manager-default-medium clim:*default-frame-manager*)))
+(defmethod add-to-scene (node &optional (scene (krma:default-medium)))
   (push node (krma::node-children scene))
   (rm-redraw-node-recursively node)
   (values))  
 
-(defun remove-from-scene (node &optional (scene (krma::frame-manager-default-medium clim:*default-frame-manager*)))
+(defun remove-from-scene (node &optional (scene (krma:default-medium)))
   (rm-erase-node-recursively node)
   (setf (krma::node-children scene)
 	(remove node (krma::node-children scene)))
@@ -208,8 +218,8 @@
 
 (defun adhoc::adhoc-redefinition-hook ()
   #+NIL
-  (when (boundp 'clim:*default-frame-manager*)
-    (loop for node in (krma::node-children (krma::frame-manager-default-medium clim:*default-frame-manager*))
+  (when (boundp 'krma::*media*)
+    (loop for node in (krma::node-children (krma:default-medium))
 	  do (rm-redraw-node-recursively node))))
 
 (defun touch-instance-recursively (self)

@@ -65,7 +65,7 @@
                                          (make-pathname
                                           :name group-name
                                           :type "upd")
-                                         (value pathname-defaults))))))
+                                         (value (window-buffer window) pathname-defaults))))))
     (setq *active-file-group-name* group-name)
     (setq *active-file-group* (nreverse (read-file-group pathname nil)))
     (setf (getstring group-name *file-groups*) pathname)))
@@ -153,7 +153,7 @@
         (setf (window-buffer w) (window-buffer current-window)))
       (delete-buffer search-buffer (window-buffer current-window)))
 
-    (if (and created-p (not (value group-find-file)))
+    (if (and created-p (not (value buffer group-find-file)))
         (window-buffer current-window) nil)))
 
 ;;; GROUP-SAVE-FILE is used by DO-ACTIVE-GROUP.
@@ -163,7 +163,7 @@
          (pn (buffer-pathname buffer))
          (name (namestring pn)))
     (when (and (buffer-modified buffer)
-               (or (not (value group-save-file-confirm))
+               (or (not (value buffer group-save-file-confirm))
                    (prompt-for-y-or-n
                     current-window
                     :prompt (list "Save changes in ~A? " name)

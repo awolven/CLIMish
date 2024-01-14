@@ -59,7 +59,7 @@
 (defmethod auto-fill-space-command (window p)
   (let* ((buffer (window-buffer window))
          (point (buffer-point buffer)))
-    (check-fill-prefix buffer (value fill-prefix) (value fill-column) point)
+    (check-fill-prefix buffer (value buffer fill-prefix) (value buffer fill-column) point)
     (cond ((and p (plusp p))
            (dotimes (x p) (insert-character buffer point #\space)))
           ((and p (zerop p)) (%auto-fill-space window buffer point nil))
@@ -74,7 +74,7 @@
 (defmethod auto-fill-linefeed-command (window p)
   (let* ((buffer (window-buffer window))
          (point (buffer-point buffer)))
-    (check-fill-prefix buffer (value fill-prefix) (value fill-column) point)
+    (check-fill-prefix buffer (value buffer fill-prefix) (value buffer fill-column) point)
     (%auto-fill-space window buffer point nil)
     ;; The remainder of this function should go away when
     ;; transparent key bindings are per binding instead of
@@ -97,7 +97,7 @@
 (defmethod auto-fill-return-command (window p)
   (let* ((buffer (window-buffer window))
          (point (buffer-point buffer)))
-    (check-fill-prefix buffer (value fill-prefix) (value fill-column) point)
+    (check-fill-prefix buffer (value buffer fill-prefix) (value buffer fill-column) point)
     (%auto-fill-space window buffer point nil)
     ;; The remainder of this function should go away when
     ;; transparent key bindings are per binding instead of
@@ -127,9 +127,9 @@
 (defmethod fill-paragraph-command (window p)
   (let* ((buffer (window-buffer window))
          (point (buffer-point buffer))
-         (prefix (value fill-prefix))
+         (prefix (value buffer fill-prefix))
          (prefix-len (length prefix))
-         (column (if p (abs p) (value fill-column))))
+         (column (if p (abs p) (value buffer fill-column))))
     (with-mark ((m point))
       (let ((paragraphp (paragraph-offset buffer m 1)))
         (unless (or paragraphp
@@ -157,8 +157,8 @@
   (let* ((buffer (window-buffer window))
          (point (buffer-point buffer))
          (region (current-region buffer))
-         (prefix (value fill-prefix))
-         (column (if p (abs p) (value fill-column))))
+         (prefix (value buffer fill-prefix))
+         (column (if p (abs p) (value buffer fill-column))))
     (check-fill-prefix buffer prefix column point)
     (check-region-query-size window region)
     (fill-region-by-paragraphs region prefix column)))
@@ -222,11 +222,11 @@
   "Insert space, but CRLF if text extends past margin.
    If arg is 0, then may break line but will not insert the space.
    If arg is positive, then inserts that many spaces without filling."
-  (if (> (mark-column buffer point) (value fill-column))
+  (if (> (mark-column buffer point) (value buffer fill-column))
       (with-mark ((mark1 point :left-inserting))
         (let ((not-all-blank (reverse-find-attribute buffer mark1 :whitespace #'zerop))
-              (prefix (value fill-prefix))
-              (column (value fill-column)))
+              (prefix (value buffer fill-prefix))
+              (column (value buffer fill-column)))
           (cond ((and not-all-blank (mark= point mark1))
                  (%auto-fill-word-past-column current-window buffer point mark1 insertp prefix column))
                 ((and not-all-blank (same-line-p mark1 point))
@@ -287,9 +287,9 @@
 ;;; of a prefix overrides all this.
 
 (defun auto-fill-line-as-region (buffer point mark prefix column)
-  (let* ((start (value comment-start))
-         (begin (value comment-begin))
-         (end (value comment-end)))
+  (let* ((start (value buffer comment-start))
+         (begin (value buffer comment-begin))
+         (end (value buffer comment-end)))
     (line-start mark)
     (cond ((and (not prefix) start (to-line-comment mark start))
            (fill-region buffer
@@ -345,7 +345,7 @@
 ;;; (current-point).
 
 (defun %filling-set-next-line (current-window buffer point insertp prefix)
-  (cond ((and (value auto-fill-space-indent) (not prefix))
+  (cond ((and (value buffer auto-fill-space-indent) (not prefix))
          (indent-new-comment-line-command current-window nil))
         (t (new-line-command current-window nil)
            (if prefix (insert-string buffer point prefix))))
@@ -379,8 +379,8 @@
 ;;; instead of between two.
 ;;;
 (defun fill-region-by-paragraphs (buffer region &optional
-                                         (prefix (value fill-prefix))
-                                         (column (value fill-column)))
+                                         (prefix (value buffer fill-prefix))
+                                         (column (value buffer fill-column)))
   "Finds paragraphs in region and fills them as distinct regions using
    FILL-REGION."
   (with-mark ((start (region-start region) :left-inserting))
@@ -413,8 +413,8 @@
         (make-region-undo buffer :twiddle "Fill Region" region undo-region)))))
 
 (defun fill-region (buffer region &optional
-                           (prefix (value fill-prefix))
-                           (column (value fill-column)))
+                           (prefix (value buffer fill-prefix))
+                           (column (value buffer fill-column)))
   "Fills a region using the given prefix and column."
   (let ((prefix (if (and prefix (string= prefix "")) () prefix)))
     (with-mark ((start (region-start region) :left-inserting))

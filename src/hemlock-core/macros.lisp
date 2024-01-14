@@ -35,22 +35,26 @@
 
 ;;;; Macros used for manipulating Hemlock variables.
 
-(defmacro invoke-hook (place &rest args)
+(defmacro invoke-hook (buffer place &rest args)
   "Call the functions in place with args.  If place is a symbol, then this
    interprets it as a Hemlock variable rather than a Lisp variable, using its
    current value as the list of functions."
-  (let ((f (gensym)))
-    `(dolist (,f ,(if (symbolp place) `(%value ',place) place))
-       (funcall ,f ,@args))))
+  (let ((f (gensym))
+        (b (gensym)))
+    `(let ((,b ,buffer))
+       (dolist (,f ,(if (symbolp place) `(%value ,b ',place) place))
+         (funcall ,f ,@args)))))
 
-(defmacro value (name)
+(defmacro value (buffer name)
   "Return the current value of the Hemlock variable name."
-  `(%value ',name))
+  (let ((buf-var (gensym)))
+    `(let ((,buf-var ,buffer))
+       (%value ,buf-var ',name))))
 
-(defmacro setv (name new-value)
+(defmacro setv (buffer name new-value)
   "Set the current value of the Hemlock variable name, calling any hook
    functions with new-value before setting the value."
-  `(%set-value ',name ,new-value))
+  `(%set-value ,buffer ',name ,new-value))
 
 ;;; WITH-VARIABLE-OBJECT  --  Internal
 ;;;
@@ -131,24 +135,24 @@
 ;;;    Add a hook function to a hook, defining a variable if
 ;;; necessary.
 ;;;
-(defmacro add-hook (place hook-fun)
+(defmacro add-hook (buffer place hook-fun)
   "Add-Hook Place Hook-Fun
   Add Hook-Fun to the list stored in Place.  If place is a symbol then it
   it is interpreted as a Hemlock variable rather than a Lisp variable."
   (if (symbolp place)
-      `(pushnew ,hook-fun (value ,place))
+      `(pushnew ,hook-fun (value ,buffer ,place))
       `(pushnew ,hook-fun ,place)))
 
 ;;; remove-hook  --  Public
 ;;;
 ;;;    Delete a hook-function from somewhere.
 ;;;
-(defmacro remove-hook (place hook-fun)
+(defmacro remove-hook (buffer place hook-fun)
   "Remove-Hook Place Hook-Fun
   Remove Hook-Fun from the list in Place.  If place is a symbol then it
   it is interpreted as a Hemlock variable rather than a Lisp variable."
   (if (symbolp place)
-      `(setf (value ,place) (delete ,hook-fun (value ,place)))
+      `(setf (value ,buffer ,place) (delete ,hook-fun (value ,buffer ,place)))
       `(setf ,place (delete ,hook-fun ,place))))
 
 

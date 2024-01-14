@@ -219,7 +219,7 @@
       (bt:with-recursive-lock-held (buffer-lock)
         (when (< (buffer-modified-tick buffer)
                  (buffer-unmodified-tick buffer))
-          (invoke-hook hemlock::buffer-modified-hook buffer t))
+          (invoke-hook buffer hemlock::buffer-modified-hook buffer t))
         (setf (buffer-modified-tick buffer) (tick))
         ;; FIXME: what is hemlock-ext:without-interrupts for?
         (hemlock-ext:without-interrupts (funcall fun))))))

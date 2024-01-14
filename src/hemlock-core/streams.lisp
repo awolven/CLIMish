@@ -221,7 +221,7 @@
                  (variable-value 'hemlock::buffer-input-mark :buffer buffer)
                  (buffer-point buffer))
                 #+NIL
-                (climish::command-loop))))
+                (climish::recursive-command-loop))))
       (check-type input-string string)
       (setf input-pos 0))))
 

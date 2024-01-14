@@ -116,7 +116,7 @@
 (defaccelerator "Save All Files and Exit" #k"Ctrl-x" #k"Ctrl-c")
 
 (defaccelerator "Lisp Listener" #k"Ctrl-x" #k"l")
-
+(defaccelerator "Options" #k"RightMouse")
 
 
 ;;(defaccelerator "Bufed" #k"Ctrl-x" #k"Ctrl-b")

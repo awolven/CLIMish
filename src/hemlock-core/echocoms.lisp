@@ -33,12 +33,17 @@
                    res #'string-lessp)))
       ((null table) res)))
 
+(defun echo-area-mode-p (frame)
+  (or (null (climish::focused-window frame))
+      (eq (climish::focused-window frame) *echo-area-window*)))
+
 (defhcommand help-on-parse-command (window p)
   (:pretty-name "Help on Parse")
   (:documentation "Display help for parse in progress.
   If there are a limited number of options then display them.")
   (:help-string "Display the *Parse-Help* and any possibly completions of the current
-  input."))
+  input.")
+  (:applicability (echo-area-mode-p climish::application-frame)))
 
 (defmethod help-on-parse-command (window p)
   (declare (ignore p))
@@ -98,14 +103,14 @@
       (result win)
       (hemlock-ext::complete-file typein
                                  :defaults (directory-namestring *parse-default*)
-                                 :ignore-types (value ignore-file-types))
+                                 :ignore-types (value *echo-area-buffer* ignore-file-types))
     (when result
       (delete-region *echo-area-buffer* *parse-input-region*)
       (insert-string *echo-area-buffer* (region-start *parse-input-region*)
                      (namestring result))
       (climish::redraw-buffer *echo-area-window*))
     #+NIL
-    (when (and (not win) (value beep-on-ambiguity))
+    (when (and (not win) (value *echo-area-buffer* beep-on-ambiguity))
       (editor-error))))
 
 (defhcommand complete-keyword-command (window p)
@@ -115,7 +120,8 @@
   *parse-string-tables*")
   (:help-string
    "Complete the keyword being parsed as far as possible.
-  If it is ambiguous and ``Beep On Ambiguity'' true beep."))
+  If it is ambiguous and ``Beep On Ambiguity'' true beep.")
+  (:applicability (echo-area-mode-p climish::application-frame)))
 
 (defmethod complete-keyword-command (window p)
   (declare (ignore p))
@@ -136,7 +142,7 @@
                (unless (character-offset *echo-area-buffer* point ambig)
                  (buffer-end point *echo-area-buffer*)))))
          (when (and (or (eq key :ambiguous) (eq key :none))
-                    (value beep-on-ambiguity))
+                    (value *echo-area-buffer* beep-on-ambiguity))
            (editor-error))))
       (:file
        (file-completion-action typein))
@@ -156,7 +162,8 @@
    "Complete a field in a keyword.
   If it is ambiguous and ``Beep On Ambiguity'' true beep.  Fields are
   separated by characters having a non-zero :parse-field-separator attribute,
-  and this command should only be bound to characters having that attribute."))
+  and this command should only be bound to characters having that attribute.")  
+  (:applicability (echo-area-mode-p climish::application-frame)))
 
 (defmethod complete-field-command (window p)
   (let ((typein (region-to-string *echo-area-buffer* *parse-input-region*)))
@@ -233,7 +240,8 @@
   If current input is non-empty and different from what is on the top
   of the ring then push it on the ring before inserting the new input.")
   (:help-string
-   "Pop the *echo-area-history* ring buffer."))
+   "Pop the *echo-area-history* ring buffer.")
+  (:applicability (echo-area-mode-p climish::application-frame)))
 
 (defmethod previous-parse-command (window p)
   (let ((length (ring-length *echo-area-history*))
@@ -265,7 +273,8 @@
    "Rotate the echo-area history backward.
   If current input is non-empty and different from what is on the top
   of the ring then push it on the ring before inserting the new input.")
-  (:help-string "Push the *echo-area-history* ring buffer."))
+  (:help-string "Push the *echo-area-history* ring buffer.")
+  (:applicability (echo-area-mode-p climish::application-frame)))
 
 (defmethod next-parse-command (window p)
   (previous-parse-command window (- (or p 1))))
@@ -274,7 +283,8 @@
   (:pretty-name "Illegal")
   (:documentation "This signals an editor-error.
   It is useful for making commands locally unbound.")
-  (:help-string "Just signals an editor-error."))
+  (:help-string "Just signals an editor-error.")
+  (:applicability (echo-area-mode-p climish::application-frame)))
 
 (defmethod illegal-command (window p)
   (declare (ignore p))
@@ -287,7 +297,8 @@
   (:documentation
    "Moves to immediately after the prompt when in the echo area.")
   (:help-string
-   "Move the point of the echo area buffer to *parse-starting-mark*."))
+   "Move the point of the echo area buffer to *parse-starting-mark*.")
+  (:applicability (echo-area-mode-p climish::application-frame)))
 
 (defmethod beginning-of-parse-command (window p)
   (declare (ignore p))
@@ -299,7 +310,8 @@
   Don't let the luser rub out the prompt.")
   (:help-string
    "Signal an editor-error if we would nuke the prompt,
-  otherwise do a normal delete."))
+  otherwise do a normal delete.")
+  (:applicability (echo-area-mode-p climish::application-frame)))
 
 (defmethod echo-area-delete-previous-character-command (window p)
   (with-mark ((tem (buffer-point *echo-area-buffer*)))
@@ -313,7 +325,8 @@
   Don't let the luser rub out the prompt.")
   (:documentation
    "Signal an editor-error if we would mangle the prompt, otherwise
-  do a normal kill-previous-word."))
+  do a normal kill-previous-word.")
+  (:applicability (echo-area-mode-p climish::application-frame)))
 
 (defmethod echo-area-kill-previous-word-command (window p)
   (with-mark ((tem (buffer-point *echo-area-buffer*)))
@@ -326,7 +339,8 @@
 (defhcommand kill-parse-command (window p)
   (:pretty-name "Kill Parse")
   (:documenation "Kills any input so far.")
-  (:help-string "Kills *parse-input-region*."))
+  (:help-string "Kills *parse-input-region*.")
+  (:applicability (echo-area-mode-p climish::application-frame)))
 
 (defmethod kill-parse-command (window p)
   (declare (ignore p))
@@ -342,7 +356,8 @@
   The text is inserted at the point.")
   (:help-string
    "Inserts *parse-default* at the point of the *echo-area-buffer*.
-  If there is no default an editor-error is signalled."))
+  If there is no default an editor-error is signalled.")
+  (:applicability (echo-area-mode-p climish::application-frame)))
 
 (defmethod insert-default-parse-command (window p)
   (declare (ignore p))
@@ -355,7 +370,8 @@
   Don't let the luser move into the prompt.")
   (:help-string
    "Signal an editor-error if we try to go into the prompt, otherwise
-  do a backward-character command."))
+  do a backward-character command.")
+  (:applicability (echo-area-mode-p climish::application-frame)))
 
 (defmethod echo-area-backward-character-command (window p)
   (backward-character-command window p)
@@ -369,7 +385,8 @@
   Don't let the luser move into the prompt.")
   (:help-string
    "Signal an editor-error if we try to go into the prompt, otherwise
-  do a backward-word command."))
+  do a backward-word command.")
+  (:applicability (echo-area-mode-p climish::application-frame)))
 
 (defmethod echo-area-backward-word-command (window p)
   (backward-word-command window p)

@@ -251,12 +251,22 @@
 (set-dispatch-macro-character #\# #\k 'parse-input-event-id)
 
 (defmethod input-event-id ((event clui::input-event-mixin))
-  (intern-input-event-id (clui::input-event-code event) (clui::event-modifier-state event) (typecase event
-											  (clui::button-release-event-mixin :release)
-											  (t :press))))
+  (intern-input-event-id (clui::input-event-code event)
+			 (clui::event-modifier-state event)
+			 (typecase event
+			   (clui::button-release-event-mixin :release)
+			   (t :press))))
 
 (defmethod input-event-id ((event clui::character-event-mixin))
   (clui::input-event-character event))
+
+(defmethod input-event-id ((event clim:pointer-enter-event))
+  :pointer-enter)
+
+(defmethod input-event-id ((event clim:pointer-exit-event))
+  :pointer-exit)
+
+
 
 
 

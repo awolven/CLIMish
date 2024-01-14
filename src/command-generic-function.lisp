@@ -5,9 +5,29 @@
 (defclass command (standard-generic-function)
   ((pretty-name :accessor hemlock::command-name)
    (applicability)
-   (argument-computation)
-   (help-string))
+   (preparation)
+   (help-string)
+   (resolution))
   (:metaclass funcallable-standard-class))
+
+(defclass everywhere-command (command)
+  ()
+  (:metaclass funcallable-standard-class))
+
+(defclass text-editor-command (command)
+  ()
+  (:metaclass funcallable-standard-class))
+
+(defclass lisp-mode-command (text-editor-command)
+  ()
+  (:metaclass funcallable-standard-class))
+
+(defmethod hemlock::lisp-mode-p (frame)
+  (let ((focused-window (focused-window frame)))
+    (and focused-window
+         (typep focused-window 'text-editor-window-mixin)
+         (let ((buffer (hi::window-buffer focused-window)))
+           (and buffer (eq (hi::buffer-major-mode buffer) :lisp))))))
 
 (defvar *command-name->command-table*
   (make-hash-table :test #'equalp))
@@ -18,7 +38,9 @@
 	     (cl:defgeneric ,name ,arglist
 	       ,@(when (assoc :documentation initargs)
 		   `((:documentation ,(second (assoc :documentation initargs)))))
-	       (:generic-function-class command))))
+	       ,@(if (assoc :generic-function-class initargs)
+		     `((:generic-function-class ,(second (assoc :generic-function-class initargs))))
+		     `((:generic-function-class command))))))
        ,@(when (assoc :pretty-name initargs)
 	   `((setf (slot-value ,fn 'pretty-name)
 		   ,(second (assoc :pretty-name initargs)))
@@ -33,29 +55,74 @@
 		   (lambda (application-frame)
 		     (declare (ignorable application-frame))
 		     t))))
-       ,@(when (assoc :argument-computation initargs)
-	   `((setf (slot-value ,fn 'argument-computation)
+       ,@(when (assoc :preparation initargs)
+	   `((setf (slot-value ,fn 'preparation)
 		   (lambda (application-frame)
 		     (declare (ignorable application-frame))		     
-		     ,(second (assoc :argument-computation initargs))))))
+		     ,(second (assoc :preparation initargs))))))
        ,@(when (assoc :help-string initargs)
 	   `((setf (slot-value ,fn 'help-string)
 		   (lambda (application-frame)
 		     (declare (ignorable application-frame))		     
 		     ,(second (assoc :help-string initargs))))))
+       ,@(if (assoc :resolution initargs)
+	     `((setf (slot-value ,fn 'resolution)
+		   (lambda (application-frame results)
+		     (declare (ignorable application-frame results))
+		     ,(second (assoc :resolution initargs)))))
+	     `((setf (slot-value ,fn 'resolution)
+		     (lambda (application-frame results)
+		       (declare (ignorable application-frame))
+		       (if results
+			   (hi:message (format nil "~A returned: ~S~{, ~S~}"
+					       (slot-value ,fn 'pretty-name)
+					       (first results) (rest results)))
+			   (hi:message (format nil "~A returned no values."
+					       (slot-value ,fn 'pretty-name))))))))			   
        (pushnew ,fn *application-commands*)
        ,fn)))
 
+(defmacro define-everywhere-command (name arglist &rest initargs)
+  `(defcommand ,name ,arglist
+     ,@initargs
+     ,@(when (not (assoc :preparation initargs))
+	 `((:preparation (climish::hemlock-arguments climish::application-frame))))
+     (:applicability t)
+     (:resolution (values))
+     (:generic-function-class everywhere-command)))
+
 (defmacro hemlock::defhcommand (name arglist &rest initargs)
   `(defcommand ,name ,arglist
-     (:argument-computation (hemlock-arguments climish::application-frame))
-     (:applicability (hemlock-applicability climish::application-frame))
+     ,@(when (not (assoc :preparation initargs))
+	 `((:preparation (hemlock-arguments climish::application-frame))))
+     ,@(when (not (assoc :applicability initargs))
+	 `((:applicability (hemlock-applicability climish::application-frame))))
+     (:resolution (values))
+     (:generic-function-class text-editor-command)
      ,@initargs))
-    
+
+(defmacro hemlock::define-lisp-mode-command (name arglist &rest initargs)
+  `(defcommand ,name ,arglist
+     (:preparation (hemlock-arguments climish::application-frame))
+     (:applicability (hemlock::lisp-mode-p climish::application-frame))
+     (:resolution (values))
+     (:generic-function-class lisp-mode-command)
+     ,@initargs))    
 
 (defmethod invoke-command (command application-frame)
-  (apply command
-	 (funcall (slot-value command 'argument-computation) application-frame)))
+  (push command (command-stack application-frame))
+  ;; the command stack is for computing applicability to commands
+  ;; some commands are only available "inside" other commands.
+  (unwind-protect
+       (let ((results
+	       (multiple-value-list
+		(apply command
+		       (funcall (slot-value command 'preparation) application-frame)))))
+	 (unwind-protect (values-list results)
+	   (funcall (slot-value command 'resolution) application-frame results)))
+    (pop (command-stack application-frame))
+    ;; recompute applicable commands for new context
+    (compute-applicable-commands application-frame)))
 
 (defun compute-applicable-commands (application-frame)
   (prog1 (setf (applicable-commands application-frame)
@@ -68,11 +135,13 @@
 (defun hemlock-arguments (application-frame)
   (list (or (focused-window application-frame) *echo-area-window*) nil))
 
+(defun toplevel-context-p (application-frame)
+  (null (command-stack application-frame)))
+
 (defun hemlock-applicability (application-frame)
   (declare (ignorable application-frame))
-  t
-  #+NIL
-  (typep (focused-window application-frame) 'text-editor-view-mixin))
+  (and (toplevel-context-p application-frame)
+       (typep (focused-window application-frame) 'text-editor-view-mixin)))
 
 (defvar *accelerator-table*
   (make-hash-table :test #'eq))

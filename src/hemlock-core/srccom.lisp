@@ -188,11 +188,11 @@
           (prompt-for-buffer current-window :prompt "Putting results in buffer: "
                              :must-exist nil
                              :default-string
-                             (value source-compare-default-destination))))
+                             (value current-buffer source-compare-default-destination))))
   (if (stringp dest-buffer)
       (setf dest-buffer (make-buffer dest-buffer))
       (buffer-end (buffer-point dest-buffer)))
-  (setf (value source-compare-default-destination) (buffer-name dest-buffer))
+  (setf (value current-buffer source-compare-default-destination) (buffer-name dest-buffer))
   (change-to-buffer dest-buffer current-window)
   (let* ((alt-buffer-a (if p (make-buffer (prin1-to-string (gensym)))))
          (alt-buffer-b (if alt-buffer-a
@@ -308,7 +308,7 @@
        (line-b (mark-line mark-b) (funcall *srccom-line-next* line-b))
        (cmark-b (copy-mark mark-b))
        (temp)
-       (window-size (value source-compare-number-of-lines)))
+       (window-size (value buffer source-compare-number-of-lines)))
       (())
     ;; If we hit the end of one buffer, then the difference extends to the end
     ;; of both buffers.
@@ -362,17 +362,17 @@
 ;;; This initializes utility functions for comparison commands based on Hemlock
 ;;; variables.
 ;;;
-(defun srccom-choose-comparison-functions ()
+(defun srccom-choose-comparison-functions (buffer)
   (setf *srccom-line=*
-        (if (value source-compare-ignore-case)
-            (if (value source-compare-ignore-indentation)
+        (if (value buffer source-compare-ignore-case)
+            (if (value buffer source-compare-ignore-indentation)
                 #'srccom-ignore-case-and-indentation-line=
                 #'srccom-case-insensitive-line=)
-            (if (value source-compare-ignore-indentation)
+            (if (value buffer source-compare-ignore-indentation)
                 #'srccom-ignore-indentation-case-sensitive-line=
                 #'srccom-case-sensitive-line=)))
   (setf *srccom-line-next*
-        (if (value source-compare-ignore-extra-newlines)
+        (if (value buffer source-compare-ignore-extra-newlines)
             #'srccom-line-next-ignoring-extra-newlines
             #'line-next)))
 #|

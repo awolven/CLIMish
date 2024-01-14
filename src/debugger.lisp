@@ -19,10 +19,10 @@
   (let* ((buffer (make-instance 'hi::buffer :name "debugger")))
     
     (setf (buffer-undo-p buffer) nil)
-    (setf (buffer-minor-mode buffer *echo-area-buffer* "Save") nil)
+    (setf (buffer-minor-mode buffer *echo-area-buffer* :save) nil)
     (setf (buffer-minor-mode buffer *echo-area-buffer*
-			     "Interactive-Character-Stream") t)
-    (setf (buffer-major-mode buffer *echo-area-buffer*) "LISP")
+			     :interactive-character-stream) t)
+    (setf (buffer-major-mode buffer *echo-area-buffer*) :lisp)
 
     (let ((window (make-instance 'debugger-window :buffer buffer)))
       ;; focus window has to come before debug-command-loop start
@@ -32,7 +32,7 @@
       
       (setf (debugger-window-command-loop-thread window)
 	    (let* ((main-window (krma::main-window clim::*default-frame-manager*)))
-	      (bt:make-thread #'(lambda () (command-loop main-window))
+	      (bt:make-thread #'(lambda () (toplevel-command-loop main-window))
 			      :name "debug command loop")))
       (unwind-protect (my-debugger window buffer condition hook-value)
 	(destroy-window window)))))
@@ -62,6 +62,7 @@
 					     buffer
 					     condition hook-value))))
 		   (progn
+		     (princ condition *debug-io*)
 		     #+sbcl
 		     (sb-debug:print-backtrace)
 		     (terpri *debug-io*)

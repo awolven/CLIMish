@@ -28,7 +28,8 @@
 (defmacro regenerate! (object)
   `(eval (list* 'send ,object (send ,object root-path))))
 
-
+(defmacro provide! (expression)
+  `(throw :accept ,expression))
 
 
 (in-package :hemlock-internals)

@@ -19,7 +19,7 @@
   "Checks the number of lines in region against \"Region Query Size\" and
    asks the user if the region crosses this threshold.  If the user responds
    negatively, then an editor error is signaled."
-  (let ((threshold (or (value region-query-size) 0)))
+  (let ((threshold (or (value (window-buffer current-window) region-query-size) 0)))
     (if (and (plusp threshold)
              (>= (count-lines region) threshold)
              (not (prompt-for-y-or-n
@@ -439,7 +439,7 @@
 
 (defmethod transpose-regions-command (window p)
   (declare (ignore p))
-  (unless (>= (ring-length (value buffer-mark-ring)) 3)
+  (unless (>= (ring-length (value (window-buffer window) buffer-mark-ring)) 3)
     (editor-error "Need two marked regions to do Transpose Regions."))
   (let* ((buffer (window-buffer window))
          (point (buffer-point buffer)))
@@ -603,7 +603,7 @@
   (check-type fun function)
   (setf *generic-pointer-move-fun* fun))
 
-(defhcommand generic-pointer-up-command (window p)
+(climish::define-everywhere-command generic-pointer-up-command (window p)
   (:pretty-name "Generic Pointer Up")
   (:documentation
   "Other commands determine this command's action by supplying functions that
@@ -623,7 +623,7 @@
   (when *generic-pointer-up-fun*
     (funcall *generic-pointer-up-fun*)))
 
-(defhcommand generic-pointer-move-command (window p)
+(climish::define-everywhere-command generic-pointer-move-command (window p)
   (:pretty-name "Generic Pointer Move")
   (:documentation
    "Other commands determine this command's action by supplying functions that
@@ -640,7 +640,7 @@
   (when *generic-pointer-move-fun*
     (funcall *generic-pointer-move-fun*)))
 
-(defhcommand point-to-here-command (window p)
+(climish::define-everywhere-command point-to-here-command (window p)
   (:pretty-name "Point to Here")
   (:documentation
    "Move the point to the position of the mouse.
@@ -657,34 +657,60 @@
 
 (defmethod point-to-here-command (window p)
   (declare (ignore p))
-  (when (typep window 'climish::text-editor-view-mixin)
-    (let ((last-event (climish::window-last-event (clui::window-parent window))))
-      (when (typep last-event 'clui::pointer-button-press-event-mixin)
-        (let* ((pixel-x (clim:pointer-event-x last-event))
-               (pixel-y (clim:pointer-event-y last-event))
-               (buffer-view (adhoc:send window climish::buffer-view))
-               (coord (climish::untransform-global-coordinate
-                       (climish::vec3 pixel-x pixel-y 0) buffer-view)))
-          (when (and (<= 0 (climish::vx coord) (adhoc:send buffer-view climish::width))
-                     (<= 0 (climish::vy coord) (adhoc:send buffer-view climish::height)))
-            (let* ((font (hi::window-font-family window))
-                   (x (floor (climish::vx coord)
-                             (slot-value (slot-value font 'krma::data) '3b-bmfont-common::space-size)))
-                   (y (floor (climish::vy coord) (climish::font-size font)))
-                   (m (cursorpos-to-mark x y window)))
-              (unless m (editor-error))
-              (let* ((buffer (window-buffer window))
-                     (point (buffer-point buffer)))
-                (move-mark point m)
-                (push-buffer-mark buffer (copy-mark point))
-                (deactivate-region buffer))
+  (let* ((frame (clui::window-parent (adhoc:send window adhoc:root)))
+         (event (climish::window-last-event frame)))
+    (print climish::*input-context*)
+    (finish-output)
+    (climish::maybe-provide
+     #.(3dm.d::vec3 0 0 0)
+     (let ((vec3 (climish::point-of-intersection-sketch-plane frame)))
+       (values vec3 vec3)))
+    (let ((objects-clicked (mapcar #'krma::object-from-id (clui::clicked-items event))))
+      (loop for object in objects-clicked
+            when (and (null (cdr (climish::command-stack frame)))
+                      (typep (clim:presentation-object object)
+                             `(or ,(eval (read-from-string "'direct::entity-mixin"))
+                                  ,(eval (read-from-string "'pk::entity")))))
+              do (setf (climish::selection-set frame) (remove object (climish::selection-set frame)
+                                                              :key #'car))
+                 (setf (climish::selection-set frame)
+                       (nconc (climish::selection-set frame)
+                              (list (list object (climish::point-of-intersection-sketch-plane frame)))))
+            when climish::*input-context*
+              do (climish::maybe-provide
+                  (clim:presentation-object object)
+                  (values (clim:presentation-object object)
+                          (climish::point-of-intersection-sketch-plane frame)))
+            finally (when (climish::selection-set frame)
+                      (setf adhoc:self (first (first (last (climish::selection-set frame))))))))
+    (when (typep window 'climish::text-editor-view-mixin)
+      (let ((last-event (climish::window-last-event frame)))
+        (when (typep last-event 'clui::pointer-button-press-event-mixin)
+          (let* ((pixel-x (clim:pointer-event-x last-event))
+                 (pixel-y (clim:pointer-event-y last-event))
+                 (buffer-view (adhoc:send window climish::buffer-view))
+                 (coord (climish::untransform-global-coordinate
+                         (climish::vec3 pixel-x pixel-y 0) buffer-view)))
+            (when (and (<= 0 (climish::vx coord) (adhoc:send buffer-view climish::width))
+                       (<= 0 (climish::vy coord) (adhoc:send buffer-view climish::height)))
+              (let* ((font (hi::window-font-family window))
+                     (x (floor (climish::vx coord)
+                               (slot-value (slot-value font 'krma::data) '3b-bmfont-common::space-size)))
+                     (y (floor (climish::vy coord) (climish::font-size font)))
+                     (m (cursorpos-to-mark x y window)))
+                (unless m (editor-error))
+                (let* ((buffer (window-buffer window))
+                       (point (buffer-point buffer)))
+                  (move-mark point m)
+                  (push-buffer-mark buffer (copy-mark point))
+                  (deactivate-region buffer))
               
-              (update-window-image window)
-              (supply-generic-pointer-move-function #'(lambda ()
-                                                        (point-to-here-move-action window)))
+                (update-window-image window)
+                (supply-generic-pointer-move-function #'(lambda ()
+                                                          (point-to-here-move-action window)))
                                                       
-              (supply-generic-pointer-up-function #'(lambda ()
-                                                      (point-to-here-up-action window))))))))))
+                (supply-generic-pointer-up-function #'(lambda ()
+                                                        (point-to-here-up-action window)))))))))))
 
 (defun point-to-here-move-action (window)
   (when (typep window 'climish::text-editor-view-mixin)

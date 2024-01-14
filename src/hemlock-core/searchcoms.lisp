@@ -28,7 +28,7 @@
   (when (zerop (length string)) (editor-error))
   (setq *last-search-string* string)
   (setq *last-search-pattern*
-        (new-search-pattern (if (value string-search-ignore-case)
+        (new-search-pattern (if (value buffer string-search-ignore-case)
                                 :string-insensitive
                                 :string-sensitive)
                             direction string *last-search-pattern*)))
@@ -83,7 +83,7 @@
 
 (defun i-search-pattern (string direction)
   (setq *last-search-pattern*
-        (new-search-pattern (if (value string-search-ignore-case)
+        (new-search-pattern (if (value buffer string-search-ignore-case)
                                 :string-insensitive
                                 :string-sensitive)
                             direction string *last-search-pattern*)))
@@ -110,7 +110,7 @@
                 :control-g)
         (move-mark point save-start)
         (climish::redraw-buffer current-window)
-        (invoke-hook abort-hook)
+        (invoke-hook buffer abort-hook)
         (editor-error))
       (if (region-active-p buffer)
           (delete-mark save-start)
@@ -569,7 +569,7 @@
             (dumb (not (and (every #'(lambda (ch) (or (not (both-case-p ch))
                                                       (lower-case-p ch)))
                                    (the string replacement))
-                            (value case-replace)))))
+                            (value buffer case-replace)))))
         (values
          (loop
            (let ((won (find-pattern buffer point *last-search-pattern*)))

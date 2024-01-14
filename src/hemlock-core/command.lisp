@@ -519,22 +519,29 @@
 ;;;
 
 
-(defhcommand extended-command-command (window p)
+(climish::define-everywhere-command extended-command-command (window p)
   (:pretty-name "Extended Command")
   (:help-string "Prompts for and executes an extended command.")
   (:documentation "Prompts for and executes an extended command.  The prefix argument is
   passed to the command."))
 
 (defmethod extended-command-command (window p)  
-  (let* ((name (prompt-for-keyword window
-                                   (list *command-names*)
-                                   :prompt "Extended Command: "
-                                   :help "Name of a Hemlock command")))
-    (climish::redraw-buffer *echo-area-window*)
+  (let* ((frame (clui::window-parent (adhoc:send window adhoc:root)))
+         (name (hi::accept-keyword
+                                :stream frame
+                                :current-window window
+                                :parse-string-tables (list *command-names*)
+                                :prompt "Extended Command: "
+                                :help "Name of a Hemlock command")))
+    ;;(climish::redraw-buffer *echo-area-window*)
     (let ((cmd (getstring name *command-names*)))
       (clear-echo-area)
       (message (command-name cmd))
-      (climish::invoke-command cmd (climish::send *echo-area-window* climish::parent)))))
+      (when cmd
+        (loop for (type tag) in climish::*input-context*
+              when (typep cmd type)
+                do (throw tag cmd))
+	(climish::invoke-command cmd (climish::send *echo-area-window* climish::parent))))))
 
 #+DISABLE
 (defhcommand eval-expression-command (window p)
@@ -618,7 +625,7 @@
            (* sign multiplier
               (if read-some-digit-p
                   result
-                  (value universal-argument-default)))))
+                  (value buffer universal-argument-default)))))
     (let* ((stripped-key-event (if key-event (hemlock-ext:make-key-event key-event)))
            (char (hemlock-ext:key-event-char stripped-key-event))
            (digit (if char (digit-char-p char)))

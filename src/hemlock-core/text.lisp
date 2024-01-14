@@ -77,7 +77,7 @@
    moved, and nil is returned."
   (with-mark ((tmark1 mark1)
               (tmark2 mark2))
-    (let* ((prefix (value fill-prefix))
+    (let* ((prefix (value buffer fill-prefix))
            (prefix-len (length prefix))
            (paragraphp (paragraph-offset buffer tmark2 1)))
       (when (or paragraphp
@@ -103,7 +103,7 @@
   (let ((buffer-sym (gensym)))
     `(let ((,buffer-sym ,buffer))
        (do ((skip-prefix-p)
-            (paragraph-delim-function (value paragraph-delimiter-function)))
+            (paragraph-delim-function (value buffer paragraph-delimiter-function)))
            (nil)
          (setf skip-prefix-p
                (and ,prefix (%line-has-prefix-p ,buffer-sym ,mark ,prefix ,prefix-length)))
@@ -129,7 +129,7 @@
                                  &optional (direction :forward))
   (let ((buffer-sym (gensym)))
   `(let ((,buffer-sym ,buffer))
-     (do ((paragraph-delim-function (value paragraph-delimiter-function))
+     (do ((paragraph-delim-function (value buffer paragraph-delimiter-function))
         (skip-prefix-p))
        (nil)
      (setf skip-prefix-p
@@ -155,7 +155,7 @@
 ;;; the direction indicated by the sign of number, then nil is
 ;;; returned, otherwise the mark is returned.
 
-(defun paragraph-offset (buffer mark number &optional (prefix (value fill-prefix)))
+(defun paragraph-offset (buffer mark number &optional (prefix (value buffer fill-prefix)))
   "moves mark past the specified number of paragraph, forward if the number
    is positive and vice versa.  If the specified number of paragraphs do
    not exist in the direction indicated by the sign of the number, then nil
@@ -442,7 +442,7 @@
               (tmark2 mark)
               (tmark3 mark))
     (do* ((n number (1- n))
-          (prefix (value fill-prefix))
+          (prefix (value buffer fill-prefix))
           (prefix-length (length prefix))
           (found-paragraph-p
            (cond ((paragraph-offset buffer tmark2 -1)
@@ -612,7 +612,7 @@
 (defun text-blank-line-p (buffer mark)
   (let ((next-char (next-character buffer mark)))
     (or (blank-after-p buffer mark)
-        (and (funcall (value paragraph-delimiter-function) mark)
+        (and (funcall (value buffer paragraph-delimiter-function) mark)
              (not (whitespace-attribute-p next-char))))))
 
 

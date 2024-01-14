@@ -544,12 +544,14 @@ BOOL CreateProcessW(
          (go maybe-output)))))
 
 
-(hemlock::defhcommand cmd-command (window p)
+(climish::defcommand cmd-command (window &optional p)
   (:pretty-name "CMD")
   (:documentation "Start a CMD.EXE shell")
-  (:help-string "Start a CMD.EXE shell"))
+  (:help-string "Start a CMD.EXE shell")
+  (:applicability (climish::hemlock-applicability climish::application-frame))
+  (:preparation (climish::hemlock-arguments climish::application-frame)))
 
-(defmethod cmd-command (window p)
+(defmethod cmd-command (window &optional p)
   (declare (ignore p))
   (let ((buffer (make-buffer "CMD"))
 	(current-buffer (window-buffer window)))

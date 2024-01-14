@@ -21,7 +21,7 @@
         (package-at-point-name (gensym))
         (package (gensym)))
     `;;(handle-lisp-errors
-      (let* ((,current-package-name (value current-package))
+      (let* ((,current-package-name (value ,buffer current-package))
              (,package-at-point-name (package-at-point ,buffer (buffer-point ,buffer)))
              (,package (or (and ,current-package-name
                                 (find-package ,current-package-name))
@@ -772,7 +772,7 @@
                                 (finish-output *error-output*)))))))))))
       (unless pn (editor-error "Buffer has no associated pathname."))
       (cond ((buffer-modified buf)
-             (when (or (not (value compile-buffer-file-confirm))
+             (when (or (not (value buf compile-buffer-file-confirm))
                        (prompt-for-y-or-n
                         window
                         :default t :default-string "Y"
@@ -782,7 +782,7 @@
                (do-compile)
                (clear-echo-area)))
             ((older-or-non-existent-fasl-p pn p)
-             (when (or (not (value compile-buffer-file-confirm))
+             (when (or (not (value buf compile-buffer-file-confirm))
                        (prompt-for-y-or-n
                         window
                         :default t :default-string "Y"
@@ -849,11 +849,11 @@
   (let ((name (truename (prompt-for-file
                          window
                          :default
-                         (or (value load-pathname-defaults)
+                         (or (value buffer load-pathname-defaults)
                              (buffer-default-pathname (current-buffer)))
                          :prompt "Editor file to load: "
                          :help "The name of the file to load"))))
-    (setv load-pathname-defaults name)
+    (setv buffer load-pathname-defaults name)
     (in-lisp (load name))))
 
 

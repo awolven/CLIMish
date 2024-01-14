@@ -17,7 +17,7 @@
 
 (defun (setf buffer-writable) (value buffer)
   "Sets whether the buffer is writable and invokes the Buffer Writable Hook."
-  (invoke-hook hemlock::buffer-writable-hook buffer value)
+  (invoke-hook buffer hemlock::buffer-writable-hook buffer value)
   (setf (buffer-%writable buffer) value))
 
 ;;; BUFFER-MODIFIED uses the buffer modification tick which is for redisplay.
@@ -33,7 +33,7 @@
 (defun (setf buffer-modified) (sense buffer)
   "If true make the buffer modified, if NIL unmodified."
   (unless (bufferp buffer) (error "~S is not a buffer." buffer))
-  (invoke-hook hemlock::buffer-modified-hook buffer sense)
+  (invoke-hook buffer hemlock::buffer-modified-hook buffer sense)
   (if sense
       (setf (buffer-modified-tick buffer) (tick))
       (setf (buffer-unmodified-tick buffer) (tick)))
@@ -63,7 +63,7 @@
   "Sets the name of a specified buffer, invoking the Buffer Name Hook."
   (multiple-value-bind (entry foundp) (getstring name *buffer-names*)
     (cond ((or (not foundp) (eq entry buffer))
-           (invoke-hook hemlock::buffer-name-hook buffer name)
+           (invoke-hook buffer hemlock::buffer-name-hook buffer name)
            (delete-string (buffer-%name buffer) *buffer-names*)
            (setf (getstring name *buffer-names*) buffer)
            (setf (buffer-%name buffer) name))
@@ -78,7 +78,7 @@
 
 (defun (setf buffer-pathname) (pathname buffer)
   "Sets the pathname of a buffer, invoking the Buffer Pathname Hook."
-  (invoke-hook hemlock::buffer-pathname-hook buffer pathname)
+  (invoke-hook buffer hemlock::buffer-pathname-hook buffer pathname)
   (setf (buffer-%pathname buffer) pathname))
 
 (defun buffer-modeline-fields (window)
@@ -200,23 +200,23 @@
 (defun (setf buffer-major-mode) (name buffer current-buffer)
   "Set the major mode of some buffer to the Name'd mode."
   (with-mode-and-buffer (name t buffer)
-    (invoke-hook hemlock::buffer-major-mode-hook buffer name)
+    (invoke-hook current-buffer hemlock::buffer-major-mode-hook buffer name)
     (cond
      ((eq buffer current-buffer)
       (let ((old-mode (car (last (buffer-mode-objects buffer)))))
-        (invoke-hook (%value (mode-object-hook-name old-mode)) buffer nil)
+        (invoke-hook current-buffer (%value current-buffer (mode-object-hook-name old-mode)) buffer nil)
         (funcall (mode-object-cleanup-function old-mode) buffer)
         (swap-char-attributes old-mode)
         (wind-bindings (cons mode (cdr (unwind-bindings old-mode current-buffer))) current-buffer)
         (swap-char-attributes mode)))
      (t
       (let ((old-mode (car (buffer-mode-objects buffer))))
-        (invoke-hook (%value (mode-object-hook-name old-mode)) buffer nil)
+        (invoke-hook current-buffer (%value current-buffer (mode-object-hook-name old-mode)) buffer nil)
         (funcall (mode-object-cleanup-function old-mode) buffer))
       (setf (car (buffer-mode-objects buffer)) mode)))
     (setf (car (buffer-modes buffer)) name)
     (funcall (mode-object-setup-function mode) buffer)
-    (invoke-hook (%value (mode-object-hook-name mode)) buffer t))
+    (invoke-hook current-buffer (%value current-buffer (mode-object-hook-name mode)) buffer t))
   (when (boundp 'clim::*default-frame-manager**)
     (climish::compute-applicable-commands (climish::main-window clim::*default-frame-manager*)))
   nil)
@@ -246,7 +246,7 @@
   "Turn a buffer minor mode on or off."
   (let ((objects (buffer-mode-objects buffer)))
     (with-mode-and-buffer (name nil buffer)
-      (invoke-hook hemlock::buffer-minor-mode-hook buffer name new-value)
+      (invoke-hook current-buffer hemlock::buffer-minor-mode-hook buffer name new-value)
       (cond
        ;; Already there or not there, nothing to do.
        ((if (member mode (buffer-mode-objects buffer)) new-value (not new-value)))
@@ -284,10 +284,10 @@
                            (mode-object-precedence (gethash x *mode-names*))))))
 
         (funcall (mode-object-setup-function mode) buffer)
-        (invoke-hook (%value (mode-object-hook-name mode)) buffer t))
+        (invoke-hook current-buffer (%value current-buffer (mode-object-hook-name mode)) buffer t))
        (t
         ;; Removing an active mode.
-        (invoke-hook (%value (mode-object-hook-name mode)) buffer nil)
+        (invoke-hook current-buffer (%value current-buffer (mode-object-hook-name mode)) buffer nil)
         (funcall (mode-object-cleanup-function mode) buffer current-buffer)
         ;; In the current buffer, unwind buffer and any mode bindings on top
         ;; pop off the mode and wind the rest back on.
@@ -320,7 +320,7 @@
   "Set the current buffer, doing necessary stuff."
   (let ((old-buffer current-buffer))
     (check-type buffer buffer)
-    (invoke-hook hemlock::set-buffer-hook buffer)
+    (invoke-hook current-buffer hemlock::set-buffer-hook buffer)
     ;; Undo old bindings.
     (setf (buffer-mode-objects current-buffer)
           (unwind-bindings nil current-buffer))
@@ -329,7 +329,7 @@
     (swap-char-attributes (car (buffer-mode-objects current-buffer)))
     ;; Make new bindings.
     (wind-bindings (shiftf (buffer-mode-objects current-buffer) nil) current-buffer)
-    (invoke-hook hemlock::after-set-buffer-hook old-buffer))
+    (invoke-hook current-buffer hemlock::after-set-buffer-hook old-buffer))
   buffer)
 
 ;;; USE-BUFFER-SET-UP  --  Internal
@@ -372,6 +372,7 @@
 ;;; necessary.
 ;;;
 
+#+NIL
 (defun recursive-edit (&optional (handle-abort t))
   "Call the command interpreter recursively.  If Handle-Abort is true
   then an abort caused by a control-g or a lisp error does not cause
@@ -382,8 +383,8 @@
 	(catch 'leave-recursive-edit
 	  (if handle-abort
 	      (loop (catch 'editor-top-level-catcher
-		      (climish::command-loop (climish::main-window clim::*default-frame-manager*))))
-	      (climish::command-loop (climish::main-window clim::*default-frame-manager*)))))
+		      (climish::recursive-command-loop (climish::main-window clim::*default-frame-manager*))))
+	      (climish::recursive-command-loop (climish::main-window clim::*default-frame-manager*)))))
     (case flag
       (:abort (apply #'editor-error args))
       (:exit (values-list args))
@@ -399,7 +400,7 @@
    to be the return values from Recursive-Edit."
   (unless *in-a-recursive-edit*
     (error "Not in a recursive edit!"))
-  (invoke-hook hemlock::exit-recursive-edit-hook values)
+  (invoke-hook buffer hemlock::exit-recursive-edit-hook values)
   (throw 'leave-recursive-edit (values :exit values)))
   
 
@@ -412,7 +413,7 @@
    the calling context."
   (unless *in-a-recursive-edit*
     (error "Not in a recursive edit!"))
-  (invoke-hook hemlock::abort-recursive-edit-hook args)
+  (invoke-hook buffer hemlock::abort-recursive-edit-hook args)
   (throw 'leave-recursive-edit (values :abort args)))
 
 ;;;; WITH-WRITABLE-BUFFER
@@ -563,8 +564,8 @@
   (when (buffer-windows buffer)
     (error "Cannot delete buffer ~S, which is displayed in ~R window~:P."
            buffer (length (buffer-windows buffer))))
-  (invoke-hook (buffer-delete-hook buffer) buffer)
-  (invoke-hook hemlock::delete-buffer-hook buffer)
+  (invoke-hook buffer (buffer-delete-hook buffer) buffer)
+  (invoke-hook buffer hemlock::delete-buffer-hook buffer)
   (setq *buffer-list* (delq buffer *buffer-list*))
   (delete-string (buffer-name buffer) *buffer-names*)
   nil)
@@ -627,9 +628,9 @@
 					 current-buffer 
 				       (modes (mapcar (lambda (string) ;kludge
 							(intern (string-upcase string) :keyword))
-						      (value hemlock::default-modes)))
+						      (value buffer hemlock::default-modes)))
 				       (modeline-fields
-					(value hemlock::default-modeline-fields))
+					(value buffer hemlock::default-modeline-fields))
 				       delete-hook
 				       &allow-other-keys)
   (declare (ignore args))
@@ -659,6 +660,6 @@
       (dolist (m (cdr modes))
 	(setf (buffer-minor-mode buffer current-buffer m) t)))
 
-    (invoke-hook hemlock::make-buffer-hook buffer)
+    (invoke-hook buffer hemlock::make-buffer-hook buffer)
 
     (values)))

@@ -73,10 +73,12 @@
 
 
 
-(defhcommand lisp-listener-command (window p)
+(defcommand lisp-listener-command (window p)
   (:pretty-name "Lisp Listener")
   (:documentation "Start an REPL in a thread")
-  (:help-string "Start an REPL in a thread"))
+  (:help-string "Start an REPL in a thread")
+  (:applicability (climish::hemlock-applicability climish::application-frame))
+  (:preparation (climish::hemlock-arguments climish::application-frame)))
 
 (defmethod lisp-listener-command (window p)
   (declare (ignore p))
@@ -96,7 +98,7 @@
 					 :name "Lisp Listener")))
 	    (defhvar "Lisp Listener Thread" "Lisp Listener Thread" :buffer buffer
               :value thread)
-	    (add-hook hemlock::delete-buffer-hook #'(lambda (buffer)
+	    (add-hook buffer hemlock::delete-buffer-hook #'(lambda (buffer)
 						      (when (buffer-minor-mode buffer :lisp-listener)
 							(bt:destroy-thread (hemlock::variable-value 'hemlock::lisp-listener-thread :buffer buffer)))))
 	    

@@ -33,17 +33,18 @@
 ;;;
 (defun maybe-highlight-open-parens (window)
   ;;(declare (ignore window))
-  (when (value highlight-open-parens)
-    (if (and (value highlight-active-region)
+  (let ((buffer (window-buffer window)))
+  (when (value buffer highlight-open-parens)
+    (if (and (value buffer highlight-active-region)
              (region-active-p (window-buffer window)))
         (kill-open-paren-font-marks)
         (multiple-value-bind
             (start end)
-            (funcall (value open-paren-finder-function)
-                     (buffer-point (window-buffer window)))
+            (funcall (value buffer open-paren-finder-function)
+                     (buffer-point buffer))
           (if (and start end)
               (set-open-paren-font-marks (window-buffer window) start end)
-              (kill-open-paren-font-marks))))))
+              (kill-open-paren-font-marks)))))))
 ;;;
 
 
@@ -86,16 +87,17 @@
 ;;; okay; this keeps the region highlighted while we're in there.
 ;;;
 (defun highlight-active-region (window)
+  (let ((buffer (window-buffer window)))
   (unless (eq window *echo-area-window*)
-    (when (value highlight-active-region)
-      (cond ((region-active-p (window-buffer window))
+    (when (value buffer highlight-active-region)
+      (cond ((region-active-p buffer)
              (cond ((not *active-region-font-marks*)
-                    (set-active-region-font-marks (window-buffer window)))
-                   ((check-active-region-font-marks (window-buffer window)))
+                    (set-active-region-font-marks buffer))
+                   ((check-active-region-font-marks buffer))
                    (t (kill-active-region-font-marks)
-                      (set-active-region-font-marks (window-buffer window)))))
+                      (set-active-region-font-marks buffer))))
             (*active-region-font-marks*
-             (kill-active-region-font-marks))))))
+             (kill-active-region-font-marks)))))))
 ;;;
 
 

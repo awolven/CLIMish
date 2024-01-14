@@ -31,10 +31,13 @@
   "Thing that's called when somehow we get called to confirm a parse that's
   not in progress."
   (declare (ignore quaz))
+  #+NIL
   (let* ((bufs (remove *echo-area-buffer* *buffer-list*))
          (buf (or (find-if #'buffer-windows bufs)
                   (car bufs)
                   (make-instance 'climish::text-editor-buffer :name "Main"))))
+      #+NIL
+
     (setf (window-buffer (climish::focused-window (krma::main-window clim:*default-frame-manager*))) buf)
     (dolist (w *window-list*)
       (when (and (eq (window-buffer w) *echo-area-buffer*)
@@ -43,6 +46,9 @@
     (setf (climish::focused-window (krma::main-window clim:*default-frame-manager*))
           (or (car (buffer-windows buf))
               (make-instance 'climish::text-editor-view-mixin :start-mark (buffer-start-mark buf)))))
+  t
+  
+  #+NIL
   (editor-error "Wham!  We tried to confirm a parse that wasn't in progress?"))
 
 (defvar *parse-string-tables* ()
@@ -155,21 +161,25 @@
       (insert-string point "] "))))
 
 
-(defun parse-for-something (start-window)
+(defun parse-for-something (start-window &optional (frame (clui::window-parent *echo-area-window*))
+                                         (type 'string))
   (display-prompt-nicely)
-  (let* ((start-buffer (window-buffer start-window))
-         (point (buffer-point *echo-area-buffer*)))
-    (unless (eq *echo-area-window* start-window)
-      (clui::focus-window *echo-area-window*))
+  (let* ((point (buffer-point *echo-area-buffer*)))
+    (when start-window
+      (unless (eq *echo-area-window* start-window)
+        (clui::focus-window *echo-area-window*)))
     (move-mark *parse-starting-mark* point)
     (insert-string *echo-area-buffer* point (or *parse-default-string* *parse-default*))
     (climish:redraw-buffer *echo-area-window*)
-    (unwind-protect
-         (progn
-           (recursive-edit nil))
-      (unless (eq *echo-area-window* start-window)
-        (clui::focus-window start-window)
-        (change-to-buffer start-buffer start-window)))))
+    ;;(setf (climish::echo-area-input-mode frame) t)
+    ;;    (climish::compute-applicable-commands frame)
+    
+    (unwind-protect (climish::accept type :stream frame)
+      ;;(setf (climish::echo-area-input-mode frame) nil)
+      (when start-window
+        (unless (eq *echo-area-window* start-window)
+          (clui::focus-window start-window)))
+      (climish::compute-applicable-commands frame))))
 
 
 
@@ -200,7 +210,7 @@
                               *parse-default-string*)
                              (t nil)))
           (*parse-verification-function* #'buffer-verification-function))
-      (parse-for-something current-window)))
+      (parse-for-something current-window (clui::window-parent *echo-area-window*) 'hi:buffer)))
 
 (defun buffer-verification-function (string)
   (declare (simple-string string))
@@ -248,7 +258,7 @@
   (let ((*parse-verification-function* #'file-verification-function)
         (*parse-default* (if default (namestring default)))
         (*parse-type* :file))
-    (parse-for-something current-window)))
+    (parse-for-something current-window (clui::window-parent *echo-area-window*) 'pathname)))
 
 (defun file-verification-function (string)
   (let ((pn (pathname-or-lose string)))
@@ -286,10 +296,26 @@
 
 ;;;; Keyword and variable prompting.
 
+(defun accept-keyword (
+		   &key stream
+		     current-window
+		     ((:parse-string-tables *parse-string-tables*))
+		     ((:must-exist *parse-value-must-exist*) t)
+		     ((:default *parse-default*))
+		     ((:default-string *parse-default-string*))
+		     ((:prompt *parse-prompt*) "Keyword: ")
+		     ((:help *parse-help*) "Type a keyword."))
+  "Prompts for a keyword using the String Tables."
+  (let ((*parse-verification-function*
+	  #'(lambda (string)
+	      (keyword-verification-function (hi::window-buffer current-window) string)))
+        (*parse-type* :keyword))
+    (parse-for-something current-window stream)))
+
 (defun prompt-for-keyword (current-window
                            *parse-string-tables*
                            &key
-                           ((:must-exist *parse-value-must-exist*) t)
+                             ((:must-exist *parse-value-must-exist*) t)
                            ((:default *parse-default*))
                            ((:default-string *parse-default-string*))
                            ((:prompt *parse-prompt*) "Keyword: ")
@@ -367,7 +393,7 @@
                    (if number (list number))
                    (list (or number string))))))
         (*parse-default* (if default (write-to-string default :base 10))))
-    (parse-for-something current-window)))
+    (parse-for-something current-window (clui::window-parent *echo-area-window*) 'integer)))
 
 
 (defvar hemlock-eof '(())
@@ -391,7 +417,7 @@
                    (if (eq expr hemlock-eof)
                        (list string) (values (list expr) t))))))
         (*parse-default* (if defaultp (prin1-to-string default))))
-      (parse-for-something current-window)))
+      (parse-for-something current-window (clui::window-parent *echo-area-window*) '(or list number symbol))))
 
 
 (defun prompt-for-string (current-window

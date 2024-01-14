@@ -248,8 +248,8 @@
            (,fer-sure-parse-sym ,fer-sure-parse))
        (with-mark ((top ,mark-sym)
                    (bottom ,mark-sym))
-         (funcall (value parse-start-function) .buffer. top)
-         (funcall (value parse-end-function) .buffer. bottom)
+         (funcall (value .buffer. parse-start-function) .buffer. top)
+         (funcall (value .buffer. parse-end-function) .buffer. bottom)
          (parse-over-block .buffer. (mark-line top) (mark-line bottom) ,fer-sure-parse-sym)))))
 
 (defun pre-command-parse-check (buffer mark &optional (fer-sure-parse nil))
@@ -267,7 +267,7 @@
 (defun start-of-search-line (buffer line)
   "Set LINE to the begining line of the block of text to parse."
   (with-mark ((mark (mark line 0)))
-    (funcall (value parse-start-function) buffer mark)
+    (funcall (value buffer parse-start-function) buffer mark)
     (setq line (mark-line mark))))
 
 ;;;
@@ -276,7 +276,7 @@
 (defun end-of-search-line (buffer line)
   "Set LINE to the ending line of the block of text to parse."
   (with-mark ((mark (mark line 0)))
-    (funcall (value parse-end-function) buffer mark)
+    (funcall (value buffer parse-end-function) buffer mark)
     (setq line (mark-line mark))))
 
 
@@ -806,9 +806,9 @@
 
 
 (macrolet ((frob (buffer step end)
-             `(let ((min (value minimum-lines-parsed))
-                    (max (value maximum-lines-parsed))
-                    (goal (value defun-parse-goal))
+             `(let ((min (value buffer minimum-lines-parsed))
+                    (max (value buffer maximum-lines-parsed))
+                    (goal (value buffer defun-parse-goal))
                     (last-defun nil))
                 (declare (fixnum min max goal))
                 (do ((line (mark-line mark) (,step line))
@@ -1063,7 +1063,7 @@
                  (special-args (or (gethash fname *special-forms*)
                                    (and (> (length fname) 2)
                                         (string= fname "DEF" :end1 3)
-                                        (value indent-defanything)))))
+                                        (value buffer indent-defanything)))))
             (declare (simple-string fname))
             ;; Now that we have the form name, did it have special syntax?
             (cond (special-args
@@ -1136,7 +1136,7 @@
          (scan-char buffer temp2 :lisp-syntax (not :constituent))
          (let ((fname (nstring-upcase (region-to-string buffer (region temp1 temp2)))))
            (with-buffer-globals (buffer)
-             (cond ((not (member fname (value lisp-indentation-local-definers)
+             (cond ((not (member fname (value buffer lisp-indentation-local-definers)
                                  :test #'string=))
                     nil)
                    (arg-list
@@ -1187,7 +1187,9 @@
 
 ;;;; Indentation commands and hook functions.
 
-(defhcommand defindent-command (window p)
+
+
+(define-lisp-mode-command defindent-command (window p)
   (:pretty-name "Defindent")
   (:documentation
    "Define the Lisp indentation for the current function.
@@ -1218,7 +1220,7 @@
                 (defindent s i))))))
     (indent-command window nil)))
 
-(defhcommand indent-form-command (window p)
+(define-lisp-mode-command indent-form-command (window p)
   (:pretty-name "Indent Form")
   (:documentation "Indent Lisp code in the next form.")
   (:help-string "Indent Lisp code in the next form."))
@@ -1231,6 +1233,7 @@
     (with-mark ((m point))
       (unless (form-offset buffer m 1) (editor-error))
       (lisp-indent-region window buffer (region point m) "Indent Form"))
+    (clear-echo-area)
     (climish::redraw-buffer window)))
 
 ;;; LISP-INDENT-REGION -- Internal.
@@ -1249,8 +1252,8 @@
     (with-buffer-globals (buffer)
       (with-mark ((m1 start)
                   (m2 end))
-        (funcall (value parse-start-function) buffer m1)
-        (funcall (value parse-end-function) buffer m2)
+        (funcall (value buffer parse-start-function) buffer m1)
+        (funcall (value buffer parse-end-function) buffer m2)
         (parse-over-block buffer (mark-line m1) (mark-line m2)))
     (let* ((first-line (mark-line start))
            (last-line (mark-line end))
@@ -1287,7 +1290,7 @@
 
 ;;;; Most "Lisp" mode commands.
 
-(defhcommand beginning-of-defun-command (window p)
+(define-lisp-mode-command beginning-of-defun-command (window p)
   (:pretty-name "Beginning of Defun")
   (:documentation "Move the point to the beginning of a top-level form.
   with an argument, skips the previous p top-level forms.")
@@ -1315,7 +1318,7 @@
 ;;; defun, point would be left at the beginning of the p+1'st form instead of
 ;;; at the end of the p'th form.
 ;;;
-(defhcommand end-of-defun-command (window p)
+(define-lisp-mode-command end-of-defun-command (window p)
   (:pretty-name "End of Defun")
   (:documentation
    "Move the point to the end of a top-level form.
@@ -1344,7 +1347,7 @@
                  (move-mark point m)))))
     (update-window-image window)))
 
-(defhcommand forward-list-command (window p)
+(define-lisp-mode-command forward-list-command (window p)
   (:pretty-name "Forward List")
   (:documentation "Skip over the next Lisp list.
   With argument, skips the next p lists.")
@@ -1358,7 +1361,7 @@
     (unless (list-offset buffer point count) (editor-error))
     (update-window-image window)))
 
-(defhcommand backward-list-command (window p)
+(define-lisp-mode-command backward-list-command (window p)
   (:pretty-name "Backward List")
   (:documentation "Skip over the previous Lisp list.
   With argument, skips the previous p lists.")
@@ -1372,7 +1375,7 @@
     (unless (list-offset buffer point count) (editor-error))
     (update-window-image window)))
 
-(defhcommand forward-form-command (window p)
+(define-lisp-mode-command forward-form-command (window p)
   (:pretty-name "Forward Form")
   (:documentation "Skip over the next Form.
   With argument, skips the next p Forms.")
@@ -1386,7 +1389,7 @@
     (unless (form-offset buffer point count) (editor-error))
     (update-window-image window)))
   
-(defhcommand backward-form-command (window p)
+(define-lisp-mode-command backward-form-command (window p)
   (:pretty-name "Backward Form")
   (:documentation
    "Skip over the previous Form.
@@ -1401,7 +1404,7 @@
     (unless (form-offset buffer point count) (editor-error))
     (update-window-image window)))
 
-(defhcommand mark-form-command (window p)
+(define-lisp-mode-command mark-form-command (window p)
   (:pretty-name "Mark Form")
   (:documentation
    "Set the mark at the end of the next Form.
@@ -1422,7 +1425,7 @@
             (editor-error))))
     (update-window-image window)))
 
-(defhcommand mark-defun-command (window p)
+(define-lisp-mode-command mark-defun-command (window p)
   (:pretty-name "Mark Defun")
   (:documentation
    "Puts the region around the next or containing top-level form.
@@ -1445,7 +1448,7 @@
              (move-mark (push-buffer-mark (copy-mark point) t) end))))
     (update-window-image window)))
 
-(defhcommand forward-kill-form-command (window p)
+(define-lisp-mode-command forward-kill-form-command (window p)
   (:pretty-name "Forward Kill Form")
   (:documenation "Kill the next Form.
    With a positive argument, kills the next p Forms.
@@ -1466,7 +1469,7 @@
                 (kill-region buffer (region m2 m1) :kill-forward))))))
     (climish:redraw-buffer window)))
 
-(defhcommand backward-kill-form-command (window p)
+(define-lisp-mode-command backward-kill-form-command (window p)
   (:pretty-name "Backward Kill Form")
   (:documentation "Kill the previous Form.
   With a positive argument, kills the previous p Forms.
@@ -1476,7 +1479,7 @@
 (defmethod backward-kill-form-command (window p)
   (forward-kill-form-command window (- (or p 1))))
 
-(defhcommand extract-form-command (window p)
+(define-lisp-mode-command extract-form-command (window p)
   (:pretty-name "Extract Form")
   (:documentation
    "Replace the current containing list with the next form.  The entire affected
@@ -1513,7 +1516,7 @@
           (move-mark point form-start))))
     (climish:redraw-buffer window)))
 
-(defhcommand extract-list-command (window p)
+(define-lisp-mode-command extract-list-command (window p)
   (:pretty-name "Extract List")
   (:documentation
    "Extract the current list.
@@ -1545,7 +1548,7 @@
           (move-mark point lstart))))
     (climish:redraw-buffer window)))
 
-(defhcommand transpose-forms-command (window p)
+(define-lisp-mode-command transpose-forms-command (window p)
   (:pretty-name "Transpose Forms")
   (:documentation
    "Transpose Forms immediately preceding and following the point.
@@ -1590,7 +1593,7 @@
     (climish::redraw-buffer window)))
 
 
-(defhcommand |insert-()-command| (window count)
+(define-lisp-mode-command |insert-()-command| (window count)
   (:pretty-name "Insert ()")
   (:documentation
    "Insert a pair of parentheses ().  With positive argument, puts
@@ -1623,7 +1626,7 @@
     (climish::redraw-buffer window)))
 
 
-(defhcommand |move-over-)-command| (window p)
+(define-lisp-mode-command |move-over-)-command| (window p)
   (:pretty-name "Move Over )")
   (:documentation
    "Move past the next close parenthesis, and start a new line.  Any
@@ -1669,7 +1672,7 @@
         (update-window-image window)))))
 
 
-(defhcommand forward-up-list-command (window p)
+(define-lisp-mode-command forward-up-list-command (window p)
   (:pretty-name "Forward Up List")
   (:documentation "Move forward past a one containing ).")
   (:help-string "Move forward past a one containing )."))
@@ -1686,7 +1689,7 @@
             (unless (forward-up-list buffer m) (editor-error)))))))
 
 
-(defhcommand backward-up-list-command (window p)
+(define-lisp-mode-command backward-up-list-command (window p)
   (:pretty-name "Backward Up List")
   (:documentation "Move backward past a one containing (.")
   (:help-string "Move backward past a one containing (."))
@@ -1703,7 +1706,7 @@
             (unless (backward-up-list buffer m) (editor-error)))))))
 
 
-(defhcommand down-list-command (window p)
+(define-lisp-mode-command down-list-command (window p)
   (:pretty-name "Down List")
   (:documentation
    "Move down a level in list structure.  With positive argument, moves down
@@ -1734,7 +1737,7 @@
 
 
 
-(defhcommand fill-lisp-comment-paragraph-command (window p)
+(define-lisp-mode-command fill-lisp-comment-paragraph-command (window p)
   (:pretty-name "Fill Lisp Comment Paragraph")
   (:documentation
    "This fills a flushleft or indented Lisp comment.
@@ -1762,7 +1765,7 @@
                     (eq (character-attribute :lisp-syntax (next-character buffer m))
                         :string-quote))
                (fill-lisp-string buffer m))
-              ((or (not (value fill-lisp-comment-paragraph-confirm))
+              ((or (not (value buffer fill-lisp-comment-paragraph-confirm))
                    (prompt-for-y-or-n
                     window
                     :prompt '("Not in a comment or string.  Fill contiguous ~
@@ -1879,7 +1882,7 @@
 
 ;;;; "Lisp" mode.
 
-(defhcommand lisp-mode-command (window p)
+(define-lisp-mode-command lisp-mode-command (window p)
   (:pretty-name "LISP Mode")
   (:documentation "Put current buffer in LISP mode.")
   (:help-string "Put current buffer in LISP mode."))
@@ -1904,7 +1907,7 @@
 
 
 
-(defhcommand |lisp-insert-)-command| (window p)
+(define-lisp-mode-command |lisp-insert-)-command| (window p)
   (:pretty-name "Lisp Insert )")
   (:documentation "Inserts a \")\" and briefly positions the cursor at the matching \"(\".")
   (:help-string "Inserts a \")\" and briefly positions the cursor at the matching \"(\"."))
@@ -1920,7 +1923,7 @@
       (when (valid-spot buffer point nil)
         (with-mark ((m point))
           (if (list-offset buffer m -1)
-              (let ((pause 0.4 #+NIL(value paren-pause-period)))
+              (let ((pause 0.4 #+NIL(value buffer paren-pause-period)))
 
                 (if pause
                     (unless (show-mark m win pause)

@@ -25,7 +25,7 @@
     `(let ((,mark-sym ,mark)
            (,column-sym ,column))
        (multiple-value-bind (tabs spaces)
-           (floor ,column-sym (hi::value spaces-per-tab))
+           (floor ,column-sym (hi::value .buffer. spaces-per-tab))
          (dotimes (i tabs) (insert-character .buffer. ,mark-sym #\tab))
          (dotimes (i spaces) (insert-character .buffer. ,mark-sym #\space))))))
 
@@ -55,7 +55,7 @@
         (column-sym (gensym "INDENT-TO-COLUMN_COLUMN")))
     `(let ((,mark-sym ,mark)
            (,column-sym ,column))
-       (if (hi::value indent-with-tabs)
+       (if (hi::value .buffer. indent-with-tabs)
            (indent-using-tabs .buffer. ,mark-sym ,column-sym)
            (indent-using-spaces .buffer. ,mark-sym ,column-sym)))))
 
@@ -66,10 +66,10 @@
 (defmacro .indent-to-tab-stop. (mark)
   (let ((mark-sym (gensym "INDENT-TO-TAB-STOP_MARK")))
     `(let ((,mark-sym ,mark))
-       (cond ((hi::value indent-with-tabs)
+       (cond ((hi::value .buffer. indent-with-tabs)
               (hi::.insert-character. ,mark-sym #\tab))
              (t
-              (let ((tab-size (hi::value spaces-per-tab)))
+              (let ((tab-size (hi::value .buffer. spaces-per-tab)))
                 (.indent-using-spaces. ,mark-sym (* (ceiling (1+ (.mark-column. ,mark-sym))
                                                              tab-size)
                                                     tab-size))))))))
@@ -83,7 +83,7 @@
    line of region."
   (let ((region-sym (gensym "INDENT-REGION_REGION")))
     `(let ((,region-sym ,region))
-       (let* ((indent-function (hi::value indent-function)))
+       (let* ((indent-function (hi::value .buffer. indent-function)))
          (with-mark ((start (region-start ,region-sym) :left-inserting)
                      (end (region-end ,region-sym)))
            (line-start start)
@@ -178,7 +178,7 @@
          (point (buffer-point buffer)))
     (with-mark ((mark point :left-inserting))
       (cond ((or (not p) (zerop p))
-             (funcall (hi::value indent-function) buffer mark))
+             (funcall (hi::value buffer indent-function) buffer mark))
             (t
              (if (plusp p)
                  (unless (line-offset buffer point (1- p))
@@ -232,7 +232,7 @@
             (delete-horizontal-space buffer (line-end buffer temp))
             (delete-horizontal-space buffer (line-start temp))
             (let* ((len (line-length buffer (mark-line temp)))
-                   (spaces (- (or p (hi::value fill-column)) len)))
+                   (spaces (- (or p (hi::value buffer fill-column)) len)))
               (if (and (plusp spaces)
                        (not (zerop len)))
                   (indent-to-column buffer temp (ceiling spaces 2)))
@@ -383,7 +383,7 @@
 
 (defmethod indent-rigidly-command (window p)
   (let* ((buffer (window-buffer window)))
-    (let ((p (or p (hi::value spaces-per-tab)))
+    (let ((p (or p (hi::value buffer spaces-per-tab)))
           (region (current-region buffer)))
       (with-mark ((mark1 (region-start region) :left-inserting)
                   (mark2 (region-end region) :left-inserting))

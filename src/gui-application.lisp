@@ -75,9 +75,9 @@
 		 "A value of 1 for this attribute indicates that the corresponding character
   should be considered to be a field separator by the prompting commands.")
 	     
-	     (setf (hemlock::character-attribute :parse-field-separator #\space) 1)
+	     (setf (hemlock::character-attribute initial-buffer :parse-field-separator #\space) 1)
 	     
-	     (hemlock::add-hook hemlock::window-buffer-hook
+	     (hemlock::add-hook initial-buffer hemlock::window-buffer-hook
 				#'(lambda (window new-buff)
 				    (when (and (eq window hi::*echo-area-window*)
 					       (not (eq new-buff hi::*echo-area-buffer*)))
@@ -93,7 +93,7 @@
 	       :value t
 	       :current-buffer initial-buffer)
 	     
-	     (hemlock::add-hook hemlock::abort-hook 'hemlock::control-g-deactivate-region)
+	     (hemlock::add-hook initial-buffer hemlock::abort-hook 'hemlock::control-g-deactivate-region)
 	     
 	     (defhvar "Character Deletion Threshold"
 		 "When this many characters are deleted contiguously via KILL-CHARACTERS,
@@ -105,7 +105,7 @@
 	     
 	     
 
-	     (hemlock::add-hook hemlock::make-buffer-hook #'(lambda (buffer)
+	     (hemlock::add-hook initial-buffer hemlock::make-buffer-hook #'(lambda (buffer)
 							      (hemlock::hcmd-new-buffer-hook-fun
 							       buffer
 							       initial-buffer)))
@@ -134,7 +134,7 @@
 	       :value 4
 	       :current-buffer initial-buffer)
 	     
-	     (hemlock::add-hook hemlock::window-buffer-hook #'reset-window-display-recentering)
+	     (hemlock::add-hook initial-buffer hemlock::window-buffer-hook #'reset-window-display-recentering)
 
 	     (defhvar "String Search Ignore Case"
 		 "When set, string searching commands use case insensitive."
@@ -167,9 +167,8 @@
    returns \"Last Resort Pathname Defaults\".  The function must take a buffer
    as an argument, and it must return some pathname."
 	       :value #'(lambda (buffer)
-			  (declare (ignore buffer))
-			  (merge-pathnames (hi::value last-resort-pathname-defaults)
-					   (hi::value pathname-defaults)))
+			  (merge-pathnames (hi::value buffer last-resort-pathname-defaults)
+					   (hi::value buffer pathname-defaults)))
 	       :current-buffer initial-buffer)
 
 	     (defhvar "Revert File Confirm"
@@ -229,10 +228,10 @@
 		 :major-p t
 		 :setup-function
 		 #'(lambda (buffer)
-		     (setf (buffer-minor-mode buffer "Fill" initial-buffer) t))
+		     (setf (buffer-minor-mode buffer :fill initial-buffer) t))
 		 :cleanup-function
 		 #'(lambda (buffer)
-		     (setf (buffer-minor-mode buffer "Fill" initial-buffer) nil))
+		     (setf (buffer-minor-mode buffer :fill initial-buffer) nil))
 		 :current-buffer initial-buffer)
 
 	     (defhvar "Fill Prefix" "The fill prefix in Log mode."
@@ -241,11 +240,11 @@
 
 	     (hi::define-file-type-hook ("log") (buffer type)
 	       (declare (ignore type))
-	       (setf (buffer-major-mode buffer initial-buffer) "Log"))
+	       (setf (buffer-major-mode buffer initial-buffer) :log))
 
-	     (hi::add-hook make-buffer-hook 'add-buffer-history-hook)
+	     (hi::add-hook initial-buffer make-buffer-hook 'add-buffer-history-hook)
 
-	     (hi::add-hook delete-buffer-hook 'delete-buffer-history-hook)
+	     (hi::add-hook initial-buffer delete-buffer-hook 'delete-buffer-history-hook)
 
 	     (defhvar "Spaces per Tab"
 		 "The number of spaces a tab is equivalent to.  NOTE: This is not incorporated
@@ -279,8 +278,8 @@
   characters are treated as space."
 	       '(mod 2) 0)
 
-	     (setf (character-attribute :space #\space) 1)
-	     (setf (character-attribute :space #\tab) 1)
+	     (setf (character-attribute initial-buffer :space #\space) 1)
+	     (setf (character-attribute initial-buffer :space #\tab) 1)
 
 	     (define-file-type-hook ("pas" "pasmac" "macro" "defs" "spc" "bdy")
                        (buffer type)
@@ -312,7 +311,7 @@
 	     (defhvar "Region Query Size"
 		 "A number-of-lines threshold that destructive, undoable region commands
    should ask the user about when the indicated region is too big."
-	       :value 30
+	       :value 100
 	       :current-buffer initial-buffer)
 
 	     (defmode :text :major-p t
@@ -401,12 +400,12 @@
 ;;; delimit paragraphs.  Anyway, this is what EMACS documentation states,
 ;;; and #\' and #\. are always paragraph delimiters (don't ask me).
 
-	     (setf (character-attribute :paragraph-delimiter #\space) 1)
-	     (setf (character-attribute :paragraph-delimiter #\linefeed) 1)
-	     (setf (character-attribute :paragraph-delimiter
+	     (setf (character-attribute initial-buffer :paragraph-delimiter #\space) 1)
+	     (setf (character-attribute initial-buffer :paragraph-delimiter #\linefeed) 1)
+	     (setf (character-attribute initial-buffer :paragraph-delimiter
 					#+CMU #\formfeed #+(or sbcl EXCL CLISP OpenMCL scl) #\page) 1)
-	     (setf (character-attribute :paragraph-delimiter #\tab) 1)
-	     (setf (character-attribute :paragraph-delimiter #\newline) 1)
+	     (setf (character-attribute initial-buffer :paragraph-delimiter #\tab) 1)
+	     (setf (character-attribute initial-buffer :paragraph-delimiter #\newline) 1)
 	     
 	     
 	     
@@ -417,12 +416,12 @@
 	       0)
 
 	     
-	     (setf (character-attribute :sentence-closing-char #\") 1)
-	     (setf (character-attribute :sentence-closing-char #\') 1)
-	     (setf (character-attribute :sentence-closing-char #\)) 1)
-	     (setf (character-attribute :sentence-closing-char #\]) 1)
-	     (setf (character-attribute :sentence-closing-char #\|) 1)
-	     (setf (character-attribute :sentence-closing-char #\>) 1)
+	     (setf (character-attribute initial-buffer :sentence-closing-char #\") 1)
+	     (setf (character-attribute initial-buffer :sentence-closing-char #\') 1)
+	     (setf (character-attribute initial-buffer :sentence-closing-char #\)) 1)
+	     (setf (character-attribute initial-buffer :sentence-closing-char #\]) 1)
+	     (setf (character-attribute initial-buffer :sentence-closing-char #\|) 1)
+	     (setf (character-attribute initial-buffer :sentence-closing-char #\>) 1)
 
 	     (defhvar "Paragraph Delimiter Function"
 		 "The function that returns whether or not the current line should break the
@@ -550,55 +549,55 @@
   should be considered as whitespace.  This is used by the Blank-Line-P
   function.")
 
-	     (setf (character-attribute :whitespace #\space) 1)
-	     (setf (character-attribute :whitespace #\linefeed) 1)
-	     (setf (character-attribute :whitespace #\tab) 1)
-	     (setf (character-attribute :whitespace #\newline) 1)
+	     (setf (character-attribute initial-buffer :whitespace #\space) 1)
+	     (setf (character-attribute initial-buffer :whitespace #\linefeed) 1)
+	     (setf (character-attribute initial-buffer :whitespace #\tab) 1)
+	     (setf (character-attribute initial-buffer :whitespace #\newline) 1)
 
 	     (defattribute "Word Delimiter"
 		 "A value of 1 for this attribute indicates that the corresponding character
   separates words.  This is used by the word manipulating commands.")
 
-	     (setf (character-attribute :word-delimiter nil) 1)
-	     (setf (character-attribute :word-delimiter #\!) 1)
-	     (setf (character-attribute :word-delimiter #\@) 1)
-	     (setf (character-attribute :word-delimiter #\#) 1)
-	     (setf (character-attribute :word-delimiter #\$) 1)
-	     (setf (character-attribute :word-delimiter #\%) 1)
-	     (setf (character-attribute :word-delimiter #\^) 1)
-	     (setf (character-attribute :word-delimiter #\&) 1)
-	     (setf (character-attribute :word-delimiter #\*) 1)
-	     (setf (character-attribute :word-delimiter #\() 1)
-	     (setf (character-attribute :word-delimiter #\)) 1)
-	     (setf (character-attribute :word-delimiter #\-) 1)
-	     (setf (character-attribute :word-delimiter #\_) 1)
-	     (setf (character-attribute :word-delimiter #\=) 1)
-	     (setf (character-attribute :word-delimiter #\+) 1)
-	     (setf (character-attribute :word-delimiter #\[) 1)
-	     (setf (character-attribute :word-delimiter #\]) 1)
-	     (setf (character-attribute :word-delimiter #\\) 1)
-	     (setf (character-attribute :word-delimiter #\|) 1)
-	     (setf (character-attribute :word-delimiter #\;) 1) 
-	     (setf (character-attribute :word-delimiter #\:) 1)
-	     (setf (character-attribute :word-delimiter #\') 1)
-	     (setf (character-attribute :word-delimiter #\") 1)
-	     (setf (character-attribute :word-delimiter #\{) 1)
-	     (setf (character-attribute :word-delimiter #\}) 1)
-	     (setf (character-attribute :word-delimiter #\,) 1)
-	     (setf (character-attribute :word-delimiter #\.) 1)
-	     (setf (character-attribute :word-delimiter #\<) 1)
-	     (setf (character-attribute :word-delimiter #\>) 1)
-	     (setf (character-attribute :word-delimiter #\/) 1)
-	     (setf (character-attribute :word-delimiter #\?) 1)
-	     (setf (character-attribute :word-delimiter #\`) 1)
-	     (setf (character-attribute :word-delimiter #\~) 1)
-	     (setf (character-attribute :word-delimiter #\space) 1)
-	     (setf (character-attribute :word-delimiter #\linefeed) 1)
-	     (setf (character-attribute :word-delimiter
+	     (setf (character-attribute initial-buffer :word-delimiter nil) 1)
+	     (setf (character-attribute initial-buffer :word-delimiter #\!) 1)
+	     (setf (character-attribute initial-buffer :word-delimiter #\@) 1)
+	     (setf (character-attribute initial-buffer :word-delimiter #\#) 1)
+	     (setf (character-attribute initial-buffer :word-delimiter #\$) 1)
+	     (setf (character-attribute initial-buffer :word-delimiter #\%) 1)
+	     (setf (character-attribute initial-buffer :word-delimiter #\^) 1)
+	     (setf (character-attribute initial-buffer :word-delimiter #\&) 1)
+	     (setf (character-attribute initial-buffer :word-delimiter #\*) 1)
+	     (setf (character-attribute initial-buffer :word-delimiter #\() 1)
+	     (setf (character-attribute initial-buffer :word-delimiter #\)) 1)
+	     (setf (character-attribute initial-buffer :word-delimiter #\-) 1)
+	     (setf (character-attribute initial-buffer :word-delimiter #\_) 1)
+	     (setf (character-attribute initial-buffer :word-delimiter #\=) 1)
+	     (setf (character-attribute initial-buffer :word-delimiter #\+) 1)
+	     (setf (character-attribute initial-buffer :word-delimiter #\[) 1)
+	     (setf (character-attribute initial-buffer :word-delimiter #\]) 1)
+	     (setf (character-attribute initial-buffer :word-delimiter #\\) 1)
+	     (setf (character-attribute initial-buffer :word-delimiter #\|) 1)
+	     (setf (character-attribute initial-buffer :word-delimiter #\;) 1) 
+	     (setf (character-attribute initial-buffer :word-delimiter #\:) 1)
+	     (setf (character-attribute initial-buffer :word-delimiter #\') 1)
+	     (setf (character-attribute initial-buffer :word-delimiter #\") 1)
+	     (setf (character-attribute initial-buffer :word-delimiter #\{) 1)
+	     (setf (character-attribute initial-buffer :word-delimiter #\}) 1)
+	     (setf (character-attribute initial-buffer :word-delimiter #\,) 1)
+	     (setf (character-attribute initial-buffer :word-delimiter #\.) 1)
+	     (setf (character-attribute initial-buffer :word-delimiter #\<) 1)
+	     (setf (character-attribute initial-buffer :word-delimiter #\>) 1)
+	     (setf (character-attribute initial-buffer :word-delimiter #\/) 1)
+	     (setf (character-attribute initial-buffer :word-delimiter #\?) 1)
+	     (setf (character-attribute initial-buffer :word-delimiter #\`) 1)
+	     (setf (character-attribute initial-buffer :word-delimiter #\~) 1)
+	     (setf (character-attribute initial-buffer :word-delimiter #\space) 1)
+	     (setf (character-attribute initial-buffer :word-delimiter #\linefeed) 1)
+	     (setf (character-attribute initial-buffer :word-delimiter
 					#+CMU #\formfeed
 					#+(or EXCL sbcl CLISP OpenMCL scl) #\page) 1)
-	     (setf (character-attribute :word-delimiter #\tab) 1)
-	     (setf (character-attribute :word-delimiter #\newline) 1)
+	     (setf (character-attribute initial-buffer :word-delimiter #\tab) 1)
+	     (setf (character-attribute initial-buffer :word-delimiter #\newline) 1)
 
 	     (shadow-attribute initial-buffer :word-delimiter #\. 0 :fundamental)
 	     (shadow-attribute initial-buffer :word-delimiter #\' 0 :text)
@@ -607,8 +606,8 @@
 	     
 	     (defattribute "Page Delimiter"
 		 "This attribute is 1 for characters that separate pages, 0 otherwise.")
-	     (setf (character-attribute :page-delimiter nil) 1)
-	     (setf (character-attribute :page-delimiter #\page) 1)
+	     (setf (character-attribute initial-buffer :page-delimiter nil) 1)
+	     (setf (character-attribute initial-buffer :page-delimiter #\page) 1)
 
 	     
 	     (defattribute "Lisp Syntax"
@@ -627,57 +626,57 @@
    :constituent - Things that make up symbols."
 	       'symbol nil)
 
-	     (setf (character-attribute :lisp-syntax #\space) :space)
-	     (setf (character-attribute :lisp-syntax #\tab) :space)
+	     (setf (character-attribute initial-buffer :lisp-syntax #\space) :space)
+	     (setf (character-attribute initial-buffer :lisp-syntax #\tab) :space)
 
-	     (setf (character-attribute :lisp-syntax #\() :open-paren)
-	     (setf (character-attribute :lisp-syntax #\)) :close-paren)
-	     (setf (character-attribute :lisp-syntax #\') :prefix)
-	     (setf (character-attribute :lisp-syntax #\`) :prefix)
-	     (setf (character-attribute :lisp-syntax #\#) :prefix)
-	     (setf (character-attribute :lisp-syntax #\,) :prefix)
-	     (setf (character-attribute :lisp-syntax #\") :string-quote)
-	     (setf (character-attribute :lisp-syntax #\\) :char-quote)
-	     (setf (character-attribute :lisp-syntax #\;) :comment)
-	     (setf (character-attribute :lisp-syntax #\newline) :newline)
-	     (setf (character-attribute :lisp-syntax nil) :newline)
+	     (setf (character-attribute initial-buffer :lisp-syntax #\() :open-paren)
+	     (setf (character-attribute initial-buffer :lisp-syntax #\)) :close-paren)
+	     (setf (character-attribute initial-buffer :lisp-syntax #\') :prefix)
+	     (setf (character-attribute initial-buffer :lisp-syntax #\`) :prefix)
+	     (setf (character-attribute initial-buffer :lisp-syntax #\#) :prefix)
+	     (setf (character-attribute initial-buffer :lisp-syntax #\,) :prefix)
+	     (setf (character-attribute initial-buffer :lisp-syntax #\") :string-quote)
+	     (setf (character-attribute initial-buffer :lisp-syntax #\\) :char-quote)
+	     (setf (character-attribute initial-buffer :lisp-syntax #\;) :comment)
+	     (setf (character-attribute initial-buffer :lisp-syntax #\newline) :newline)
+	     (setf (character-attribute initial-buffer :lisp-syntax nil) :newline)
 
 	     (do-alpha-chars (ch :both)
-	       (setf (character-attribute :lisp-syntax ch) :constituent))
+	       (setf (character-attribute initial-buffer :lisp-syntax ch) :constituent))
 
-	     (setf (character-attribute :lisp-syntax #\0) :constituent)
-	     (setf (character-attribute :lisp-syntax #\1) :constituent)
-	     (setf (character-attribute :lisp-syntax #\2) :constituent)
-	     (setf (character-attribute :lisp-syntax #\3) :constituent)
-	     (setf (character-attribute :lisp-syntax #\4) :constituent)
-	     (setf (character-attribute :lisp-syntax #\5) :constituent)
-	     (setf (character-attribute :lisp-syntax #\6) :constituent)
-	     (setf (character-attribute :lisp-syntax #\7) :constituent)
-	     (setf (character-attribute :lisp-syntax #\8) :constituent)
-	     (setf (character-attribute :lisp-syntax #\9) :constituent)
+	     (setf (character-attribute initial-buffer :lisp-syntax #\0) :constituent)
+	     (setf (character-attribute initial-buffer :lisp-syntax #\1) :constituent)
+	     (setf (character-attribute initial-buffer :lisp-syntax #\2) :constituent)
+	     (setf (character-attribute initial-buffer :lisp-syntax #\3) :constituent)
+	     (setf (character-attribute initial-buffer :lisp-syntax #\4) :constituent)
+	     (setf (character-attribute initial-buffer :lisp-syntax #\5) :constituent)
+	     (setf (character-attribute initial-buffer :lisp-syntax #\6) :constituent)
+	     (setf (character-attribute initial-buffer :lisp-syntax #\7) :constituent)
+	     (setf (character-attribute initial-buffer :lisp-syntax #\8) :constituent)
+	     (setf (character-attribute initial-buffer :lisp-syntax #\9) :constituent)
 
-	     (setf (character-attribute :lisp-syntax #\!) :constituent)
-	     (setf (character-attribute :lisp-syntax #\{) :constituent)
-	     (setf (character-attribute :lisp-syntax #\}) :constituent)
-	     (setf (character-attribute :lisp-syntax #\[) :constituent)
-	     (setf (character-attribute :lisp-syntax #\]) :constituent)
-	     (setf (character-attribute :lisp-syntax #\/) :constituent)
-	     (setf (character-attribute :lisp-syntax #\@) :constituent)
-	     (setf (character-attribute :lisp-syntax #\-) :constituent)
-	     (setf (character-attribute :lisp-syntax #\_) :constituent)
-	     (setf (character-attribute :lisp-syntax #\+) :constituent)
-	     (setf (character-attribute :lisp-syntax #\%) :constituent)
-	     (setf (character-attribute :lisp-syntax #\*) :constituent)
-	     (setf (character-attribute :lisp-syntax #\$) :constituent)
-	     (setf (character-attribute :lisp-syntax #\^) :constituent)
-	     (setf (character-attribute :lisp-syntax #\&) :constituent)
-	     (setf (character-attribute :lisp-syntax #\~) :constituent)
-	     (setf (character-attribute :lisp-syntax #\=) :constituent)
-	     (setf (character-attribute :lisp-syntax #\<) :constituent)
-	     (setf (character-attribute :lisp-syntax #\>) :constituent)
-	     (setf (character-attribute :lisp-syntax #\?) :constituent)
-	     (setf (character-attribute :lisp-syntax #\.) :constituent)
-	     (setf (character-attribute :lisp-syntax #\:) :constituent)
+	     (setf (character-attribute initial-buffer :lisp-syntax #\!) :constituent)
+	     (setf (character-attribute initial-buffer :lisp-syntax #\{) :constituent)
+	     (setf (character-attribute initial-buffer :lisp-syntax #\}) :constituent)
+	     (setf (character-attribute initial-buffer :lisp-syntax #\[) :constituent)
+	     (setf (character-attribute initial-buffer :lisp-syntax #\]) :constituent)
+	     (setf (character-attribute initial-buffer :lisp-syntax #\/) :constituent)
+	     (setf (character-attribute initial-buffer :lisp-syntax #\@) :constituent)
+	     (setf (character-attribute initial-buffer :lisp-syntax #\-) :constituent)
+	     (setf (character-attribute initial-buffer :lisp-syntax #\_) :constituent)
+	     (setf (character-attribute initial-buffer :lisp-syntax #\+) :constituent)
+	     (setf (character-attribute initial-buffer :lisp-syntax #\%) :constituent)
+	     (setf (character-attribute initial-buffer :lisp-syntax #\*) :constituent)
+	     (setf (character-attribute initial-buffer :lisp-syntax #\$) :constituent)
+	     (setf (character-attribute initial-buffer :lisp-syntax #\^) :constituent)
+	     (setf (character-attribute initial-buffer :lisp-syntax #\&) :constituent)
+	     (setf (character-attribute initial-buffer :lisp-syntax #\~) :constituent)
+	     (setf (character-attribute initial-buffer :lisp-syntax #\=) :constituent)
+	     (setf (character-attribute initial-buffer :lisp-syntax #\<) :constituent)
+	     (setf (character-attribute initial-buffer :lisp-syntax #\>) :constituent)
+	     (setf (character-attribute initial-buffer :lisp-syntax #\?) :constituent)
+	     (setf (character-attribute initial-buffer :lisp-syntax #\.) :constituent)
+	     (setf (character-attribute initial-buffer :lisp-syntax #\:) :constituent)
 
 
 	     (defattribute "Sentence Terminator"
@@ -687,9 +686,9 @@
 	       '(mod 2)
 	       0)
 
-	     (setf (character-attribute :sentence-terminator #\.) 1)
-	     (setf (character-attribute :sentence-terminator #\!) 1)
-	     (setf (character-attribute :sentence-terminator #\?) 1)
+	     (setf (character-attribute initial-buffer :sentence-terminator #\.) 1)
+	     (setf (character-attribute initial-buffer :sentence-terminator #\!) 1)
+	     (setf (character-attribute initial-buffer :sentence-terminator #\?) 1)
 
 	     (defhvar "Auto Save Pathname Hook"
 		 "This hook is called by Auto Save to get a checkpoint pathname when there
@@ -702,16 +701,16 @@
 	       :value #'make-unique-save-pathname
 	       :current-buffer initial-buffer)
 
-	     (add-hook write-file-hook 'cleanup-checkpoint)
+	     (add-hook initial-buffer write-file-hook 'cleanup-checkpoint)
 	     
 	     (defmode :save
 		 :setup-function 'setup-auto-save-mode
 		 :cleanup-function 'cleanup-auto-save-mode
 		 :current-buffer initial-buffer)
 
-	     (add-hook buffer-modified-hook 'notice-buffer-modified)
+	     (add-hook initial-buffer buffer-modified-hook 'notice-buffer-modified)
 
-	     (add-hook input-hook 'auto-save-count-keys)
+	     (add-hook initial-buffer input-hook 'auto-save-count-keys)
 
 ;;;; Save Mode Hemlock Variables
 
@@ -769,9 +768,9 @@
 	       :value 'lisp-open-paren-finder-function
 	       :current-buffer initial-buffer)
 
-	     (add-hook redisplay-hook 'maybe-highlight-open-parens)
+	     (add-hook initial-buffer redisplay-hook 'maybe-highlight-open-parens)
 
-	     (add-hook redisplay-hook 'highlight-active-region)
+	     (add-hook initial-buffer redisplay-hook 'highlight-active-region)
 
 	     (defmode :dired :major-p t
 		      :documentation
@@ -828,13 +827,13 @@
 
 
   (do-alpha-chars (char :both)
-  (setf (character-attribute :completion-wordchar char) 1))
+  (setf (character-attribute initial-buffer :completion-wordchar char) 1))
 
   (dolist (char '(#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9))
-  (setf (character-attribute :completion-wordchar char) 1))
+  (setf (character-attribute initial-buffer :completion-wordchar char) 1))
 
   (dolist (char default-other-wordchars)
-  (setf (character-attribute :completion-wordchar char) 1))
+  (setf (character-attribute initial-buffer :completion-wordchar char) 1))
   
   (dolist (char default-lisp-wordchars)
   (shadow-attribute initial-buffer :completion-wordchar char 1 :lisp))
@@ -893,15 +892,15 @@
 
 
   (setq hemlock::*kill-ring* (hi::make-kill-ring
-			      (clui::window-display (krma::main-window self))
+			      (clui::window-display (main-window self))
 			      10))
 
   (unless (boundp '*style*)
     (setq *style* (make-instance 'light-style
-				 'display (frame-manager-display self)
-				 'monitor (clui::get-primary-monitor (frame-manager-display self)))))
+				 'display (clui::window-display (main-window self))
+				 'monitor (clui:window-monitor (main-window self)))))
 
-  (climish::make-echo-area-window :frame-manager self)
+  (climish::make-echo-area-window :frame (main-window self))
 
   (bt:signal-semaphore (command-loop-go-semaphore (main-window self)))
 
