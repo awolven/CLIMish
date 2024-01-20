@@ -526,22 +526,18 @@
   passed to the command."))
 
 (defmethod extended-command-command (window p)  
-  (let* ((frame (clui::window-parent (adhoc:send window adhoc:root)))
-         (name (hi::accept-keyword
-                                :stream frame
-                                :current-window window
-                                :parse-string-tables (list *command-names*)
-                                :prompt "Extended Command: "
-                                :help "Name of a Hemlock command")))
-    ;;(climish::redraw-buffer *echo-area-window*)
+  (let* ((frame (climish::application-frame window))
+         (name (clim:accept 'hemlock::command-name
+                            :stream frame
+                            :current-window window
+                            :view hi::*echo-area-window*
+                            :prompt "Extended Command: "
+                            :help "Name of a Hemlock command")))
     (let ((cmd (getstring name *command-names*)))
       (clear-echo-area)
       (message (command-name cmd))
       (when cmd
-        (loop for (type tag) in climish::*input-context*
-              when (typep cmd type)
-                do (throw tag cmd))
-	(climish::invoke-command cmd (climish::send *echo-area-window* climish::parent))))))
+        (climish::invoke-command cmd frame)))))
 
 #+DISABLE
 (defhcommand eval-expression-command (window p)
@@ -551,7 +547,7 @@
 
 (defmethod eval-expression-command (window p)
   (declare (ignore p))
-  (message "~S" (eval (prompt-for-expression window))))
+  (message "~S" (eval (clim:accept 'lisp-expression :current-window window))))
 
 
 #+DISABLE

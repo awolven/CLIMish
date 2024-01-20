@@ -324,8 +324,8 @@
         input-region))
      ((value unwedge-interactive-input-confirm)
       (beep)
-      (when (prompt-for-y-or-n
-             current-window
+      (when (clim:accept 'y-or-n
+                         :current-window current-window
              :prompt (concatenate 'simple-string
                                   "Point not past input mark.  "
                                   (value unwedge-interactive-input-string))
@@ -654,8 +654,8 @@
   (declare (ignore p))
   (in-lisp
    (multiple-value-call #'message "=> ~@{~#[~;~S~:;~S, ~]~}"
-                        (eval (prompt-for-expression
-                               window
+                        (eval (clim:accept 'lisp-expression
+                                           :current-window window
             :prompt "Editor Eval: "
             :help "Expression to evaluate")))))
 
@@ -709,7 +709,8 @@
    whether the buffer needs to be saved."
   "Prompts for file to compile."
   (declare (ignore p))
-  (let ((pn (prompt-for-file window :default
+  (let ((pn (clim:accept 'file
+                         :current-window window :default
                              (buffer-default-pathname (current-buffer))
                              :prompt "File to compile: ")))
     (with-output-to-window (*error-output* "Compiler Warnings")
@@ -773,7 +774,7 @@
       (unless pn (editor-error "Buffer has no associated pathname."))
       (cond ((buffer-modified buf)
              (when (or (not (value buf compile-buffer-file-confirm))
-                       (prompt-for-y-or-n
+                       (clim:accept 'y-or-n
                         window
                         :default t :default-string "Y"
                         :prompt (list "Save and compile file ~A? "
@@ -783,7 +784,7 @@
                (clear-echo-area)))
             ((older-or-non-existent-fasl-p pn p)
              (when (or (not (value buf compile-buffer-file-confirm))
-                       (prompt-for-y-or-n
+                       (clim:accept 'y-or-n
                         window
                         :default t :default-string "Y"
                         :prompt (list "Compile file ~A? " (namestring pn))))
@@ -792,8 +793,8 @@
             (t (do-compile)
                (clear-echo-area)
                #+OLD(when (or p
-                         (prompt-for-y-or-n
-                          window
+                         (clim:accept 'y-or-n
+                                      :current-window window
                           :default t :default-string "Y"
                           :prompt
                           "Fasl file up to date, compile source anyway? "))
@@ -846,8 +847,8 @@
   "Prompt for a file to load into Editor Lisp."
   "Prompt for a file to load into the Editor Lisp."
   (declare (ignore p))
-  (let ((name (truename (prompt-for-file
-                         window
+  (let ((name (truename (clim:accept 'file
+                                     :current-window window
                          :default
                          (or (value buffer load-pathname-defaults)
                              (buffer-default-pathname (current-buffer)))
@@ -951,10 +952,10 @@
 (defmethod editor-describe-command (window p)
   (declare (ignore p))
   (in-lisp (window-buffer window)
-    (let* ((exp (prompt-for-expression
-                 window
-                :prompt "Object: "
-                :help "Expression to evaluate to get object to describe."))
+    (let* ((exp (clim:accept 'lisp-expression
+                             :current-window window
+                             :prompt "Object: "
+                             :help "Expression to evaluate to get object to describe."))
           (obj (eval exp)))
      (with-pop-up-display (*standard-output* :current-window window)
        (describe obj)
@@ -969,8 +970,8 @@
   nor modify the return value after it is returned."
   "Call prompt for a function, then call Filter-Region with it and the region."
   (declare (ignore p))
-  (let* ((exp (prompt-for-expression
-               window
+  (let* ((exp (clim:accept 'lisp-expression
+                           :current-window window
                :prompt "Function: "
                :help "Expression to evaluate to get function to use as filter."))
          (fun (in-lisp (eval exp)))

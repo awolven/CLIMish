@@ -108,6 +108,10 @@
   "Return the buffer which is displayed in Window."
   (window-%buffer window))
 
+(defmethod window-buffer (some-random-window)
+  (declare (ignore some-random-window))
+  nil)
+
 (defmethod (setf window-buffer) (new-buffer (window window))
   "Change the buffer a window is mapped to."
   (with-slots (the-sentinel) window

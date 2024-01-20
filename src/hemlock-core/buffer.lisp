@@ -8,9 +8,6 @@
 
 ;;;; Some buffer structure support.
 
-(define-symbol-macro *current-buffer*
-    (window-buffer (current-window)))
-
 (defun buffer-writable (buffer)
   "Returns whether buffer may be modified."
   (buffer-%writable buffer))

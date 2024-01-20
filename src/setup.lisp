@@ -2,6 +2,8 @@
 
 (defvar *style*)
 
+(defclass textual-view () ())
+
 ;; start the counter for lisp objects at the end of half of int so we can use foreign handled ints
 ;; as oids directly without needing to access this counter (such as parasolid tags)
 (defvar *object-id-counter* (expt 2 31)) 
@@ -28,9 +30,145 @@
 (defmacro regenerate! (object)
   `(eval (list* 'send ,object (send ,object root-path))))
 
-(defmacro provide! (expression)
-  `(throw :accept ,expression))
 
+(defmacro maybe-provide (frame object expression)
+  `(let ((tag (loop for (type tag) in (input-context ,frame)
+		    when (typep ,object type)
+		      do (return tag)
+		    finally (return nil))))
+     (when tag (throw tag ,expression))))
+
+(defmacro maybe-provide-butlast (frame object expression)
+  `(let ((tag (loop for (type tag) in (butlast (input-context ,frame))
+		    when (typep ,object type)
+		      do (return tag)
+		    finally (return nil))))
+     (when tag (throw tag ,expression))))
+
+(defun make-input-context-clauses (pt-var clauses)
+  (let ((new-clauses nil))
+    (dolist (clause clauses (nreverse new-clauses))
+      (let ((type (first clause))
+            (body (rest clause)))
+        (push `((presentation-subtypep-1 ,pt-var ',type)
+                ,@body)
+              new-clauses)))))
+
+(defmacro with-input-context ((frame type &key override) 
+                              (&optional object-var type-var event-var options-var)
+                              form
+                              &body clauses)
+  #+Genera (declare (zwei:indentation 0 2 2 4 3 2))
+  (let ((ignores nil))
+    (when (null object-var)
+      (setq object-var '#:object)
+      (push object-var ignores))
+    (when (null type-var)
+      (setq type-var '#:presentation-type)
+      (unless clauses (push type-var ignores)))
+    (when (null event-var)
+      (setq event-var '#:event)
+      (push event-var ignores))
+    (when (null options-var)
+      (setq options-var '#:options)
+      (push options-var ignores))
+    `(flet ((body-continuation () ,form)
+            (context-continuation (,object-var ,type-var ,event-var ,options-var)
+              ,@(and ignores `((declare (ignore ,@ignores))))
+              (cond ,@(make-input-context-clauses type-var clauses))))
+       (declare (dynamic-extent #'body-continuation #'context-continuation))
+       (invoke-with-input-context
+	,frame
+	(expand-presentation-type-abbreviation ,type) ,override
+	#'body-continuation #'context-continuation))))
+
+(defvar *default-input-editing-stream-class*
+  'standard-input-editing-stream)
+
+(defmacro default-input-stream (stream &optional must-be-variable-macro-name)
+  `(cond ((member ,stream '(t nil))
+          (setq ,stream '*standard-input*))
+         ,@(when must-be-variable-macro-name
+             `(((not (and (symbolp ,stream)
+                          (not (keywordp ,stream))))
+                (warn "The stream argument to ~S, ~S, is invalid.~@
+                       This argument must be a variable that can be bound to a new stream."
+                      ',must-be-variable-macro-name ,stream)
+                (setq ,stream '*standard-input*))))))
+
+(defmacro with-input-editing ((&optional stream
+                               &key input-sensitizer initial-contents
+                                    (class `*default-input-editing-stream-class*))
+                              &body body)
+  (default-input-stream stream with-input-editing)
+  `(flet ((with-input-editing-body (,stream) ,@body))
+     (declare (dynamic-extent #'with-input-editing-body))
+     (invoke-with-input-editing ,stream #'with-input-editing-body
+                                ,class ,input-sensitizer ,initial-contents)))
+
+;; Activation gestures terminate the entire input line.  They are usually
+;; non-printing characters such as #\Newline or #\End.
+(defvar *activation-gestures* nil)
+
+(defvar *standard-activation-gestures* '(:newline :return :end))
+
+(defmacro with-activation-gestures ((additional-gestures &key override)
+                                    &body body &environment env)
+  #-(or Genera Minima) (declare (ignore env))
+  (when (characterp additional-gestures)        ;yes, we mean CHARACTERP
+    (setq additional-gestures `'(,additional-gestures)))
+  `(with-stack-list*
+       (*activation-gestures*
+         ,additional-gestures
+         ,(cond ((constantp override #+(or Genera Minima) env)
+                 (if (null (eval override #+(or Genera Minima-Developer) env))
+                     '*activation-gestures*
+                     nil))
+                (t
+                 `(unless ,override *activation-gestures*))))
+     ,@body))
+
+(defun activation-gesture-p (gesture)
+  (declare (ignorable gesture))
+  #+NOTYET
+  (and (not (typep gesture '(or pointer-event noise-string end-of-file-marker)))
+       (dolist (set *activation-gestures*)
+         (when (if (listp set)
+                   (member gesture set
+                           :test #'keyboard-event-matches-gesture-name-p)
+                   (funcall set gesture))
+           (return-from activation-gesture-p t)))))
+
+;; Delimiter gestures terminate a field in an input line.  They are usually
+;; printing characters such as #\Space or #\Tab
+(defvar *delimiter-gestures* nil)
+
+(defmacro with-delimiter-gestures ((additional-gestures &key override)
+                                   &body body &environment env)
+  #-(or Genera Minima) (declare (ignore env))
+  (when (characterp additional-gestures)        ;yes, we mean CHARACTERP
+    (setq additional-gestures `'(,additional-gestures)))
+  `(with-stack-list*
+       (*delimiter-gestures*
+         ,additional-gestures
+         ,(cond ((constantp override #+(or Genera Minima) env)
+                 (if (null (eval override #+(or Genera Minima-Developer) env))
+                     '*delimiter-gestures*
+                     nil))
+                (t
+                 `(unless ,override *delimiter-gestures*))))
+     ,@body))
+
+(defun delimiter-gesture-p (gesture)
+  (declare (ignorable gesture))
+  #+NOTYET
+  (and (not (typep gesture '(or pointer-event noise-string end-of-file-marker)))
+       (dolist (set *delimiter-gestures*)
+         (when (if (listp set)
+                   (member gesture set
+                           :test #'keyboard-event-matches-gesture-name-p)
+                   (funcall set gesture))
+           (return-from delimiter-gesture-p t)))))
 
 (in-package :hemlock-internals)
 

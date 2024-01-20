@@ -83,9 +83,11 @@
         (method-undo (undo-info-method-undo *undo-info*)))
     (if (not (eq buffer (window-buffer window)))
         (editor-error "Undo info is for buffer ~S." (buffer-name buffer)))
-    (when (prompt-for-y-or-n window :prompt (format nil "Undo the last ~A? "
-                                             (undo-info-name *undo-info*))
-                             :must-exist t)
+    (when (clim:accept 'y-or-n
+                       :current-window window
+                       :prompt (format nil "Undo the last ~A? "
+                                       (undo-info-name *undo-info*))
+                       :must-exist t)
       (funcall (undo-info-method *undo-info*))
       (cond (method-undo
              (rotatef (undo-info-name *undo-info*)

@@ -371,16 +371,18 @@
 ;;; where) of the binding.
 ;;;
 (defun get-keyboard-macro-key (current-window)
-  (let* ((key (prompt-for-key current-window :prompt "Bind keyboard macro to key: "
-                              :must-exist nil)))
+  (let* ((key (clim:accept 'key
+                           :current-window current-window
+                           :prompt "Bind keyboard macro to key: "
+                           :must-exist nil)))
     (multiple-value-bind (kind where)
                          (prompt-for-place current-window "Kind of binding: "
                                            "The kind of binding to make.")
       (let* ((cmd (get-command key kind where)))
         (cond ((not cmd) (values key kind where))
               ((commandp cmd)
-               (if (prompt-for-y-or-n
-                    current-window
+               (if (clim:accept 'y-or-n
+                                :current-window current-window
                     :prompt `("~A is bound to ~A.  Rebind it? "
                               ,(with-output-to-string (s)
                                  (hemlock-ext:print-pretty-key key s))
@@ -389,8 +391,8 @@
                    (values key kind where)
                    nil))
               ((eq cmd :prefix)
-               (if (prompt-for-y-or-n
-                    current-window 
+               (if (clim:accept 'y-or-n
+                                :current-window current-window 
                     :prompt `("~A is a prefix for more than one command.  ~
                                Clobber it? "
                               ,(with-output-to-string (s)
@@ -453,10 +455,10 @@
 (defmethod name-keyboard-macro-command (window p &optional name)
   (declare (ignore p))
   (unless name
-    (setq name (prompt-for-string
-                window
-                :prompt "Macro name: "
-                :help "String name of command to make from keyboard macro.")))
+    (setq name (clim:accept 'string
+                            :current-window window
+                            :prompt "Macro name: "
+                            :help "String name of command to make from keyboard macro.")))
   (make-command
     name "This is a named keyboard macro."
    (command-function (getstring "Last Keyboard Macro" *command-names*))))

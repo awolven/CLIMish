@@ -9,7 +9,8 @@
 
 (defobject context-menu-mixin (homemade-window-mixin)
   :inputs
-  ((menu-bar? nil)
+  (applicable-commands
+   (menu-bar? nil)
    (scrollbar-x? nil)
    (scrollbar-y? nil)
    (title-bar? t)
@@ -27,13 +28,13 @@
 	      (the title-bar height)))
 
    (color (the style title-bg-active-color))
-   (commands (let* ((frame (clui::window-parent (the root)))
+   (commands (let* ((frame (application-frame self))
 		    (base-candidates
 		      (remove-if #'(lambda (command)
 				     (typep command 'everywhere-command))
-				 (applicable-commands frame))))
+				 (the applicable-commands))))
 	       (sort 
-		(if (null (focused-window frame))
+		(if (eq (focused-window frame) frame)
 		    (remove-if #'(lambda (command)
 				   (typep command 'text-editor-command))
 			       base-candidates)
@@ -78,11 +79,12 @@
    "Move the point to the position of the mouse."))
 
 (defmethod hemlock::point-to-here-command ((window context-menu-mixin) p)
-  (let* ((frame (clui::window-parent (send window root)))
+  (let* ((frame (climish::application-frame window))
          (event (window-last-event frame)))
     (let ((objects-clicked (mapcar #'krma::object-from-id (clui::clicked-items event))))
       (loop for object in objects-clicked
-	    do (unwind-protect (maybe-provide (clim:presentation-object object)
+	    do (unwind-protect (maybe-provide frame
+					      (clim:presentation-object object)
 					      (clim:presentation-object object))
 		 (destroy-window window))))))
 

@@ -97,24 +97,12 @@
 
 (defmethod enter-command ((window climish::echo-area-window) buffer major-mode p)
   (declare (ignore p))
-  (let* ((string (region-to-string *echo-area-buffer* *parse-input-region*))
-         (empty (zerop (length string))))
-    (declare (simple-string string))
-    (if empty
-        (when *parse-default* (setq string *parse-default*))
-        (when (or (zerop (ring-length *echo-area-history*))
-                  (string/= string (ring-ref *echo-area-history* 0)))
-          (ring-push string *echo-area-history*)))
-    (multiple-value-bind (res flag)
-	(funcall *parse-verification-function* string)
-      (unless (or res flag) (editor-error))
-      (invoke-hook *echo-area-buffer* hemlock::exit-recursive-edit-hook res)
-      (print (type-of (first res)))
-      (print climish::*input-context*)
-      (climish::maybe-provide (first res) (first res))
-      (error "failed to provide input")
-      ;;(exit-recursive-edit res)
-      )))
+  (climish::echo-area-enter-command (climish::application-frame *echo-area-window*)))
+
+(defmethod enter-command ((window climish::application-frame-mixin) buffer major-mode p)
+  (declare (ignore buffer major-mode p))
+  ;; do nothing currently
+  (values))
 
 (defmethod enter-command (window buffer (major-mode (eql :interactive-character-stream)) p)
   (declare (ignore p))
@@ -297,12 +285,12 @@
 (defmethod find-file-command (view p &optional pathname)
   (declare (ignore p))
   (let* ((pn (or pathname
-                 (prompt-for-file
-		  view
-                  :prompt "Find File: "
-                  :must-exist nil
-                  :help "Name of file to read into its own buffer."
-                  :default (hemlock-ext:default-directory))))
+                 (clim:accept 'file
+			      :current-window view
+			      :prompt "Find File: "
+			      :must-exist nil
+			      :help "Name of file to read into its own buffer."
+			      :default (hemlock-ext:default-directory))))
          (buffer (find-file-buffer view pn)))
     (climish::find-or-create-text-editor-window-for-buffer buffer)
     buffer))
@@ -427,23 +415,32 @@
 					    height (- height overlap))))))
     (climish::redraw-buffer window)))
 
-(climish::define-everywhere-command options (frame)
+(climish::define-everywhere-command options (frame applicable-commands)
   (:pretty-name "Options")
   (:help-string "Show the context menu.")
   (:documentation "Show the context menu.")
   (:applicability (not (typep (climish::focused-window climish::application-frame)
 			      'climish::context-menu-mixin)))
-  (:preparation (list climish::application-frame)))
+  (:preparation (list climish::application-frame
+		      (climish::applicable-commands climish::application-frame))))
 
-(defmethod options (frame)
-  (let* ((menu (make-instance 'climish::context-menu))
+(defmethod options (frame applicable-commands)
+  (let* ((menu (make-instance 'climish::context-menu
+			      'climish::applicable-commands
+			      applicable-commands))
 	 (event (climish::window-last-event frame)))
-;;    (break "~S" (adhoc:send menu climish::visible?))
     (climish::set-window-position menu
 				  (- (clim:pointer-event-x event) 70)
 				  (- (clim:pointer-event-y event) 70))
-    (climish::focus-window menu)
-    (values)))
+    (let ((choice))
+      (unwind-protect
+	   (progn
+	     (setq choice (clim:accept 'climish::not-everywhere-command
+				       :current-window (climish::focused-window frame)
+				       :view menu))
+	     (climish::maybe-throw-presentation choice (climish::input-context frame) nil nil)
+	     (climish::invoke-command choice frame))
+	(climish::destroy-window menu)))))
 
 
 

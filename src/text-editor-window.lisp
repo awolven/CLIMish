@@ -84,7 +84,7 @@
     window))
 
 (defun find-or-create-typeout-window (buffer-name)
-  (let ((first (focused-window (clui::window-parent *echo-area-window*)))
+  (let (#+NIL(first (focused-window (climish::application-frame *echo-area-window*)))
 	(buffer (hi::make-unique-buffer buffer-name :modes '("Typeout"))))
     (make-instance 'text-editor-window :buffer buffer 'visible? t)
     #+NIL

@@ -200,12 +200,7 @@
        (editor-error "Cannot complete input for this prompt.")))))
 
 
-(defvar *echo-area-history* (make-ring 10)
-  "This ring-buffer contains strings which were previously input in the
-  echo area.")
 
-(defvar *echo-history-pointer* 0
-  "This is our current position to the ring during a historical exploration.")
 
 #+NOMORE-MOVED
 (defhcommand confirm-parse-command (window p)

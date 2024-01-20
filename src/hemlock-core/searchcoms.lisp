@@ -23,7 +23,7 @@
 
 
 
-(defun get-search-pattern (string direction)
+(defun get-search-pattern (buffer string direction)
   (declare (simple-string string))
   (when (zerop (length string)) (editor-error))
   (setq *last-search-string* string)
@@ -39,13 +39,15 @@
 
 (defun vanilla-search (current-window string direction)
   (unless string
-    (setq string (prompt-for-string current-window :prompt (ecase direction
-                                              (:forward "Search: ")
-                                              (:backward "Reverse Search: "))
-                                    :default *last-search-string*
-                                    :help "String to search for")))
-  (let* ((pattern (get-search-pattern string direction))
-         (buffer (window-buffer current-window))
+    (setq string (clim:accept 'string
+                              :current-window current-window
+                              :prompt (ecase direction
+                                        (:forward "Search: ")
+                                        (:backward "Reverse Search: "))
+                              :default *last-search-string*
+                              :help "String to search for")))
+  (let* ((buffer (window-buffer current-window))
+         (pattern (get-search-pattern buffer string direction))
          (point (buffer-point buffer))
          (mark (copy-mark point))
          (won (find-pattern buffer point pattern)))
@@ -81,7 +83,7 @@
 
 ;;;; Incremental searching.
 
-(defun i-search-pattern (string direction)
+(defun i-search-pattern (buffer string direction)
   (setq *last-search-pattern*
         (new-search-pattern (if (value buffer string-search-ignore-case)
                                 :string-insensitive
@@ -182,7 +184,7 @@
         (:cancel
          (%i-search-echo-refresh string direction failure)
          (unless (zerop (length string))
-           (i-search-pattern string direction)))
+           (i-search-pattern buffer string direction)))
         (:return-cancel
          (unless (zerop (length string)) (return :cancel))
          (beep))
@@ -190,7 +192,7 @@
          (when failure (return :control-g))
          (%i-search-echo-refresh string direction nil)
          (unless (zerop (length string))
-           (i-search-pattern string direction))))
+           (i-search-pattern buffer string direction))))
       (move-mark point curr-point)
       (move-mark trailer curr-trailer))))
 
@@ -205,10 +207,10 @@
 
 (defun next-event-character/id (input)
   (climish::input-event-id
-   (climish::get-next-event input)))
+   (climish::read-event input)))
 
 (defun discard-next-event (input)
-  (climish::get-next-event input))
+  (climish::read-event input))
 
 (defun maybe-discard-char-event (input)
   (sleep 0.01) ;; race condition problem.
@@ -312,7 +314,7 @@
           (t
            (let ((new-direction (if forward-character-p :forward :backward)))
              (%i-search-echo-refresh string new-direction nil)
-             (i-search-pattern string new-direction)
+             (i-search-pattern buffer string new-direction)
              (%i-search-find-pattern current-window buffer string point (move-mark trailer point)
                                      new-direction))))))
 
@@ -330,7 +332,7 @@
            (%i-search current-window buffer "" point trailer direction nil)))
         (*last-search-string*
          (%i-search-echo-refresh *last-search-string* direction nil)
-         (i-search-pattern *last-search-string* direction)
+         (i-search-pattern buffer *last-search-string* direction)
          (%i-search-find-pattern current-window buffer *last-search-string* point trailer direction))
         (t (beep))))
 
@@ -365,7 +367,7 @@
             (insert-character *echo-area-buffer* (buffer-point *echo-area-buffer*) tchar)
             (force-output *echo-area-stream*))
           (let ((new-string (concatenate 'simple-string string (string tchar))))
-            (i-search-pattern new-string direction)
+            (i-search-pattern buffer new-string direction)
             (cond (failure (%i-search current-window buffer new-string point trailer direction failure))
                   ((and (eq direction :backward) (next-character buffer trailer))
                    (%i-search-find-pattern current-window buffer new-string point (mark-after buffer trailer)
@@ -423,15 +425,16 @@
    the active region, depending on whether it is active.  The prefix argument
    may limit the number of replacements."))
 
-(defmethod replace-string-command (window p &optional (target (prompt-for-string
-                                                       window
-                                                       :prompt "Replace String: "
-                                                       :help "Target string"
-                                                       :default *last-search-string*))
-                                      (replacement (prompt-for-string
-                                                    window
-                                                    :prompt "With: "
-                                                    :help "Replacement string")))
+(defmethod replace-string-command (window p &optional (target
+                                                       (clim:accept 'string
+                                                                    :current-window window
+                                                                    :prompt "Replace String: "
+                                                                    :help "Target string"
+                                                                    :default *last-search-string*))
+                                      (replacement (clim:accept 'string
+                                                                :current-window window
+                                                                :prompt "With: "
+                                                                :help "Replacement string")))
   (multiple-value-bind (ignore count)
                        (query-replace-function window p target replacement
                                                "Replace String" t)
@@ -451,15 +454,15 @@
    A prefix argument may limit the number of queries."))
 
 (defmethod query-replace-command (window p &optional
-                                             (target (prompt-for-string
-                                                      window
-                                                      :prompt "Query Replace: "
-                                                      :help "Target string"
-                                                      :default *last-search-string*))
-                                             (replacement (prompt-for-string
-                                                           window
-                                                           :prompt "With: "
-                                                           :help "Replacement string")))
+                                             (target (clim:accept 'string
+                                                                  :current-window window
+                                                                  :prompt "Query Replace: "
+                                                                  :help "Target string"
+                                                                  :default *last-search-string*))
+                                             (replacement (clim:accept 'string
+                                                                       :current-window window
+                                                                       :prompt "With: "
+                                                                       :help "Replacement string")))
   (let ((buffer (window-buffer window)))
     (let ((mark (copy-mark (buffer-point buffer))))
       (multiple-value-bind (ignore count)
@@ -533,7 +536,7 @@
         (*query-replace-undo-data* nil))
     (when (and count (minusp count))
       (editor-error "Replacement count is negative."))
-    (get-search-pattern target :forward)
+    (get-search-pattern buffer target :forward)
     (unwind-protect
         (query-replace-loop current-window (get-count-region buffer) (or count -1) target replacement
                             replacement-len (buffer-point buffer) doing-all?)
@@ -602,7 +605,7 @@
                    (:recursive-edit
                     "Go into a recursive edit at the current position."
                     (do-recursive-edit)
-                    (get-search-pattern target :forward))
+                    (get-search-pattern buffer target :forward))
                    (:exit "Exit immediately."
                           (return nil))
                    (t (unget-key-event key-event *editor-input*)
@@ -626,10 +629,12 @@
 (defmethod list-matching-lines-command (window p &optional string)
   (let ((buffer (window-buffer window)))
     (unless string
-      (setf string (prompt-for-string window :prompt "List Matching: "
-                                             :default *last-search-string*
-                                             :help "String to search for")))
-    (let ((pattern (get-search-pattern string :forward))
+      (setf string (clim:accept 'string
+                                :current-window window
+                                :prompt "List Matching: "
+                                :default *last-search-string*
+                                :help "String to search for")))
+    (let ((pattern (get-search-pattern buffer string :forward))
           (matching-lines nil)
           (region (get-count-region buffer)))
       (with-mark ((mark (region-start region))
@@ -681,11 +686,13 @@
   (declare (ignore p))
   (let ((buffer (window-buffer window)))
     (unless string
-      (setf string (prompt-for-string window :prompt "Delete Matching: "
-                                             :default *last-search-string*
-                                             :help "String to search for")))
+      (setf string (clim:accept 'string
+                                :current-window window
+                                :prompt "Delete Matching: "
+                                :default *last-search-string*
+                                :help "String to search for")))
     (let* ((region (get-count-region buffer))
-           (pattern (get-search-pattern string :forward))
+           (pattern (get-search-pattern buffer string :forward))
            (start-mark (region-start region))
            (end-mark (region-end region)))
       (with-mark ((bol-mark start-mark :left-inserting)
@@ -714,13 +721,15 @@
   (declare (ignore p))
   (let ((buffer (window-buffer window)))
     (unless string
-      (setf string (prompt-for-string window :prompt "Delete Non-Matching:"
-                                             :default *last-search-string*
-                                             :help "String to search for")))
+      (setf string (clim:accept 'string
+                                :current-window window
+                                :prompt "Delete Non-Matching:"
+                                :default *last-search-string*
+                                :help "String to search for")))
     (let* ((region (get-count-region buffer))
            (start-mark (region-start region))
            (stop-mark (region-end region))
-           (pattern (get-search-pattern string :forward)))
+           (pattern (get-search-pattern buffer string :forward)))
       (with-mark ((beg-mark start-mark :left-inserting)
                   (end-mark start-mark :right-inserting))
         (loop
@@ -749,16 +758,16 @@
   (declare (ignore p))
   (let ((buffer (window-buffer window)))
     (unless string
-      (setf string (prompt-for-string
-                    window
-                    :prompt "Count Occurrences: "
-                    :default *last-search-string*
-                    :help "String to search for")))
+      (setf string (clim:accept 'string
+                                :current-window window
+                                :prompt "Count Occurrences: "
+                                :default *last-search-string*
+                                :help "String to search for")))
     (message "~D occurrence~:P"
              (count-occurrences-region buffer (get-count-region buffer) string))))
 
 (defun count-occurrences-region (buffer region string)
-  (let ((pattern (get-search-pattern string :forward))
+  (let ((pattern (get-search-pattern buffer string :forward))
         (end-mark (region-end region)))
     (let ((occurrences 0))
       (with-mark ((mark (region-start region)))

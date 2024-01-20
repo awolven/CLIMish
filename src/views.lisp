@@ -80,6 +80,12 @@
   :components
   ((client-rect :type 'client-rect)))
 
+(defmethod application-frame ((view view-mixin))
+  (clui::window-parent (send view root)))
+
+(defmethod application-frame ((frame application-frame-mixin))
+  frame)
+
 (defmethod hi::window-buffer (self)
   nil)
 
@@ -513,8 +519,8 @@
     ;; remove the graphical representation from the draw-lists
     (setf (krma::node-children scene)
 	  (remove homemade-window (krma::node-children scene)))
-    (when (eq homemade-window (focused-window (clui::window-parent homemade-window)))
-      (setf (focused-window (clui::window-parent homemade-window)) nil))
+    (when (eq homemade-window (focused-window (application-frame homemade-window)))
+      (unfocus-window homemade-window))
     (forget-object-recursively homemade-window)
     (unless (krma::node-children scene)
       (setf (krma::immediate-mode-work-function-1 (clui::window-display (window-parent homemade-window))) nil))
@@ -561,21 +567,30 @@
 		do (setf (send sibling z-index) i)
 		finally (setf (the z-index) (length siblings))
 			(mapcar #'rm-redraw-node-recursively (nconc siblings (list self)))
-			(setf (focused-window (window-parent (the root))) self))
-	  (climish::compute-applicable-commands (window-parent (the root)))
+			(setf (focused-window (application-frame self)) self))
+	  (unless (typep self 'context-menu)
+	    (climish::compute-applicable-commands (application-frame self)))
 	  (values)))))
 
+(defmethod %focus-window ((self application-frame-mixin))
+  (setf (focused-window self) self)
+  (values))  
+
 (defmethod %unfocus-window ((self homemade-window-mixin))
-  (do ((next (next self) (next next)))
-      ((eq next self))
-    (unless (send next iconified?)
-      (setf (send next focused?) t)
-      (return))))
+  (when (eq (focused-window (application-frame self)) self)
+    (setf (focused-window (application-frame self))
+	  (or (unless (eq (prev self) self) ;; only one window and it's me.
+		(prev self))
+	      (application-frame self)))
+    (compute-applicable-commands (application-frame self))))
 
 (defmethod clui:focus-window ((self homemade-window-mixin))
-  (unless (eq self (focused-window (clui::window-parent (the root))))
+  (unless (eq self (focused-window (application-frame self)))
     (setf (the focused?) t))
   (values))
+
+(defmethod clui:focus-window ((self application-frame-mixin))
+  (%focus-window self))
 
 (defmethod clui::unfocus-window ((self homemade-window-mixin))
   (setf (the focused?) nil)
@@ -646,7 +661,7 @@
     (setf (the z-index) (1+ highest-z-index))
     (setf (krma::node-children (the scene)) (append (krma::node-children (the scene)) (list self)))
 
-    (if (focused-window application-frame)
+    (if (not (eq (focused-window application-frame) application-frame))
 	
 	(ring-link-new-element-at-start self (focused-window application-frame))
 

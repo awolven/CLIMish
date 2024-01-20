@@ -1,5 +1,5 @@
 (adhoc:defpackage :climish
-  (:use :cl :clui :krma :3dm
+  (:use :cl :clim :clui :krma :3dm
 	:hemlock-interface)
 
   (:import-from :3dm.d

@@ -130,8 +130,8 @@
 
 (defmethod slave-apropos-ignoring-point-command
     (window p &optional (str
-                         (hemlock-interface::prompt-for-string window
-                                                               :prompt "Apropos string: ")))
+                         (clim:accept 'string :current-window window
+                                              :prompt "Apropos string: ")))
   (declare (ignore p))
   (slave-apropos str))
 
@@ -150,10 +150,10 @@
     (when (find #\newline default)
       (setf default nil))
     (slave-apropos
-     (hemlock-interface::prompt-for-string
-      window
-      :prompt "Apropos string: "
-      :default default))))
+     (clim:accept 'string
+                  :current-window window
+                  :prompt "Apropos string: "
+                  :default default))))
 
 (defun slave-apropos (str)
   (hemlock::eval-in-slave `(%apropos ',str)))

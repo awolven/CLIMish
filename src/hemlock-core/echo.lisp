@@ -13,7 +13,12 @@
 ;;;
 (in-package :hemlock-internals)
 
+(defvar hemlock::*echo-area-history* (make-ring 10)
+  "This ring-buffer contains strings which were previously input in the
+  echo area.")
 
+(defvar hemlock::*echo-history-pointer* 0
+  "This is our current position to the ring during a historical exploration.")
 
 
 
@@ -46,9 +51,7 @@
     (setf (climish::focused-window (krma::main-window clim:*default-frame-manager*))
           (or (car (buffer-windows buf))
               (make-instance 'climish::text-editor-view-mixin :start-mark (buffer-start-mark buf)))))
-  t
-  
-  #+NIL
+
   (editor-error "Wham!  We tried to confirm a parse that wasn't in progress?"))
 
 (defvar *parse-string-tables* ()
@@ -101,8 +104,8 @@
   to give the luser a chance to see it.  String and Args are a format
   control string and format arguments, respectively."
 
-  (apply #'format #+sbcl sb-sys::*stdout* #-sbcl *debug-io* string args)
-  (finish-output #+sbcl sb-sys::*stdout* #-sbcl *debug-io*)
+  ;;(apply #'format #+sbcl sb-sys::*stdout* #-sbcl *debug-io* string args)
+  ;;(finish-output #+sbcl sb-sys::*stdout* #-sbcl *debug-io*)
 
   (cond ((eq *current-window* *echo-area-window*)
          (let ((point (buffer-point *echo-area-buffer*)))
@@ -296,21 +299,7 @@
 
 ;;;; Keyword and variable prompting.
 
-(defun accept-keyword (
-		   &key stream
-		     current-window
-		     ((:parse-string-tables *parse-string-tables*))
-		     ((:must-exist *parse-value-must-exist*) t)
-		     ((:default *parse-default*))
-		     ((:default-string *parse-default-string*))
-		     ((:prompt *parse-prompt*) "Keyword: ")
-		     ((:help *parse-help*) "Type a keyword."))
-  "Prompts for a keyword using the String Tables."
-  (let ((*parse-verification-function*
-	  #'(lambda (string)
-	      (keyword-verification-function (hi::window-buffer current-window) string)))
-        (*parse-type* :keyword))
-    (parse-for-something current-window stream)))
+
 
 (defun prompt-for-keyword (current-window
                            *parse-string-tables*
@@ -548,7 +537,7 @@
   (let ((event-id))
     (tagbody
      again
-       (setq event-id (climish::input-event-id (climish::get-next-event input-source)))
+       (setq event-id (climish::input-event-id (climish::read-event input-source)))
        (when (eq event-id #k"MouseMove")
          (go again))
        (when (and ignore-abort-attempts-p (eq event-id #k"Ctrl-g"))

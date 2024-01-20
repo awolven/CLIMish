@@ -14,7 +14,17 @@
   ()
   (:metaclass funcallable-standard-class))
 
-(defclass text-editor-command (command)
+(defmethod everywhere-command-p (command)
+  nil)
+
+(defmethod everywhere-command-p ((command everywhere-command))
+  t)
+
+(defclass not-everywhere-command (command)
+  ()
+  (:metaclass funcallable-standard-class))
+
+(defclass text-editor-command (everywhere-command)
   ()
   (:metaclass funcallable-standard-class))
 
@@ -24,7 +34,7 @@
 
 (defmethod hemlock::lisp-mode-p (frame)
   (let ((focused-window (focused-window frame)))
-    (and focused-window
+    (and (not (eq focused-window frame))
          (typep focused-window 'text-editor-window-mixin)
          (let ((buffer (hi::window-buffer focused-window)))
            (and buffer (eq (hi::buffer-major-mode buffer) :lisp))))))
@@ -110,7 +120,10 @@
      ,@initargs))    
 
 (defmethod invoke-command (command application-frame)
-  (push command (command-stack application-frame))
+  ;;(when (typep command 'everywhere-command)
+    (compute-applicable-commands application-frame);;)
+  (unless (typep command 'everywhere-command)
+    (push command (command-stack application-frame)))
   ;; the command stack is for computing applicability to commands
   ;; some commands are only available "inside" other commands.
   (unwind-protect
@@ -118,11 +131,12 @@
 	       (multiple-value-list
 		(apply command
 		       (funcall (slot-value command 'preparation) application-frame)))))
-	 (unwind-protect (values-list results)
+	 (prog1 (values-list results)
 	   (funcall (slot-value command 'resolution) application-frame results)))
-    (pop (command-stack application-frame))
+    
     ;; recompute applicable commands for new context
-    (compute-applicable-commands application-frame)))
+    (unless (typep command 'everywhere-command)
+      (pop (command-stack application-frame)))))
 
 (defun compute-applicable-commands (application-frame)
   (prog1 (setf (applicable-commands application-frame)
@@ -132,16 +146,17 @@
 					 *application-commands*)))
     (rebuild-command-table application-frame)))
 
+
+
 (defun hemlock-arguments (application-frame)
-  (list (or (focused-window application-frame) *echo-area-window*) nil))
+  (list (focused-window application-frame) nil))
 
 (defun toplevel-context-p (application-frame)
   (null (command-stack application-frame)))
 
 (defun hemlock-applicability (application-frame)
   (declare (ignorable application-frame))
-  (and (toplevel-context-p application-frame)
-       (typep (focused-window application-frame) 'text-editor-view-mixin)))
+  (typep (focused-window application-frame) 'text-editor-view-mixin))
 
 (defvar *accelerator-table*
   (make-hash-table :test #'eq))

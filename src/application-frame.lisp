@@ -1,5 +1,7 @@
 (in-package :climish)
 
+(defvar *application-frame*)
+
 (defcommand insert-character-command (window character p)
   (:pretty-name "Insert Character")
   (:documentation "This command is the value for the default command.")
@@ -11,7 +13,7 @@
 		 ;; character-event has 1/100th of a second to show up in queue
 		 ;; otherwse event is ignored
 		 ;; so if computer is running very slowly character events will be dropped
-		 (let ((event (get-next-event application-frame 0.01)))
+		 (let ((event (read-event application-frame :timeout 0.01)))
 			     
 		   (if event
 
@@ -22,10 +24,10 @@
 			   (if (characterp event-id)
 				       
 			       event-id
-				       
-			       (throw :reset nil))))
+			       
+			       (throw :abort nil))))
 
-		       (throw :reset nil)))
+		       (throw :abort nil)))
 
 		 (universal-argument application-frame)))
   
@@ -36,10 +38,11 @@
 (defmethod insert-character-command (window character p)
   (handle-character-input window character (or p 1)))
 
-(defclass application-frame-mixin (event-queue-mixin krma-window-mixin)
+(defclass application-frame-mixin
+    (input-protocol-mixin trivial-gray-streams:fundamental-character-output-stream krma-window-mixin)
   ((vk::clear-value :initform (make-array 4 :element-type 'single-float
 					    :initial-contents (list 0.84f0 0.84f0 0.84f0 1.0f0)))
-   (focused-window :initform nil :accessor focused-window)
+   (focused-window :accessor focused-window)
    (resize-window :initform nil :accessor window-to-resize)
    (drag-window :initform nil :accessor window-to-drag)
    (drag-last-x :initform nil :accessor drag-last-x)
@@ -50,9 +53,10 @@
    (default-command :initform #'insert-character-command :accessor default-command)
    (universal-argument :initform nil :accessor universal-argument)
    (applicable-commands :initform nil :accessor applicable-commands)
-   (command-table :initform (make-hash-table :test 'eq) :accessor command-table)
+   (command-table :initform (make-hash-table :test 'eq) :accessor command-table :accessor frame-command-table)
    (command-stack :initform nil :accessor command-stack)
    (selection-set :initform nil :accessor selection-set)
+   (input-context :initform nil :accessor input-context)
    (echo-area-input-mode :initform nil :accessor echo-area-input-mode)))
 
 (defmethod clim:handle-event ((window application-frame-mixin) (event clui::input-event-mixin))
@@ -79,7 +83,7 @@
 	    ;; application frame itself and not any of it's homemade views
 	    ;; this ensures the context can be computed correctly for
 	    ;; command applicability
-	    (setf (focused-window window) nil))
+	    (setf (focused-window window) window))
 	
 	  (call-next-method)))))
 
@@ -89,6 +93,11 @@
   (when hi::*echo-area-window*
     (setf (send hi::*echo-area-window* parent) window)
     (rm-redraw-node-recursively hi::*echo-area-window*))
+  (values))
+
+(defmethod initialize-instance :before ((window application-frame-mixin) &rest initargs)
+  (declare (ignore initargs))
+  (setf (focused-window window) window)
   (values))
 
 (defmethod initialize-instance :after ((window application-frame-mixin) &rest initargs)
@@ -231,6 +240,175 @@
 					   krma::*default-znear* krma::*default-zfar*)
 			     :view-matrix (mlookat (vec3 0 0 1500) (vec3 0 0 0) (vec3 0 1 0)))))))
   (values))
+
+(defun recursive-command-loop (application-frame)
+  (compute-applicable-commands application-frame)
+  (let ((command))
+    (tagbody
+     again
+       (catch :abort
+	 (setq command (read-frame-command application-frame))
+	 (climish::maybe-throw-presentation command (climish::input-context application-frame) nil nil)
+	 (invoke-command command application-frame))
+       (go again))))
+
+
+#+NIL
+(define-presentation-type not-everywhere-command ()
+  :inherit-from 't)
+
+
+#+NIL
+(define-presentation-method presentation-typep (object (type not-everywhere-command))
+  (and (presentation-typep object 'command)
+       (not (presentation-typep object 'everywhere-command))))
+
+#+NIL
+(define-presentation-method presentation-subtypep ((sub rgn::cad-command)
+						   (super (eql 'not-everywhere-command)))
+  (and (presentation-subtypep sub 'command)
+       (not (presentation-subtypep sub 'everywhere-command))))
+
+#+NIL
+(define-presentation-method presentation-subtypep ((sub rgn::cad-command) (super (eql 'not-everywhere-command)))
+  t)
+
+#+NIL
+(define-presentation-method presentation-subtypep ((sub rgn::cad-command) (super command))
+  t)
+#+NIL
+(define-presentation-method accept ((type not-everywhere-command) (stream application-frame-mixin)
+								  view &key)
+  (catch :accept
+    (recursive-command-loop stream)))
+#+NIL
+(define-presentation-method accept ((type climish::command) (stream application-frame-mixin)
+								  view &key)
+  (catch :accept
+    (recursive-command-loop stream)))
+
+
+
+
+(defmethod default-frame-top-level ((application-frame application-frame-mixin))
+  (compute-applicable-commands application-frame)
+  (let (#+NOTYET(#+CCL *debugger-hook* #+SBCL sb-ext:*invoke-debugger-hook* #'gui-debug-condition))
+    (restart-bind ((ignore #'(lambda (&optional c)
+			       (declare (ignorable c))
+			       (throw :reset nil))))
+      
+      (handler-bind
+	  
+	  ((editor-error #'(lambda (c)
+			     (mapcar (lambda (buffer)
+				       (bt:release-lock (buffer-lock buffer)))
+				     hi::*buffer-list*)
+			     (clear-echo-area)
+			     (let ((string (editor-error-format-string c)))
+			       (when string
+				 (apply #'message string
+					(editor-error-format-arguments c)))
+			       (throw :abort nil)))))
+
+	(let ((thing))
+	  
+	  (tagbody
+	   restart
+	     (setq thing (catch :reset
+			   (catch :abort
+			     (read-frame-command application-frame))))
+	   invoke
+	     (catch :reset
+	       (catch :abort
+		 (invoke-command thing application-frame)))
+	     
+	     (go restart)))))))
+	     
+
+
+(defun read-frame-command (application-frame)  
+  (let ((command-table (command-table application-frame))
+	(event)
+	(event-id)
+	(table-chain)
+	(event-chain)
+	(result))
+
+    (tagbody
+       
+     RESET 
+       (setq event-chain ())
+       (setq table-chain (list command-table))
+       
+     GET (setq event (read-event application-frame))
+       (unless event (go GET))
+       (setf (window-last-event application-frame) event)
+       (setq event-id (input-event-id event))
+
+     CHECK 
+       
+       (cond ((characterp event-id)
+	      ;; we don't accept character events here
+	      ;; without being first preceded by a key event
+	      (go RESET))
+
+	     ((eq event-id #k"C-g")
+
+	      ;;(hi::invoke-hook hemlock::abort-hook)
+			   
+	      (message "Abort")
+			   
+	      (when table-chain
+		;; go up one level
+		(pop table-chain))
+
+	      (pop (command-stack application-frame))
+	      (compute-applicable-commands application-frame)
+	      
+	      (unless table-chain
+		;; we've over aborted:
+		(go RESET))
+
+	      (throw :abort nil)
+	      #+NIL
+	      (go GET))
+				
+	     (t (push event-id event-chain)
+		(setq result (gethash event-id (car table-chain)))
+
+		(cond ((null result)
+
+		       (let ((command (default-command application-frame)))
+			 (when command
+			   (return-from read-frame-command command)))
+
+		       (go RESET))
+		       
+		      ((hash-table-p result)
+		       (push result table-chain)
+		       (GO GET))
+				   
+		      (t (return-from read-frame-command result))))))))
+
+(defun start-command-loop (application-frame)
+  (bt:make-thread #'(lambda ()
+		      (bt:wait-on-semaphore (command-loop-go-semaphore application-frame))
+		      (default-frame-top-level application-frame)) :name "command loop")
+  #+SBCL(sb-thread:release-foreground (bt:current-thread)))
+
+(defmethod trivial-gray-streams:stream-write-char ((stream application-frame-mixin) character)
+  (write-char hi::*echo-area-stream* character)
+  (values))
+
+(defmethod trivial-gray-streams:stream-finish-output ((stream application-frame-mixin))
+  (finish-output hi::*echo-area-stream*))
+
+(defmethod trivial-gray-streams:stream-force-output ((stream application-frame-mixin))
+  (force-output hi::*echo-area-stream*))
+
+(defmethod trivial-gray-streams:stream-write-string ((stream application-frame-mixin) string
+				&optional (start 0) (end (length string)))
+  (write-string string hi::*echo-area-stream* :start start :end end))
 
 
 

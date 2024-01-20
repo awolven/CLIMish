@@ -82,10 +82,11 @@
 
 (defmethod lisp-listener-command (window p)
   (declare (ignore p))
-  (let ((existing (find-window-named window "Lisp Listener")))
-    (or (and existing (progn (climish::focus-window existing) existing))
-	(let ((buffer (make-instance 'buffer :name "Lisp Listener"))
-	      (current-buffer (hi::window-buffer window)))
+  (let ((frame (climish::application-frame window)))
+    (let ((existing (find-window-named frame "Lisp Listener")))
+      (or (and existing (progn (climish::focus-window existing) existing))
+	  (let ((buffer (make-instance 'buffer :name "Lisp Listener"))
+		(current-buffer (hi::window-buffer window)))
 	  (setf (buffer-undo-p buffer) nil)
 	  (setf (buffer-minor-mode buffer current-buffer :save) nil)
 	  (setf (buffer-minor-mode buffer current-buffer :interactive-character-stream) t)
@@ -102,10 +103,10 @@
 						      (when (buffer-minor-mode buffer :lisp-listener)
 							(bt:destroy-thread (hemlock::variable-value 'hemlock::lisp-listener-thread :buffer buffer)))))
 	    
-	    (values))))))
+	    (values)))))))
 
 (defmethod find-window-named ((w climish::application-frame-mixin) name)
-  (find-window-named-1 (climish::focused-window w) name))
+  (find-window-named-1 *echo-area-window* name))
 
 (defmethod find-window-named ((w climish::homemade-window-mixin) name)
   (find-window-named-1 w name))

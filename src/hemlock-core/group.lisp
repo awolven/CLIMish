@@ -47,25 +47,26 @@
 
 (defmethod select-group-command (window p)
   (let* ((group-name
-          (prompt-for-keyword
-           window
-           (list *file-groups*)
-           :must-exist nil
-           :prompt "Select Group: "
-           :help
-           "Type the name of the file group you wish to become the active group."))
+          (clim:accept 'hemlock-keyword
+                       :current-window window
+                       :parse-string-tables (list *file-groups*)
+                       :must-exist nil
+                       :prompt "Select Group: "
+                       :help
+                       "Type the name of the file group you wish to become the active group."))
          (old (getstring group-name *file-groups*))
          (pathname
           (if (and old (not p))
               old
-              (prompt-for-file
-               window :must-exist t
-                               :prompt "From File: "
-                               :default (merge-pathnames
-                                         (make-pathname
-                                          :name group-name
-                                          :type "upd")
-                                         (value (window-buffer window) pathname-defaults))))))
+              (clim:accept 'file
+                           :current-window window
+                           :must-exist t
+                           :prompt "From File: "
+                           :default (merge-pathnames
+                                     (make-pathname
+                                      :name group-name
+                                      :type "upd")
+                                     (value (window-buffer window) pathname-defaults))))))
     (setq *active-file-group-name* group-name)
     (setq *active-file-group* (nreverse (read-file-group pathname nil)))
     (setf (getstring group-name *file-groups*) pathname)))
@@ -164,10 +165,10 @@
          (name (namestring pn)))
     (when (and (buffer-modified buffer)
                (or (not (value buffer group-save-file-confirm))
-                   (prompt-for-y-or-n
-                    current-window
-                    :prompt (list "Save changes in ~A? " name)
-                    :default t)))
+                   (clim:accept 'y-or-n
+                                :current-window current-window
+                                :prompt (list "Save changes in ~A? " name)
+                                :default t)))
       (save-file-command current-window ()))))
 
 
@@ -182,9 +183,11 @@
 (defmethod group-search-command (window p)
   (declare (ignore p))
   (let ((buffer (window-buffer window)))
-    (let ((string (prompt-for-string window :prompt "Group Search: "
-                                            :help "String to search for in active file group"
-                                            :default *last-search-string*)))
+    (let ((string (clim:accept 'string
+                               :current-window window
+                               :prompt "Group Search: "
+                               :help "String to search for in active file group"
+                               :default *last-search-string*)))
       (get-search-pattern string :forward)
       (do-active-group
         window
@@ -214,11 +217,15 @@
 
 (defmethod group-replace-command (window p)
   (declare (ignore p))
-  (let* ((target (prompt-for-string window :prompt "Group Replace: "
-                                    :help "Target string"
-                                    :default *last-search-string*))
-         (replacement (prompt-for-string window :prompt "With: "
-                                         :help "Replacement string")))
+  (let* ((target (clim:accept 'string
+                              :current-window window
+                              :prompt "Group Replace: "
+                              :help "Target string"
+                              :default *last-search-string*))
+         (replacement (clim:accept 'string
+                                   :current-window window
+                                   :prompt "With: "
+                                   :help "Replacement string")))
     (do-active-group
         window
      (query-replace-function nil target replacement
@@ -233,11 +240,15 @@
 
 (defmethod group-query-replace-command (window p)
   (declare (ignore p))
-  (let ((target (prompt-for-string window :prompt "Group Query Replace: "
-                                   :help "Target string"
-                                   :default *last-search-string*)))
-    (let ((replacement (prompt-for-string window :prompt "With: "
-                                          :help "Replacement string")))
+  (let ((target (clim:accept 'string
+                             :current-window window
+                             :prompt "Group Query Replace: "
+                             :help "Target string"
+                             :default *last-search-string*)))
+    (let ((replacement (clim:accept 'string
+                                    :current-window window
+                                    :prompt "With: "
+                                    :help "Replacement string")))
       (do-active-group
           window
        (unless (query-replace-function window

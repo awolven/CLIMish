@@ -15,14 +15,29 @@
   ((:file "hemlock/package")
 
    (:file "src/package")
-   
+   (:file "src/lisp-utils")
+   (:file "src/defresource")
+   (:file "src/queue")
+   (:file "src/protocols")
+   (:file "src/defprotocol")
+   (:file "src/stream-defprotocols")
+
+   (:file "src/histories")
+   (:file "src/ptypes")
    (:file "src/setup")
+   (:file "src/presentations")
+   (:file "src/interactive-protocol")
+   (:file "src/input-event-ids")
+   (:file "src/event-queue")
+   (:file "src/standard-types")
+
+   
    (:file "src/hemlock-core/lispdep")
    (:file "src/hemlock-core/hemlock-ext")
    (:file "src/hemlock-core/decls")
    (:file "src/hemlock-core/struct")
    (:file "src/hemlock-core/charmacs")
-   (:file "src/input-event-ids")
+   
    (:file "src/hemlock-core/key-event")
    (:file "src/hemlock-core/rompsite")
    (:file "src/hemlock-core/macros")
@@ -56,12 +71,15 @@
    ;;(:file "src/hemlock-core/bit-stuff")
 
    (:file "src/command-generic-function")
-   (:file "src/event-queue")
+   
    (:file "src/hemlock-core/stream")
    (:file "src/hemlock-core/typeout")
    (:file "src/hemlock-core/new-undo")
    (:file "src/application-frame")
    (:file "src/hemlock-core/echo")
+   (:file "src/accept")
+   (:file "src/hemlock-ptypes")   
+   (:file "src/completer")
    (:file "src/kill-ring")
    (:file "src/scene-graph")
    (:file "src/metaclasses")

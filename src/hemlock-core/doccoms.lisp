@@ -65,9 +65,11 @@
 (defmethod where-is-command (window p)
   (declare (ignore p))
   (multiple-value-bind (nam cmd)
-                       (prompt-for-keyword window (list *command-names*)
-                                           :prompt "Command: "
-                                           :help "Name of command to look for.")
+      (clim:accept 'hemlock-keyword
+                   :current-window window
+                   :parse-string-tables (list *command-names*)
+                   :prompt "Command: "
+                   :help "Name of command to look for.")
     (let ((bindings (command-bindings window cmd)))
       (with-pop-up-display (s :current-window window)
         (cond
@@ -88,11 +90,11 @@
 
 (defmethod apropos-command (window p)
   (declare (ignore p))
-  (let* ((str (prompt-for-string
-               window
-                :prompt "Apropos keyword: "
-                :help
-                "String to look for in command, variable and attribute names."))
+  (let* ((str (clim:accept 'string
+                           :current-window window
+                           :prompt "Apropos keyword: "
+                           :help
+                           "String to look for in command, variable and attribute names."))
          (coms (find-containing str *command-names*))
          (vars (mapcan #'(lambda (table)
                            (let ((res (find-containing str table)))
@@ -177,11 +179,11 @@
 (defmethod describe-command-command (window p)
   (declare (ignore p))
   (multiple-value-bind (nam com)
-      (prompt-for-keyword
-       window
-       (list *command-names*)
-       :prompt "Describe command: "
-       :help "Name of a command to document.")
+      (clim:accept 'hemlock-keyword
+                   :current-window window
+                   :parse-string-tables (list *command-names*)
+                   :prompt "Describe command: "
+                   :help "Name of a command to document.")
     (let ((bindings (climish::command-bindings window com)))
       (with-pop-up-display (s :current-window window)
         (format s "Documentation for ~S:~%   ~A~%"
@@ -299,10 +301,12 @@
 (defmethod generic-describe-command (window p)
   (declare (ignore p))
   (multiple-value-bind (ignore kwd)
-                       (prompt-for-keyword window *generic-describe-kinds*
-                                           :default "Variable"
-                                           :help "Kind of thing to describe."
-                                           :prompt "Kind: ")
+      (clim:accept 'hemlock-keyword
+                   :current-window window
+                   :parse-string-tables *generic-describe-kinds*
+                   :default "Variable"
+                   :help "Kind of thing to describe."
+                   :prompt "Kind: ")
     (declare (ignore ignore))
     (case kwd
       (:variable
@@ -311,11 +315,11 @@
       (:key (describe-key-command window ()))
       (:attribute
        (multiple-value-bind (name attr)
-           (prompt-for-keyword
-            window
-                             (list *character-attribute-names*)
-                             :help "Name of character attribute to describe."
-                             :prompt "Attribute: ")
+           (clim:accept 'hemlock-keyword
+                        :current-window window
+                        (list *character-attribute-names*)
+                        :help "Name of character attribute to describe."
+                        :prompt "Attribute: ")
          (print-full-doc window name (character-attribute-documentation attr)))))))
 
 ;;; PRINT-FULL-DOC displays whole documentation string in a pop-up window.
@@ -342,8 +346,8 @@
 (defmethod show-variable-command (window p)
   (declare (ignore p))
   (multiple-value-bind (name var)
-      (prompt-for-variable
-       window
+      (clim:accept 'hemlock-variable
+                   :current-window window
                         :help "Name of variable to describe."
                         :prompt "Variable: ")
     (let ((buffer (window-buffer window)))
@@ -361,10 +365,10 @@
 (defmethod describe-and-show-variable-command (window p)
   (declare (ignore p))
   (multiple-value-bind (name var)
-      (prompt-for-variable
-       window
-                        :help "Name of variable to describe."
-                        :prompt "Variable: ")
+      (clim:accept 'hemlock-variable
+                   :current-window window
+                   :help "Name of variable to describe."
+                   :prompt "Variable: ")
     (let ((buffer (window-buffer window)))
       (with-pop-up-display (s :current-window window)
         (format s "Documentation for ~S:~%  ~A~&~%"
@@ -400,11 +404,13 @@
 (defmethod describe-mode-command (window p &optional name)
   (declare (ignore p))
   (let* ((name (or name
-                   (prompt-for-keyword window (list *mode-names*)
-                                       :prompt "Mode: "
-                                       :help "Enter mode to describe."
-                                       :default
-                                       (car (buffer-modes (window-buffer window))))))
+                   (clim:accept 'hemlock-keyword
+                                :current-window window
+                                :parse-string-tables (list *mode-names*)
+                                :prompt "Mode: "
+                                :help "Enter mode to describe."
+                                :default
+                                (car (buffer-modes (window-buffer window))))))
          (doc (mode-documentation name))
          (bindings nil)
          (type (if (mode-major-p name) "major" "minor"))

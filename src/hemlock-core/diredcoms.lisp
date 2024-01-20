@@ -112,27 +112,27 @@
 (defun dired-guts (current-window patternp dot-files-p directory)
   (let* ((dpn (value (window-buffer current-window) pathname-defaults))
          (directory (or directory
-                        (prompt-for-file
-                         current-window
-                         :prompt "Edit Directory: "
-                         :help "Pathname to edit."
-                         :default (make-pathname
-                                   :device (pathname-device dpn)
-                                   :directory (pathname-directory dpn))
-                         :must-exist nil)))
+                        (clim:accept 'file
+                                     :current-window current-window
+                                     :prompt "Edit Directory: "
+                                     :help "Pathname to edit."
+                                     :default (make-pathname
+                                               :device (pathname-device dpn)
+                                               :directory (pathname-directory dpn))
+                                     :must-exist nil)))
          (pattern (if patternp
-                      (prompt-for-string
-                       current-window
-                       :prompt "Filename pattern: "
-                       :help "Type a filename with a single asterisk."
-                       :trim t)))
+                      (clim:accept 'string
+                                   :current-window current-window
+                                   :prompt "Filename pattern: "
+                                   :help "Type a filename with a single asterisk."
+                                   :trim t)))
          (full-name (namestring (if pattern
                                     (merge-pathnames directory pattern)
                                     directory)))
          (name (concatenate 'simple-string "Dired " full-name))
          (buffer (cdr (assoc full-name *pathnames-to-dired-buffers*
                              :test #-win32 #'string=
-                                   #+win32 #'string-equal))))
+                             #+win32 #'string-equal))))
     (declare (simple-string full-name))
     (setf (value (window-buffer current-window) pathname-defaults) (merge-pathnames directory dpn))
     (let ((b
@@ -313,11 +313,11 @@
              (del-files
                (if patternp
                    (dired:pathnames-from-pattern
-                    (prompt-for-string
-                     current-window
-                     :prompt "Filename pattern: "
-                     :help "Type a filename with a single asterisk."
-                     :trim t)
+                    (clim:accept 'string
+                                 :current-window current-window
+                                 :prompt "Filename pattern: "
+                                 :help "Type a filename with a single asterisk."
+                                 :trim t)
                     (dired-info-file-list dir-info))
                    (list (dired-file-pathname
                           (array-element-from-mark current-buffer mark files)))))
@@ -601,7 +601,7 @@
   (apply #'message string args))
 
 (defun dired-yesp-function (current-window string &rest args)
-  (prompt-for-y-or-n current-window :prompt (cons string args) :default t))
+  (clim:accept 'y-or-n :current-window current-window :prompt (cons string args) :default t))
 
 
 
@@ -650,11 +650,12 @@
           (we-did-something nil))
       (when (and marked-files
                  (or (not (variable-value 'dired-file-expunge-confirm :buffer (window-buffer current-window)))
-                     (prompt-for-y-or-n current-window
-                                        :prompt "Really delete files? "
-                                        :default t
-                                        :must-exist t
-                                        :default-string "Y")))
+                     (clim:accept 'y-or-n
+                                  :current-window current-window
+                                  :prompt "Really delete files? "
+                                  :default t
+                                  :must-exist t
+                                  :default-string "Y")))
         (setf we-did-something t)
         (dolist (file-info marked-files)
           (let ((pathname (car file-info))
@@ -670,13 +671,13 @@
                 (write-date (cdr dir-info)))
             (if (= write-date (file-write-date dir))
                 (when (or (not (variable-value 'dired-directory-expunge-confirm :buffer (window-buffer current-window)))
-                          (prompt-for-y-or-n
-                           current-window
-                           :prompt (list "~a is a directory. Delete it? "
-                                         (directory-namestring dir))
-                           :default t
-                           :must-exist t
-                           :default-string "Y"))
+                          (clim:accept 'y-or-n
+                                       :current-window current-window
+                                       :prompt (list "~a is a directory. Delete it? "
+                                                     (directory-namestring dir))
+                                       :default t
+                                       :must-exist t
+                                       :default-string "Y"))
                   (dired:delete-file (directory-namestring dir) :clobber t
                                      :recursive t)
                   (setf we-did-something t))
@@ -703,19 +704,19 @@
                   (array-element-from-mark
                    buffer
                    point (dired-info-files (variable-value 'dired-information :buffer (window-buffer window))))))
-         (dest (prompt-for-file
-                window
-                :prompt (if (directoryp source)
-                            "Destination Directory Name: "
-                            "Destination Filename: ")
-                :help "Name of new file."
-                :default source
-                :must-exist nil))
+         (dest (clim:accept 'file
+                            :current-window window
+                            :prompt (if (directoryp source)
+                                        "Destination Directory Name: "
+                                        "Destination Filename: ")
+                            :help "Name of new file."
+                            :default source
+                            :must-exist nil))
          (dired:*error-function* #'dired-error-function)
          (dired:*report-function* #'dired-report-function)
          (dired:*yesp-function* #'dired-yesp-function))
     (dired:copy-file source dest :update (if (eq confirm :update) t nil)
-                     :clobber (not confirm)))
+                                 :clobber (not confirm)))
   (maintain-dired-consistency window))
 
 (defcommand dired-rename-file-command (window p)
@@ -734,12 +735,12 @@
                                  buffer
                                  point
                                  (dired-info-files (variable-value 'dired-information :buffer buffer))))))
-         (dest (prompt-for-file
-                window
-                :prompt "New Filename: "
-                :help "The new name for this file."
-                :default source
-                :must-exist nil))
+         (dest (clim:accept 'file
+                            :current-window window
+                            :prompt "New Filename: "
+                            :help "The new name for this file."
+                            :default source
+                            :must-exist nil))
          (dired:*error-function* #'dired-error-function)
          (dired:*report-function* #'dired-report-function)
          (dired:*yesp-function* #'dired-yesp-function))
@@ -758,18 +759,18 @@
   (declare (ignore p))
   (let* ((dir-info (variable-value 'dired-information :buffer (window-buffer window)))
          (confirm (variable-value 'dired-copy-file-confirm  :buffer (window-buffer window)))
-         (pattern (prompt-for-string
-                   window
-                   :prompt "Filename pattern: "
-                   :help "Type a filename with a single asterisk."
-                   :trim t))
+         (pattern (clim:accept 'string
+                               :current-window window
+                               :prompt "Filename pattern: "
+                               :help "Type a filename with a single asterisk."
+                               :trim t))
          (destination (namestring
-                       (prompt-for-file
-                        window
-                        :prompt "Destination Spec: "
-                        :help "Destination spec.  May contain ONE asterisk."
-                        :default (dired-info-pathname dir-info)
-                        :must-exist nil)))
+                       (clim:accept 'file
+                                    :current-window window
+                                    :prompt "Destination Spec: "
+                                    :help "Destination spec.  May contain ONE asterisk."
+                                    :default (dired-info-pathname dir-info)
+                                    :must-exist nil)))
          (dired:*error-function* #'dired-error-function)
          (dired:*yesp-function* #'dired-yesp-function)
          (dired:*report-function* #'dired-report-function))
@@ -788,18 +789,18 @@
 (defmethod dired-rename-with-wildcard-command (window p)
   (declare (ignore p))
   (let* ((dir-info (variable-value 'dired-information :buffer (window-buffer window)))
-         (pattern (prompt-for-string
-                   window
-                   :prompt "Filename pattern: "
-                   :help "Type a filename with a single asterisk."
-                   :trim t))
+         (pattern (clim:accept 'string
+                               :current-window window
+                               :prompt "Filename pattern: "
+                               :help "Type a filename with a single asterisk."
+                               :trim t))
          (destination (namestring
-                       (prompt-for-file
-                        window
-                        :prompt "Destination Spec: "
-                        :help "Destination spec.  May contain ONE asterisk."
-                        :default (dired-info-pathname dir-info)
-                        :must-exist nil)))
+                       (clim:accept 'file
+                                    :current-window window
+                                    :prompt "Destination Spec: "
+                                    :help "Destination spec.  May contain ONE asterisk."
+                                    :default (dired-info-pathname dir-info)
+                                    :must-exist nil)))
          (dired:*error-function* #'dired-error-function)
          (dired:*yesp-function* #'dired-yesp-function)
          (dired:*report-function* #'dired-report-function))
@@ -818,26 +819,26 @@
 (defmethod delete-file-command (window p)
   (declare (ignore p))
   (let* ((spec (namestring
-                (prompt-for-file
-                 window
-                 :prompt "Delete File: "
-                 :help '("Name of File or Directory to delete.  ~
+                (clim:accept 'file
+                             :current-window window
+                             :prompt "Delete File: "
+                             :help '("Name of File or Directory to delete.  ~
                           One wildcard is permitted.")
-                 :must-exist nil)))
+                             :must-exist nil)))
          (directoryp (directoryp spec))
          (dired:*error-function* #'dired-error-function)
          (dired:*report-function* #'dired-report-function)
          (dired:*yesp-function* #'dired-yesp-function))
     (when (or (not directoryp)
               (not (variable-value 'dired-directory-expunge-confirm :buffer (window-buffer window)))
-              (prompt-for-y-or-n
-               window
+              (clim:accept 'y-or-n
+                           :current-window window
                :prompt (list "~A is a directory. Delete it? "
                              (directory-namestring spec))
                :default t :must-exist t :default-string "Y")))
     (dired:delete-file spec :recursive t
-                       :clobber (or directoryp
-                                    (variable-value 'dired-file-expunge-confirm :buffer (window-buffer window)))))
+                            :clobber (or directoryp
+                                         (variable-value 'dired-file-expunge-confirm :buffer (window-buffer window)))))
   (maintain-dired-consistency window))
 
 (defcommand copy-file-command (window p)
@@ -851,25 +852,25 @@
   (declare (ignore p))
   (let* ((confirm (variable-value 'dired-copy-file-confirm :buffer (window-buffer window)))
          (source (namestring
-                  (prompt-for-file
-                   window
-                   :prompt "Source Filename: "
-                   :help "Name of File to copy.  One wildcard is permitted."
-                   :must-exist nil)))
+                  (clim:accept 'file
+                               :current-window window
+                               :prompt "Source Filename: "
+                               :help "Name of File to copy.  One wildcard is permitted."
+                               :must-exist nil)))
          (dest (namestring
-                (prompt-for-file
-                 window
-                 :prompt (if (directoryp source)
-                             "Destination Directory Name: "
-                             "Destination Filename: ")
-                 :help "Name of new file."
-                 :default source
-                 :must-exist nil)))
+                (clim:accept 'file
+                             :current-window window
+                             :prompt (if (directoryp source)
+                                         "Destination Directory Name: "
+                                         "Destination Filename: ")
+                             :help "Name of new file."
+                             :default source
+                             :must-exist nil)))
          (dired:*error-function* #'dired-error-function)
          (dired:*report-function* #'dired-report-function)
          (dired:*yesp-function* #'dired-yesp-function))
     (dired:copy-file source dest :update (if (eq confirm :update) t nil)
-                     :clobber (not confirm)))
+                                 :clobber (not confirm)))
   (maintain-dired-consistency window))
 
 (defcommand rename-file-command (window p)
@@ -882,20 +883,20 @@
 (defmethod rename-file-command (window p)
   (declare (ignore p))
   (let* ((source (namestring
-                  (prompt-for-file
-                   window
-                   :prompt "Source Filename: "
-                   :help "Name of file to rename.  One wildcard is permitted."
-                   :must-exist nil)))
+                  (clim:accept 'file
+                               :current-window window
+                               :prompt "Source Filename: "
+                               :help "Name of file to rename.  One wildcard is permitted."
+                               :must-exist nil)))
          (dest (namestring
-                (prompt-for-file
-                 window
-                 :prompt (if (directoryp source)
-                             "Destination Directory Name: "
-                             "Destination Filename: ")
-                 :help "Name of new file."
-                 :default source
-                 :must-exist nil)))
+                (clim:accept 'file
+                             :current-window window
+                             :prompt (if (directoryp source)
+                                         "Destination Directory Name: "
+                                         "Destination Filename: ")
+                             :help "Name of new file."
+                             :default source
+                             :must-exist nil)))
          (dired:*error-function* #'dired-error-function)
          (dired:*report-function* #'dired-report-function)
          (dired:*yesp-function* #'dired-yesp-function))
@@ -989,11 +990,11 @@
   (declare (ignore p))
   (let* ((buffer (window-buffer window))
          (pn (or pathname
-                 (prompt-for-file
-                  window
-                  :prompt "View File: " :must-exist t
-                  :help "Name of existing file to read into its own buffer."
-                  :default (buffer-default-pathname buffer))))
+                 (clim:accept 'file
+                              :current-window window
+                              :prompt "View File: " :must-exist t
+                              :help "Name of existing file to read into its own buffer."
+                              :default (buffer-default-pathname buffer))))
          (buffer (make-instance 'buffer :name (format nil "View File ~A" (gensym)))))
     (visit-file-command nil pn buffer)
     (setf (buffer-minor-mode buffer "View" buffer) t)

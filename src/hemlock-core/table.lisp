@@ -70,8 +70,8 @@
   (first-word-table (make-word-table)))    ; pointer to first WORD-TABLE
 
 (defun print-string-table (table stream depth)
-  (declare (ignore table depth))
-  (format stream "#<String Table>"))
+  (declare (ignore depth))
+  (format stream "#<String Table ~S nodes>" (string-table-num-nodes table)))
 
 (defun make-string-table (&key (separator #\Space) initial-contents)
   "Creates and returns a Hemlock string-table.  If Intitial-Contents is

@@ -392,11 +392,11 @@
 
 (defmethod save-completions-command (window p)
   (let ((filename (or (and (not p) (value (window-buffer window) completion-database-filename))
-                      (prompt-for-file
-                       window
-                       :must-exist nil
-                       :default *completion-default-default-database-filename*
-                       :prompt "File to write completions to: "))))
+                      (clim:accept 'file
+                                   :current-window window
+                                   :must-exist nil
+                                   :default *completion-default-default-database-filename*
+                                   :prompt "File to write completions to: "))))
     (with-open-file (s filename
                        :direction :output
                        :if-exists :rename-and-delete
@@ -423,11 +423,11 @@
 
 (defmethod read-completions-command (window p)
   (let ((filename (or (and (not p) (value (window-buffer window) completion-database-filename))
-                      (prompt-for-file
-                       window
-                       :must-exist nil
-                       :default *completion-default-default-database-filename*
-                       :prompt "File to read completions from: ")))
+                      (clim:accept 'file
+                                   :current-window window
+                                   :must-exist nil
+                                   :default *completion-default-default-database-filename*
+                                   :prompt "File to read completions from: ")))
         (index nil)
         (completion nil))
     (with-open-file (s filename :if-does-not-exist :error)
@@ -465,11 +465,13 @@
 
 (defmethod parse-buffer-for-completions-command (window p)
   (declare (ignore p))
-  (let ((buffer (prompt-for-buffer window :prompt "Buffer to parse: "
-                                   :must-exist t
-                                   :default (window-buffer window)
-                                   :default-string (buffer-name
-                                                    (window-buffer window)))))
+  (let ((buffer (clim:accept 'buffer
+                             :current-window window
+                             :prompt "Buffer to parse: "
+                             :must-exist t
+                             :default (window-buffer window)
+                             :default-string (buffer-name
+                                              (window-buffer window)))))
     (with-mark ((word-start (buffer-start-mark buffer) :right-inserting)
                 (word-end (buffer-start-mark buffer) :left-inserting)
                 (buffer-end-mark (buffer-start-mark buffer)))

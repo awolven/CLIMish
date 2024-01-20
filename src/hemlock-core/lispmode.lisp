@@ -1211,10 +1211,10 @@
           (when (zerop (length s)) (editor-error))
           (if p
               (defindent s nil)
-              (let ((i (prompt-for-integer
-                        window
-                        :prompt (format nil "Indentation for ~A: " s)
-                        :help "Number of special arguments.")))
+              (let ((i (clim:accept 'integer
+                                    :current-window window
+                                    :prompt (format nil "Indentation for ~A: " s)
+                                    :help "Number of special arguments.")))
                 (when (minusp i)
                   (editor-error "Indentation must be non-negative."))
                 (defindent s i))))))
@@ -1766,9 +1766,9 @@
                         :string-quote))
                (fill-lisp-string buffer m))
               ((or (not (value buffer fill-lisp-comment-paragraph-confirm))
-                   (prompt-for-y-or-n
-                    window
-                    :prompt '("Not in a comment or string.  Fill contiguous ~
+                   (clim:accept 'y-or-n
+                                :current-window window
+                                :prompt '("Not in a comment or string.  Fill contiguous ~
                                lines with the same initial whitespace? ")))
                (fill-lisp-comment-or-indented-text buffer start end)))))))
 

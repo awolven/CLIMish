@@ -1,5 +1,7 @@
 (in-package :climish)
 
+
+
 (defun hemlock::canonicalize-slave-package-name (str)
   (cl-ppcre:regex-replace "^SB!" (hi::canonical-case str) "SB-"))
 
@@ -10,7 +12,7 @@
 
 (defobject buffer-view-text (group-owner-view-mixin))
 
-(defobject text-editor-view-mixin (view-mixin hi::window)
+(defobject text-editor-view-mixin (view-mixin textual-view hi::window)
   :metaclass text-editor-view-class
 
   :components
@@ -74,7 +76,7 @@
       (let ((time (get-internal-real-time)))
 	(when (evenp (floor time (* 0.425 internal-time-units-per-second)))
 	  (let ((self (focused-window window)))
-	    (when self
+	    (when (not (eq self window))
 	      (unless (the iconified?)
 		(when (typep self 'text-editor-view-mixin)
 		  (multiple-value-bind (ox oy) (global-window-position (the buffer-view text))
@@ -366,7 +368,7 @@
   #'(lambda ()
       (block draw-region
 	(let ((self (focused-window window)))
-	  (when (and self
+	  (when (and (not (eq self window))
 		     (the visible?)
 		     (not (the iconified?))
 		     (typep self 'text-editor-view-mixin))
@@ -451,7 +453,7 @@
 (defmethod initialize-instance :around ((self text-editor-view-mixin) &rest initargs)
   (declare (ignore initargs))
   (call-next-method)
-  (let ((application-frame (window-parent (the root))))
+  (let ((application-frame (application-frame self)))
     (setf (krma::immediate-mode-work-function-1 (clui::window-display application-frame))
 	  (draw-cursor-closure-generator application-frame (the scene)))
     (setf (krma::immediate-mode-work-function-2 (clui::window-display application-frame))

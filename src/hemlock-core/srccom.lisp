@@ -176,19 +176,25 @@
 
 (defun get-srccom-buffers (current-window current-buffer first-prompt buffer-a buffer-b dest-buffer p)
   (unless buffer-a
-    (setf buffer-a (prompt-for-buffer current-window :prompt first-prompt
-                                      :must-exist t
-                                      :default current-buffer)))
+    (setf buffer-a (clim:accept 'buffer
+                                :current-window current-window
+                                :prompt first-prompt
+                                :must-exist t
+                                :default current-buffer)))
   (unless buffer-b
-    (setf buffer-b (prompt-for-buffer current-window :prompt "With buffer: "
-                                      :must-exist t
-                                      :default (previous-buffer current-window))))
+    (setf buffer-b (clim:accept 'buffer
+                                :current-window current-window
+                                :prompt "With buffer: "
+                                :must-exist t
+                                :default (previous-buffer current-window))))
   (unless dest-buffer
     (setf dest-buffer
-          (prompt-for-buffer current-window :prompt "Putting results in buffer: "
-                             :must-exist nil
-                             :default-string
-                             (value current-buffer source-compare-default-destination))))
+          (clim:accept 'buffer
+                       :current-window current-window
+                       :prompt "Putting results in buffer: "
+                       :must-exist nil
+                       :default-string
+                       (value current-buffer source-compare-default-destination))))
   (if (stringp dest-buffer)
       (setf dest-buffer (make-buffer dest-buffer))
       (buffer-end (buffer-point dest-buffer)))
@@ -215,51 +221,6 @@
                                        (region (buffer-mark buffer-b)
                                                (buffer-point buffer-b))))))
     (values buffer-a buffer-b (buffer-point current-buffer) alt-buffer-a alt-buffer-b)))
-#|
-(defun get-srccom-buffers (current-window first-prompt buffer-a buffer-b dest-buffer p)
-  (unless buffer-a
-    (setf buffer-a (prompt-for-buffer current-window :prompt first-prompt
-                                      :must-exist t
-                                      :default (current-buffer))))
-  (unless buffer-b
-    (setf buffer-b (prompt-for-buffer current-window :prompt "With buffer: "
-                                      :must-exist t
-                                      :default (previous-buffer))))
-  (unless dest-buffer
-    (let* ((name (value source-compare-default-destination))
-           (temp-default (getstring name *buffer-names*))
-           (default (or temp-default (make-buffer name))))
-      (setf dest-buffer (prompt-for-buffer current-window :prompt "Putting results in buffer: "
-                                           :must-exist nil
-                                           :default default))
-      ;; Delete the default buffer if it did already exist and was not chosen.
-      (unless (or (eq dest-buffer default) temp-default)
-        (delete-buffer default))))
-  (if (stringp dest-buffer)
-      (setf dest-buffer (make-buffer dest-buffer))
-      (buffer-end (buffer-point dest-buffer)))
-  (setf (value source-compare-default-destination) (buffer-name dest-buffer))
-  (change-to-buffer dest-buffer)
-  (let* ((alt-buffer-a (if p (make-buffer (prin1-to-string (gensym)))))
-         (alt-buffer-b (if alt-buffer-a
-                           (make-buffer (prin1-to-string (gensym))))))
-    (when alt-buffer-a
-      (ninsert-region (buffer-point alt-buffer-a)
-                      (copy-region (if (mark< (buffer-point buffer-a)
-                                              (buffer-mark buffer-a))
-                                       (region (buffer-point buffer-a)
-                                               (buffer-mark buffer-a))
-                                       (region (buffer-mark buffer-a)
-                                               (buffer-point buffer-a)))))
-      (ninsert-region (buffer-point alt-buffer-b)
-                      (copy-region (if (mark< (buffer-point buffer-b)
-                                              (buffer-mark buffer-b))
-                                       (region (buffer-point buffer-b)
-                                               (buffer-mark buffer-b))
-                                       (region (buffer-mark buffer-b)
-                                               (buffer-point buffer-b))))))
-    (values buffer-a buffer-b (current-point) alt-buffer-a alt-buffer-b)))
-|#
 
 
 ;;;; Functions that find the differences between two buffers.

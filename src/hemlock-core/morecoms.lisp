@@ -22,10 +22,10 @@
   (let ((threshold (or (value (window-buffer current-window) region-query-size) 0)))
     (if (and (plusp threshold)
              (>= (count-lines region) threshold)
-             (not (prompt-for-y-or-n
-                   current-window
-                   :prompt "Region size exceeds \"Region Query Size\".  Confirm: "
-                   :must-exist t)))
+             (not (clim:accept 'y-or-n
+                               :current-window current-window
+                               :prompt "Region size exceeds \"Region Query Size\".  Confirm: "
+                               :must-exist t)))
         (editor-error))))
 
 ;;; FILTER-WORDS implements "Uppercase Word" and "Lowercase Word".
@@ -202,20 +202,25 @@
 
 (defun prompt-for-place (current-window prompt help)
   (multiple-value-bind (word val)
-                       (prompt-for-keyword current-window *scope-table* :prompt prompt
-                                           :help help :default "Global")
+      (clim:accept 'hemlock-keyword
+                   :current-window current-window
+                   :parse-string-tables *scope-table*
+                   :prompt prompt
+                   :help help :default "Global")
     (declare (ignore word))
     (case val
       (:buffer
-       (values :buffer (prompt-for-buffer current-window :help "Buffer to be local to."
-                                          :default (window-buffer current-window))))
+       (values :buffer (clim:accept 'buffer
+                                    :current-window current-window
+                                    :help "Buffer to be local to."
+                                    :default (window-buffer current-window))))
       (:mode
-       (values :mode (prompt-for-keyword
-                      current-window
-                      (list *mode-names*)
-                      :prompt "Mode: "
-                      :help "Mode to be local to."
-                      :default (buffer-major-mode (window-buffer current-window)))))
+       (values :mode (clim:accept 'hemlock-keyword
+                                  :current-window current-window
+                                  :parse-string-tables (list *mode-names*)
+                                  :prompt "Mode: "
+                                  :help "Mode to be local to."
+                                  :default (buffer-major-mode (window-buffer current-window)))))
       (:global :global))))
 
 #+DISABLE
@@ -228,15 +233,14 @@
 (defmethod bind-key-command (window p)
   (declare (ignore p))
   (multiple-value-call #'climish::define-gesture
-    (values (prompt-for-keyword
-             window
-             (list *command-names*)
-             :prompt "Command to bind: "
-             :help "Name of command to bind to a key."))
-    (values (prompt-for-key
-             window
-             :prompt "Bind to: "  :must-exist nil
-             :help "Key to bind command to, confirm to complete."))
+    (values (clim:accept 'hemlock::command-name
+                         :current-window window
+                         :prompt "Command to bind: "
+                         :help "Name of command to bind to a key."))
+    (values (clim:accept 'key
+                         :current-window window
+                         :prompt "Bind to: "  :must-exist nil
+                         :help "Key to bind command to, confirm to complete."))
     (prompt-for-place window "Kind of binding: "
                       "The kind of binding to make.")))
 
@@ -266,17 +270,17 @@
 (defmethod set-variable-command (window p)
   (declare (ignore p))
   (multiple-value-bind (name var)
-      (prompt-for-variable
-       window
-                        :prompt "Variable: "
-                        :help "The name of a variable to set.")
+      (clim:accept 'hemlock-variable
+                   :current-window window
+                   :prompt "Variable: "
+                   :help "The name of a variable to set.")
     (declare (ignore name))
     (setf (variable-value var)
           ;;(handle-lisp-errors
-            (eval (prompt-for-expression
-                   window
-                  :prompt "Value: "
-                  :help "Expression to evaluate for new value.")))));;)
+            (eval (clim:accept 'lisp-expression
+                               :current-window window
+                               :prompt "Value: "
+                               :help "Expression to evaluate for new value.")))));;)
 #+DISABLE
 (defhcommand defhvar-command (window p)
   (:pretty-name "Defhvar")
@@ -289,14 +293,18 @@
 
 (defmethod defhvar-command (window p)
   (declare (ignore p))
-  (let* ((name (nstring-capitalize (prompt-for-variable window :must-exist nil)))
+  (let* ((name (nstring-capitalize (clim:accept 'hemlock-variable
+                                                :current-window window
+                                                :must-exist nil)))
          (var (string-to-variable name))
          (doc (if (hemlock-bound-p var)
                   (variable-documentation var)
                   ""))
          (hooks (if (hemlock-bound-p var) (variable-hooks var)))
-         (val (prompt-for-expression window :prompt "Variable value: "
-                                     :help "Value for the variable.")))
+         (val (clim:accept 'lisp-expression
+                           :current-window window
+                           :prompt "Variable value: "
+                           :help "Value for the variable.")))
     (multiple-value-bind
         (kind where)
         (prompt-for-place
@@ -489,10 +497,10 @@
 
 (defmethod goto-absolute-line-command (window p)
   (let ((buffer (window-buffer window)))
-    (let ((p (or p (prompt-for-expression
-                    window
-                    :prompt "Line number: "
-                    :help "Enter an absolute line number to goto."))))
+    (let ((p (or p (clim:accept 'lisp-expression
+                                :current-window window
+                                :prompt "Line number: "
+                                :help "Enter an absolute line number to goto."))))
       (unless (and (integerp p) (plusp p))
         (editor-error "Must supply a positive integer."))
       (let ((point (buffer-point buffer)))
@@ -655,34 +663,106 @@
   (:help-string
    "Move the point to the position of the mouse."))
 
-(defmethod point-to-here-command (window p)
-  (declare (ignore p))
-  (let* ((frame (clui::window-parent (adhoc:send window adhoc:root)))
-         (event (climish::window-last-event frame)))
-    (print climish::*input-context*)
-    (finish-output)
-    (climish::maybe-provide
-     #.(3dm.d::vec3 0 0 0)
-     (let ((vec3 (climish::point-of-intersection-sketch-plane frame)))
-       (values vec3 vec3)))
+(in-package :climish)
+
+(defun-inline input-context-type (context-entry)
+  (first context-entry))
+
+(defun-inline input-context-tag (context-entry)
+  (second context-entry))
+
+(defun output-record-parent (presentation)
+  ;; stub
+  (declare (ignore presentation))
+  nil)
+
+(defmethod class-presentation-type-name (object &optional environment)
+  (declare (ignore environment))
+  (class-name (class-of (presentation-object object))))
+
+(defun maybe-throw-presentation (presentation input-context event point)
+  (let ((preferred-presentation nil)
+        (preferred-context-type nil)
+        (preferred-tag nil))
+    (print presentation)
+    (print input-context)
+    (do ((presentation presentation (output-record-parent presentation)))
+        ((null presentation))
+      (dolist (this-context input-context)
+        (let* ((context-type (input-context-type this-context))
+               (tag (input-context-tag this-context)))
+          (when (print (presentation-subtypep (print (presentation-type presentation)) (print context-type)))
+            (setq preferred-presentation presentation
+                  preferred-context-type (evacuate-list context-type)
+                  preferred-tag tag)))))
+    (when preferred-tag
+      (throw preferred-tag
+        (values (clim:presentation-object preferred-presentation)
+                preferred-context-type
+                event
+                (list :point point))))))
+
+(defun selection-set-type-specifier (frame)
+  ;; stub: todo: put this in an application-frame slot.
+  (declare (ignore frame))
+  `(or ,(eval (read-from-string "'direct::entity-mixin"))
+       ,(eval (read-from-string "'pk::entity"))))
+
+(defun handle-select-object (frame event)
+  (let ((point (point-of-intersection-sketch-plane frame)))
     (let ((objects-clicked (mapcar #'krma::object-from-id (clui::clicked-items event))))
       (loop for object in objects-clicked
-            when (and (null (cdr (climish::command-stack frame)))
-                      (typep (clim:presentation-object object)
-                             `(or ,(eval (read-from-string "'direct::entity-mixin"))
-                                  ,(eval (read-from-string "'pk::entity")))))
-              do (setf (climish::selection-set frame) (remove object (climish::selection-set frame)
-                                                              :key #'car))
-                 (setf (climish::selection-set frame)
-                       (nconc (climish::selection-set frame)
-                              (list (list object (climish::point-of-intersection-sketch-plane frame)))))
-            when climish::*input-context*
-              do (climish::maybe-provide
-                  (clim:presentation-object object)
-                  (values (clim:presentation-object object)
-                          (climish::point-of-intersection-sketch-plane frame)))
-            finally (when (climish::selection-set frame)
-                      (setf adhoc:self (first (first (last (climish::selection-set frame))))))))
+            ;; first: check to see if clicked object might be a type to go into our selection set
+            ;; selection set is open for business only if no command is running
+            ;; (besides the command that got us here, such as point-to-here-command)
+            when (and ;;(null (input-context frame))
+                  (null (cdr (command-stack frame)))
+                  (presentation-subtypep (presentation-type object)
+                                         (selection-set-type-specifier frame)))
+              ;; if it matches and it is already there, remove it so we can move it to the end
+              ;; of the selection set (pushnew is not enough, we want to make sure it's at the end)
+              do (setf (selection-set frame) (remove object (selection-set frame)
+                                                     :key #'car))
+                 (setf (selection-set frame) (nconc (selection-set frame)
+                                                    (list (list object point))))
+                 ;; next: when we are accepting, try to throw this presentation to the appropriate tag
+            when (input-context frame)
+              do (maybe-throw-presentation object (input-context frame) event point)
+
+            finally ;; if we haven't thrown yet, bind adhoc:self with the last item in the selection set
+                    (when (selection-set frame)
+                      (setf adhoc:self (first (first (last (selection-set frame))))))
+
+                    ;; lastly: try to throw a vec3 if that is being accepted and nothing else got thrown
+                    (maybe-throw-presentation point (input-context frame) event point)))))
+
+(in-package :hemlock)
+
+(defmethod point-to-here-command (window p)
+  (declare (ignore window p))
+  (values))
+
+(defmethod point-to-here-command ((frame climish::application-frame-mixin) p)
+  (declare (ignore p))
+  (let* ((event (climish::window-last-event frame)))
+    (climish::handle-select-object frame event)
+    (values)))
+
+(defmethod point-to-here-command ((window climish::context-menu) p)
+  (declare (ignore p))
+  (let* ((frame (climish::application-frame window))
+         (event (climish::window-last-event frame)))
+    (let ((objects-clicked (mapcar #'krma::object-from-id (clui::clicked-items event))))
+      (loop for object in objects-clicked
+            when (climish::input-context frame)
+              do (unwind-protect
+                      (climish::maybe-throw-presentation object (climish::input-context frame) event nil)
+                   (climish::destroy-window window)))))
+  (values))
+
+(defmethod point-to-here-command ((window climish::text-editor-window) p)
+  (declare (ignore p))
+  (let ((frame (clui::window-parent (adhoc:send window adhoc:root))))
     (when (typep window 'climish::text-editor-view-mixin)
       (let ((last-event (climish::window-last-event frame)))
         (when (typep last-event 'clui::pointer-button-press-event-mixin)
@@ -820,10 +900,12 @@
 
               ((zerop p)
                (let* ((againp (eq (last-command-type) :goto-page-zero))
-                      (name (prompt-for-string window :prompt "Substring of page title: "
-                                               :default (if againp
-                                                            *goto-page-last-string*
-                                                            *parse-default*)))
+                      (name (clim:accept 'string
+                                         :current-window window
+                                         :prompt "Substring of page title: "
+                                         :default (if againp
+                                                      *goto-page-last-string*
+                                                      *parse-default*)))
                       (dir (page-directory buffer))
                       (i 1))
                  (declare (simple-string name))
