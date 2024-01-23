@@ -54,21 +54,7 @@
 					       (list string))))
     (accept-something stream)))
 
-(define-presentation-method accept ((type 3dm.d::vec3)
-				  (stream application-frame-mixin) view &key)
-  (let ((hi::*parse-verification-function* #'(lambda (frame string)
-					       (declare (ignore frame))
-					       (block test
-						 (let ((*read-eval* nil)
-						       (thing))
-						   (handler-bind ((error (lambda (c)
-									   (declare (ignore c))
-									   (return-from test nil))))
-						     (setq thing (read-from-string string))
-						     (setq thing (eval thing))
-						     (when (typep thing '3dm.d::vec3)
-						       (list thing))))))))
-    (accept-something stream)))
+
 							 
 
 

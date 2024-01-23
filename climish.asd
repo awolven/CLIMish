@@ -12,12 +12,11 @@
   :license "GPLv3"
   :serial t
   :components
-  ((:file "hemlock/package")
+  ((:file "src/hemlock-core/package")
 
    (:file "src/package")
    (:file "src/lisp-utils")
    (:file "src/defresource")
-   (:file "src/queue")
    (:file "src/protocols")
    (:file "src/defprotocol")
    (:file "src/stream-defprotocols")

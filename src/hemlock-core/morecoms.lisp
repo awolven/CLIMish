@@ -697,67 +697,27 @@
                   preferred-tag tag)))))
     (when preferred-tag
       (throw preferred-tag
-        (values (clim:presentation-object preferred-presentation)
+        (values (presentation-object preferred-presentation)
                 preferred-context-type
                 event
                 (list :point point))))))
 
-(defun selection-set-type-specifier (frame)
-  ;; stub: todo: put this in an application-frame slot.
-  (declare (ignore frame))
-  `(or ,(eval (read-from-string "'direct::entity-mixin"))
-       ,(eval (read-from-string "'pk::entity"))))
-
-(defun handle-select-object (frame event)
-  (let ((point (point-of-intersection-sketch-plane frame)))
+(defmethod hemlock::point-to-here-command ((window context-menu) p)
+  (declare (ignore p))
+  (let* ((frame (application-frame window))
+         (event (window-last-event frame)))
     (let ((objects-clicked (mapcar #'krma::object-from-id (clui::clicked-items event))))
       (loop for object in objects-clicked
-            ;; first: check to see if clicked object might be a type to go into our selection set
-            ;; selection set is open for business only if no command is running
-            ;; (besides the command that got us here, such as point-to-here-command)
-            when (and ;;(null (input-context frame))
-                  (null (cdr (command-stack frame)))
-                  (presentation-subtypep (presentation-type object)
-                                         (selection-set-type-specifier frame)))
-              ;; if it matches and it is already there, remove it so we can move it to the end
-              ;; of the selection set (pushnew is not enough, we want to make sure it's at the end)
-              do (setf (selection-set frame) (remove object (selection-set frame)
-                                                     :key #'car))
-                 (setf (selection-set frame) (nconc (selection-set frame)
-                                                    (list (list object point))))
-                 ;; next: when we are accepting, try to throw this presentation to the appropriate tag
             when (input-context frame)
-              do (maybe-throw-presentation object (input-context frame) event point)
-
-            finally ;; if we haven't thrown yet, bind adhoc:self with the last item in the selection set
-                    (when (selection-set frame)
-                      (setf adhoc:self (first (first (last (selection-set frame))))))
-
-                    ;; lastly: try to throw a vec3 if that is being accepted and nothing else got thrown
-                    (maybe-throw-presentation point (input-context frame) event point)))))
+              do (unwind-protect
+                      (maybe-throw-presentation object (input-context frame) event nil)
+                   (destroy-window window)))))
+  (values))
 
 (in-package :hemlock)
 
 (defmethod point-to-here-command (window p)
   (declare (ignore window p))
-  (values))
-
-(defmethod point-to-here-command ((frame climish::application-frame-mixin) p)
-  (declare (ignore p))
-  (let* ((event (climish::window-last-event frame)))
-    (climish::handle-select-object frame event)
-    (values)))
-
-(defmethod point-to-here-command ((window climish::context-menu) p)
-  (declare (ignore p))
-  (let* ((frame (climish::application-frame window))
-         (event (climish::window-last-event frame)))
-    (let ((objects-clicked (mapcar #'krma::object-from-id (clui::clicked-items event))))
-      (loop for object in objects-clicked
-            when (climish::input-context frame)
-              do (unwind-protect
-                      (climish::maybe-throw-presentation object (climish::input-context frame) event nil)
-                   (climish::destroy-window window)))))
   (values))
 
 (defmethod point-to-here-command ((window climish::text-editor-window) p)

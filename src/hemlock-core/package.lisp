@@ -419,6 +419,7 @@
    #:dis-line-position
    #:do-tty-full-more
    #:*echo-area-window*
+   #:*echo-area-stream*
    #:font-change-font
    #:font-change-next
    #:font-change-x
