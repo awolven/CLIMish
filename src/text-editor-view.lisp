@@ -6,6 +6,8 @@
   (cl-ppcre:regex-replace "^SB!" (hi::canonical-case str) "SB-"))
 
 (defobject buffer-view (group-mixin view-mixin)
+  :inputs
+  (font)
   
   :components
   ((text :type 'buffer-view-text)))
@@ -17,6 +19,7 @@
 
   :components
   ((buffer-view :type 'buffer-view
+		font (the font)
 		x (+ (the client-rect x) (the style frame-padding-x))
 		y (+ (the client-rect y) (the style frame-padding-y))
 		width (- (the client-rect width) (* 2 (the style frame-padding-x)))
@@ -24,7 +27,7 @@
 
 (defmethod resize-window :before ((view text-editor-view-mixin) new-x new-y new-width new-height)
   (declare (ignore new-x new-y new-height new-width))
-  (let ((font-family (hi::window-font-family view)))
+  (let ((font-family (send view font)))
     (setf (hi::window-width view) (floor (send view client-rect width) (slot-value (slot-value font-family 'krma::data) '3b-bmfont-common::space-size))
 	  (hi::window-height view) (floor (send view client-rect height) (font-size font-family)))
 
@@ -44,7 +47,7 @@
 		  (hi::window-spare-lines view)
 		  (cdr (hi::window-first-line view))
 		  hi::the-sentinel))
-	
+
 	(do ((i (- (hi::window-height view)) (1+ i))
 	     (res ()
 		  (cons (hi::make-window-dis-line (make-string (hi::window-width view))) res)))
@@ -515,7 +518,7 @@
 	    (scene (send text scene))
 	    (group (send text group))
 	    (elevation (float (send text elevation)))
-	    (font (hi::window-font-family window))
+	    (font (send window font))
 	    (font-size (font-size font))
 	    (font-data (font-data font))
 	    (space-width (slot-value font-data '3b-bmfont-common::space-size))
