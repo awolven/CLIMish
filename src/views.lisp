@@ -147,7 +147,7 @@
 	 (south-id (the root (resize-borders :south) object-id))
 	 (east-id (the root (resize-borders :east) object-id))
 	 (west-id (the root (resize-borders :west) object-id))
-	 (display (clui::window-display (clui::window-parent (the root))))
+	 (display (clui::window-display (application-frame self)))
 	 (hovered (krma::focused-hovered-2d (krma::krma-select-box-2d display) 0 0))
 	 (cursor-class (when hovered
 			 (cond ((find north-id hovered)

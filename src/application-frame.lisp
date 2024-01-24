@@ -95,6 +95,17 @@
     (rm-redraw-node-recursively hi::*echo-area-window*))
   (values))
 
+(defmethod clim:handle-event ((window application-frame-mixin) (event clui::window-monitor-switched-event-mixin))
+  (setf (send *style* monitor) (window-monitor window))
+  (values))
+
+(defmethod clim:handle-event :after ((window application-frame-mixin) (event clui::window-monitor-switched-event-mixin))
+  (let* ((viewports (krma::window-viewports window))
+	 (scenes (mapcar #'krma::viewport-scene viewports))
+	 (windows (remove-if-not #'view-p (alexandria:flatten (mapcar #'krma::node-children scenes)))))
+    (mapcar #'rm-redraw-node-recursively windows)
+    (values)))
+
 (defmethod initialize-instance :before ((window application-frame-mixin) &rest initargs)
   (declare (ignore initargs))
   (setf (focused-window window) window)
