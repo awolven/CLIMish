@@ -390,7 +390,7 @@
       (setf (current-window) win)
       (unless (eq (window-buffer win) buf)
         (setf (window-buffer win) buf))
-      (setf (current-buffer (window-buffer (climish::focused-window (clui::window-parent *echo-area-window*)))) buf)
+      (setf (current-buffer (window-buffer (climish:focused-window (clim:application-frame *echo-area-window*)))) buf)
       )))
 
 #+DISABLE
@@ -553,7 +553,7 @@
 (defmethod top-of-line-to-here-command (window p)
   (declare (ignore p))
   ;;(when (typep window 'climish::text-editor-view-mixin)
-    (let ((last-event (climish::window-last-event (clui::window-parent window))))
+    (let ((last-event (climish:window-last-event (clim:application-frame window))))
       ;;(when (typep last-event 'clui::pointer-button-press-event-mixin)
         (let* ((x (clim:pointer-event-x last-event))
                (y (clim:pointer-event-y last-event))
@@ -722,7 +722,7 @@
 
 (defmethod point-to-here-command ((window climish::text-editor-window) p)
   (declare (ignore p))
-  (let ((frame (clui::window-parent (adhoc:send window adhoc:root))))
+  (let ((frame (clim:application-frame window)))
     (when (typep window 'climish::text-editor-view-mixin)
       (let ((last-event (climish::window-last-event frame)))
         (when (typep last-event 'clui::pointer-button-press-event-mixin)
@@ -754,7 +754,7 @@
 
 (defun point-to-here-move-action (window)
   (when (typep window 'climish::text-editor-view-mixin)
-    (let ((last-event (climish::window-last-event (clui::window-parent window))))
+    (let ((last-event (climish:window-last-event (clim:application-frame window))))
       (let* ((pixel-x (clim:pointer-event-x last-event))
                (pixel-y (clim:pointer-event-y last-event))
                (buffer-view (adhoc:send window climish::buffer-view))
@@ -778,7 +778,7 @@
 
 (defun point-to-here-up-action (window)
   (when (typep window 'climish::text-editor-view-mixin)
-    (let ((last-event (climish::window-last-event (clui::window-parent window))))
+    (let ((last-event (climish:window-last-event (clim:application-frame window))))
       (when (typep last-event 'clui::pointer-button-release-event-mixin)
         (let* ((pixel-x (clim:pointer-event-x last-event))
                (pixel-y (clim:pointer-event-y last-event))

@@ -24,7 +24,7 @@
 (defun %fuzzy-complete-symbol/request (packname symname)
   (hemlock::eval-in-master
    `(%fuzzy-complete-symbol/results
-     (krma.gui::focused-window (clui::window-parent *echo-area-window*))
+     (climish::focused-window (climish::application-frame *echo-area-window*))
      ',(let ((*buffer-package* packname))
          (fuzzy-completions symname packname)))))
 

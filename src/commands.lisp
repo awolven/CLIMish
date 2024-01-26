@@ -68,13 +68,13 @@
   (:pretty-name "Enter")
   (:documentation "")
   (:help-string "")
-  (:preparation (let* ((window (or (climish::focused-window climish::application-frame)
+  (:preparation (let* ((window (or (climish::focused-window clim:application-frame)
 					    *echo-area-window*))
 		       (buffer (and (typep window 'climish::text-editor-view-mixin)
 				    (window-buffer window)))
 		       (major-mode (and buffer (buffer-major-mode buffer)))
 		       (universal-argument
-			 (climish::universal-argument climish::application-frame)))
+			 (climish::universal-argument clim:application-frame)))
 		  (list window buffer major-mode universal-argument))))
 
 (defmethod enter-command (window buffer major-mode p)
@@ -97,7 +97,7 @@
 
 (defmethod enter-command ((window climish::echo-area-window) buffer major-mode p)
   (declare (ignore p))
-  (climish::echo-area-enter-command (climish::application-frame *echo-area-window*)))
+  (climish::echo-area-enter-command (clim:application-frame *echo-area-window*)))
 
 (defmethod enter-command ((window climish::application-frame-mixin) buffer major-mode p)
   (declare (ignore buffer major-mode p))
@@ -279,8 +279,8 @@
    read the file into it.")
   (:help-string "Make a buffer containing the file Pathname current, creating a buffer
    if necessary.  The buffer is returned.")
-  (:applicability (climish::hemlock-applicability climish::application-frame))
-  (:preparation (climish::hemlock-arguments climish::application-frame)))
+  (:applicability (climish::hemlock-applicability clim:application-frame))
+  (:preparation (climish::hemlock-arguments clim:application-frame)))
 
 (defmethod find-file-command (view p &optional pathname)
   (declare (ignore p))
@@ -299,16 +299,16 @@
   (:pretty-name "Mousewheel Scroll")
   (:documentation "Use mousewheel to scroll.")
   (:help-string "Use mousewheel to scroll.")
-  (:applicability (let* ((focused (climish::focused-window climish::application-frame)))
+  (:applicability (let* ((focused (climish:focused-window clim:application-frame)))
 		    (and focused (typep focused 'climish::text-editor-view-mixin)
 			 (not (eql focused *echo-area-window*)))))
-  (:preparation (let* ((focused (climish::focused-window climish::application-frame)))
-			   (list focused (climish::universal-argument climish::application-frame)))))
+  (:preparation (let* ((focused (climish:focused-window clim:application-frame)))
+			   (list focused (climish::universal-argument clim:application-frame)))))
 			   
 
 (defmethod mousewheel-scroll-command (window p)
   (declare (ignore p))
-  (let ((last-event (climish::window-last-event (clui::window-parent (adhoc:send window adhoc::root)))))
+  (let ((last-event (climish:window-last-event (clim:application-frame window))))
     (let* ((offset (clui::pointer-wheel-event-yoffset last-event)))
       (scroll-window window (- (* 2 (round offset))))
       (climish:redraw-buffer window))))
@@ -419,10 +419,10 @@
   (:pretty-name "Options")
   (:help-string "Show the context menu.")
   (:documentation "Show the context menu.")
-  (:applicability (not (typep (climish::focused-window climish::application-frame)
+  (:applicability (not (typep (climish:focused-window clim:application-frame)
 			      'climish::context-menu-mixin)))
   (:preparation (list climish::application-frame
-		      (climish::applicable-commands climish::application-frame))))
+		      (climish::applicable-commands clim:application-frame))))
 
 (defmethod options (frame applicable-commands)
   (let* ((menu (make-instance 'climish::context-menu
@@ -436,7 +436,7 @@
       (unwind-protect
 	   (progn
 	     (setq choice (clim:accept 'climish::not-everywhere-command
-				       :current-window (climish::focused-window frame)
+				       :current-window (climish:focused-window frame)
 				       :view menu))
 	     (climish::maybe-throw-presentation choice (climish::input-context frame) nil nil)
 	     (climish::invoke-command choice frame))

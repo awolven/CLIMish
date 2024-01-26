@@ -96,5 +96,5 @@
             (thread (bordeaux-threads:thread-name
                      (bordeaux-threads:current-thread))))
         (hemlock::eval-in-master
-         `(make-debug-buffer (krma.gui::focused-window (clui::window-parent *echo-area-window*)) ',context ',frames ',impl ',thread)))
+         `(make-debug-buffer (climish::focused-window (climish::application-frame *echo-area-window*)) ',context ',frames ',impl ',thread)))
       (prepl:debugger nil nil (lambda () (debug-using-master start end)))))

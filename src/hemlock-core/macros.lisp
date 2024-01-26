@@ -16,7 +16,7 @@
 (in-package :hemlock-internals)
 
 (define-symbol-macro *editor-input*
-    (clui::window-parent *echo-area-window*))
+    (clim:application-frame *echo-area-window*))
 
 (defvar *real-editor-input* ()
   "Useful when we want to read from the terminal when *editor-input* is
@@ -678,7 +678,7 @@
        (hemlock::simple-backtrace *standard-output*)
        (invoke-debugger condition))
       ((and *stack-trace-on-error* (not message-only-p))
-       (let ((cw (climish::focused-window (clui::window-parent *echo-area-window*))))
+       (let ((cw (climish:focused-window (clim:application-frame *echo-area-window*))))
          (with-pop-up-display (s :height 100 :current-window cw)
            (format s "An error of type ~A has been caught and ignored:~%  ~A~%~%"
                    (type-of condition)
@@ -688,7 +688,7 @@
            (format s "~%Restarts would have been:~%~%")
            (simple-print-restarts s)
            (hemlock::beginning-of-buffer-command cw nil)
-           (climish::rm-redraw-node-recursively cw)))
+           (climish:rm-redraw-node-recursively cw)))
        (throw 'command-loop-catcher nil))
       (message-only-p
        (message "Error: ~A" condition)

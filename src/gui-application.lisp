@@ -862,7 +862,7 @@
 
   (defhvar "Completion Function" ""
     :mode :editor :value #'(lambda ()
-			      (editor-complete-symbol (climish::focused-window (clui::window-parent *echo-area-window*))))
+			      (editor-complete-symbol (climish::focused-window (climish::application-frame *echo-area-window*))))
     :current-buffer initial-buffer)
 
   (defmode :completion :transparent-p t :precedence 10.0
@@ -897,7 +897,7 @@
 
   (unless (boundp '*style*)
     (setq *style* (make-instance 'light-style
-				 'display (clui::window-display (main-window self))
+				 'display (clui:window-display (main-window self))
 				 'monitor (clui:window-monitor (main-window self)))))
 
   (climish::make-echo-area-window :frame (main-window self))

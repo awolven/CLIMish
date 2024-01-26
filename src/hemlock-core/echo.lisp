@@ -164,7 +164,7 @@
       (insert-string point "] "))))
 
 
-(defun parse-for-something (start-window &optional (frame (clui::window-parent *echo-area-window*))
+(defun parse-for-something (start-window &optional (frame (clim:application-frame *echo-area-window*))
                                          (type 'string))
   (display-prompt-nicely)
   (let* ((point (buffer-point *echo-area-buffer*)))
@@ -213,7 +213,7 @@
                               *parse-default-string*)
                              (t nil)))
           (*parse-verification-function* #'buffer-verification-function))
-      (parse-for-something current-window (clui::window-parent *echo-area-window*) 'hi:buffer)))
+      (parse-for-something current-window (clim:application-frame *echo-area-window*) 'hi:buffer)))
 
 (defun buffer-verification-function (string)
   (declare (simple-string string))
@@ -261,7 +261,7 @@
   (let ((*parse-verification-function* #'file-verification-function)
         (*parse-default* (if default (namestring default)))
         (*parse-type* :file))
-    (parse-for-something current-window (clui::window-parent *echo-area-window*) 'pathname)))
+    (parse-for-something current-window (clim:application-frame *echo-area-window*) 'pathname)))
 
 (defun file-verification-function (string)
   (let ((pn (pathname-or-lose string)))
@@ -382,7 +382,7 @@
                    (if number (list number))
                    (list (or number string))))))
         (*parse-default* (if default (write-to-string default :base 10))))
-    (parse-for-something current-window (clui::window-parent *echo-area-window*) 'integer)))
+    (parse-for-something current-window (clim:application-frame *echo-area-window*) 'integer)))
 
 
 (defvar hemlock-eof '(())
@@ -406,7 +406,7 @@
                    (if (eq expr hemlock-eof)
                        (list string) (values (list expr) t))))))
         (*parse-default* (if defaultp (prin1-to-string default))))
-      (parse-for-something current-window (clui::window-parent *echo-area-window*) '(or list number symbol))))
+      (parse-for-something current-window (clim:application-frame *echo-area-window*) '(or list number symbol))))
 
 
 (defun prompt-for-string (current-window

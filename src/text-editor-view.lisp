@@ -457,9 +457,9 @@
   (declare (ignore initargs))
   (call-next-method)
   (let ((application-frame (application-frame self)))
-    (setf (krma::immediate-mode-work-function-1 (clui::window-display application-frame))
+    (setf (krma::immediate-mode-work-function-1 (window-display application-frame))
 	  (draw-cursor-closure-generator application-frame (the scene)))
-    (setf (krma::immediate-mode-work-function-2 (clui::window-display application-frame))
+    (setf (krma::immediate-mode-work-function-2 (window-display application-frame))
 	  (draw-active-region-closure-generator application-frame (the scene))))
   self)
 

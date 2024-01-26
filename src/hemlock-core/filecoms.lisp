@@ -909,11 +909,11 @@
               (editor-error "You must select a different buffer."))
             (dolist (w (buffer-windows buffer))
               (setf (window-buffer w) new))
-            (setf (current-buffer (window-buffer (climish::focused-window (clui::window-parent *echo-area-window*)))) new)))
+            (setf (current-buffer (window-buffer (climish:focused-window (clim:application-frame *echo-area-window*)))) new)))
           (dolist (w (buffer-windows buffer))
-            (climish::destroy-window w)))
+            (clui:destroy-window w)))
       (delete-buffer buffer *echo-area-window*)
-      (climish::rm-redraw-node-recursively window))))
+      (climish:rm-redraw-node-recursively window))))
 
 
 (defhcommand rename-buffer-command (window p)
