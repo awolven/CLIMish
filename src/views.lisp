@@ -150,8 +150,8 @@
 	 (south-id (the root (resize-borders :south) object-id))
 	 (east-id (the root (resize-borders :east) object-id))
 	 (west-id (the root (resize-borders :west) object-id))
-	 (display (window-display self))
-	 (hovered (krma::focused-hovered-2d (krma::krma-select-box-2d display) 0 0))
+	 (frame (application-frame self))
+	 (hovered (focused-hovered-2d (krma::krma-select-box-2d frame) 0 0))
 	 (cursor-class (when hovered
 			 (cond ((find north-id hovered)
 				(cond ((find west-id hovered) 'clui::resize-NW-cursor)
@@ -165,15 +165,16 @@
 			       ((find west-id hovered) 'clui::resize-W-cursor)
 			       (t nil)))))
     (when cursor-class
-      (setf (clui::window-cursor (application-frame self)) (make-instance cursor-class :display display)))))
+      (setf (clui::window-cursor (application-frame self))
+	    (make-instance cursor-class :display (window-display frame))))))
 
 (defmethod clim:handle-event ((self resize-border) (event clim:pointer-button-press-event))
   (let* ((north-id (the root (resize-borders :north) object-id))
 	 (south-id (the root (resize-borders :south) object-id))
 	 (east-id (the root (resize-borders :east) object-id))
 	 (west-id (the root (resize-borders :west) object-id))
-	 (display (window-display self))
-	 (hovered (krma::focused-hovered-2d (krma::krma-select-box-2d display) 0 0))
+	 (frame (application-frame self))
+	 (hovered (focused-hovered-2d (krma::krma-select-box-2d frame) 0 0))
 	 (resize-mode (when hovered
 			 (cond ((find north-id hovered)
 				(cond ((find west-id hovered) :northwest)

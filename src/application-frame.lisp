@@ -120,8 +120,9 @@
 
 (defmethod initialize-instance :after ((window application-frame-mixin) &rest initargs)
   (declare (ignore initargs))
-  (setf (krma::immediate-mode-work-function-4 (window-display window))
-	(draw-select-box-closure-generator window (krma::viewport-scene (first (krma::window-viewports window)))))
+  (setf (krma::immediate-mode-work-function-5 (clui:window-display window))
+	(lambda ()
+	  (monitor-select-boxes window)))
   (start-command-loop window)
   (values))
 
@@ -154,7 +155,6 @@
       (clim:handle-event resize-window (make-instance 'clui:window-resize-event :window resize-window))))
 
   (setf (window-to-drag self) nil)
-  (setf (dragging-select-box? self) nil)
 
   ;; make sure the event-queue sees this event
   (lparallel.queue:push-queue event (input-event-queue self))
@@ -170,48 +170,60 @@
   (lparallel.queue:push-queue event (input-event-queue window)))
 
 (defmethod clim:handle-event ((self application-frame-mixin) (event clim:pointer-motion-event))
-  (let ((last-event (clui::display-last-event (clui::window-display self))))
+  (let ((2d-object (most-specifically-hovered-2d-object
+		    (krma::krma-select-box-2d self) 0 0)))
 
+    (if (view-p 2d-object)
 
-    (if (and (typep last-event 'clui::pointer-button-press-event-mixin)
-	     (eq clui::+pointer-left-button+ (clui::input-event-code last-event)))
-
-	(progn
-
-	  (setf (dragging-select-box? self) t)
-      
-	  (setf (drag-initial-x self) (clim:pointer-event-x event))
-	  (setf (drag-initial-y self) (clim:pointer-event-y event))
-
-	  (setf (krma::krma-select-box-x0 self) (- (clim:pointer-event-x event) 1/2))
-	  (setf (krma::krma-select-box-y0 self) (- (clim:pointer-event-y event) 1/2))
-
-	  (change-class event 'clui::pointer-button-hold-and-drag-event-mixin)
-
-	  (setf (clui::pointer-drag-delta-x event) (- (clim:pointer-event-x event) (clim:pointer-event-x last-event)))
-
-	  (setf (clui::pointer-drag-delta-y event) (- (clim:pointer-event-y event) (clim:pointer-event-y last-event)))
-      
-	  (clim:handle-event self event))
+	;; forward event to view
+	(clim:handle-event 2d-object event)
 
 	(if (dragging-select-box? self)
-
+	    
 	    (progn
-	      (setf (krma::krma-select-box-x1 self) (+ (clim:pointer-event-x event) 1/2))
-	      (setf (krma::krma-select-box-y1 self) (+ (clim:pointer-event-y event) 1/2)))
+	      (setf (krma::krma-select-box-x1 self) (clim:pointer-event-x event))
+	      (setf (krma::krma-select-box-y1 self) (clim:pointer-event-y event))
 
+	      (setf (krma::immediate-mode-work-function-4 (window-display self))
+		    (draw-select-box-closure-generator
+		     self (krma::viewport-scene (first (krma::window-viewports self)))))
+	      
+	      (monitor-selection-set self))
+	    
+	    (let ((last-event (clui::display-last-event (clui::window-display self))))
+
+	      (if (and (typep last-event 'clui::pointer-button-press-event-mixin)
+		       (eq clui::+pointer-left-button+ (clui::input-event-code last-event)))
+
+		  (progn
+		    
+		    (setf (dragging-select-box? self) t)
+		    
+		    (setf (drag-initial-x self) (clim:pointer-event-x event))
+		    (setf (drag-initial-y self) (clim:pointer-event-y event))
+		    
+		    (setf (krma::krma-select-box-x0 self) (clim:pointer-event-x event))
+		    (setf (krma::krma-select-box-y0 self) (clim:pointer-event-y event))
+		    
+		    (change-class event 'clui::pointer-button-hold-and-drag-event-mixin)
+		    
+		    (setf (clui::pointer-drag-delta-x event) (- (clim:pointer-event-x event)
+								(clim:pointer-event-x last-event)))
+		    
+		    (setf (clui::pointer-drag-delta-y event) (- (clim:pointer-event-y event)
+								(clim:pointer-event-y last-event)))
+		    
+		    (clim:handle-event self event))
 	  
-	    (let ((mouse-x (clim:pointer-event-x event))
-		  (mouse-y (clim:pointer-event-y event)))
+		  (let ((mouse-x (clim:pointer-event-x event))
+			(mouse-y (clim:pointer-event-y event)))
 	      
-	      (setf (krma::krma-select-box-x0 self) (- mouse-x 1/2))
-	      (setf (krma::krma-select-box-x1 self) (+ mouse-x 1/2))
-	      (setf (krma::krma-select-box-y0 self) (- mouse-y 1/2))
-	      (setf (krma::krma-select-box-y1 self) (+ mouse-y 1/2))
-	      
-	      (monitor-select-boxes self))))
+		    (setf (krma::krma-select-box-x0 self) mouse-x)
+		    (setf (krma::krma-select-box-x1 self) mouse-x)
+		    (setf (krma::krma-select-box-y0 self) mouse-y)
+		    (setf (krma::krma-select-box-y1 self) mouse-y))))))
 	
-    (values)))
+	  (values)))
 
 (defmethod clim:handle-event :after ((self application-frame-mixin) (event clim:pointer-motion-event))
   (let ((resize-window (window-to-resize self)))
@@ -568,6 +580,13 @@
 	with result = ()
 	unless (zerop (aref 3d-select-box x y i))
 	do (push (aref 3d-select-box x y i) result)
+	finally (return result)))
+
+(defun all-hovered-ss (ss)
+  (loop for i from 0 below krma::+select-box-3d-depth+
+	with result = ()
+	unless (zerop (aref ss i))
+	do (push (aref ss i) result)
      finally (return result)))
 
 
@@ -662,3 +681,44 @@
 
 	  ;;(format t "~%2: ~S" all-hovered)
 	  (setf (hovered-3d window) all-hovered))))))
+
+(defun monitor-selection-set (window)
+  (let* ((all-hovered (all-hovered-ss (krma::krma-selection-set-table window))))
+
+	(flet ((exit-event (hovered)
+		 (let ((object (object-from-id hovered)))
+		   (when object
+		     (if (clui::window-p object)
+			 (multiple-value-bind (x y) (window-cursor-position object)
+			   (clim:handle-event object (make-instance 'clui::pointer-exit-event
+								    :window object
+								    :timestamp (get-internal-real-time)
+								    :x x :y y)))
+			 (clim:handle-event object (make-instance 'clui::pointer-exit-event
+								  :window object
+								  :timestamp (get-internal-real-time)))))))
+	       (enter-event (hovered)
+		 (let ((object (object-from-id hovered)))
+		   (when object
+		     (if (clui::window-p object)
+			 (multiple-value-bind (x y) (window-cursor-position object)
+			   (clim:handle-event object (make-instance 'clui::pointer-enter-event
+								    :window object
+								    :timestamp (get-internal-real-time)
+								    :x x :y y)))
+			 (clim:handle-event object (make-instance 'clui::pointer-enter-event
+								  :window object
+								  :timestamp (get-internal-real-time))))))))
+
+	  ;;(print (krma-select-box-2d window))
+
+	  (let ((difference (set-difference (hovered window) all-hovered)))
+	    ;;(format t "~%0: ~S" difference)
+	    (mapcar #'exit-event difference))
+
+	  (let ((difference (set-difference all-hovered (hovered window))))
+	    ;;(format t "~%1: ~S" difference)
+	    (mapcar #'enter-event difference))
+
+	  ;;(format t "~%2: ~S" all-hovered)
+	  (setf (hovered window) all-hovered))))
