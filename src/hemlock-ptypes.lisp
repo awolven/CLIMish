@@ -23,14 +23,11 @@
 (define-presentation-method accept ((type hemlock::file)
 				    (stream application-frame-mixin) view &key)
   (let ((hi::*parse-verification-function* #'file-verification-function)
-	(hi::*parse-type* :file))
+	(hi::*parse-type* :file)
+	(hi::*parse-default* #p"~/"))
     (accept-something stream)))
 
-(define-presentation-type hemlock::buffer-name ()
-  :inherit-from 'string
-  :history nil)
-
-(define-presentation-method accept ((type hemlock::buffer-name)
+(define-presentation-method accept ((type hemlock::buffer)
 				    (stream application-frame-mixin) view &key)
   (let ((hi::*parse-string-tables* (list hi::*buffer-names*))
 	(hi::*parse-value-must-exist* t)
@@ -39,13 +36,6 @@
     (accept-something stream)))
 
 
-(define-presentation-type hemlock::buffer ())
-
-(define-presentation-method accept ((type hemlock::buffer)
-				    (stream application-frame-mixin) view &key)
-  (let ((buffer-name (clim:accept 'hemlock::buffer-name :stream stream)))
-
-    (hi::getstring buffer-name hi::*buffer-names*)))
 
 (define-presentation-method accept ((type string)
 				    (stream application-frame-mixin) view &key)

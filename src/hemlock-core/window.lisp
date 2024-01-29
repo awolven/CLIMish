@@ -149,7 +149,8 @@
       ;;
       ;; Make sure the window gets updated, and set the buffer.
       (setf (window-tick window) -3)
-      (setf (window-%buffer window) new-buffer))))
+      (setf (window-%buffer window) new-buffer)
+      (climish::rm-redraw-node-recursively window))))
 
 
 

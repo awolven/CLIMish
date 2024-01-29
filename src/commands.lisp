@@ -279,7 +279,7 @@
    read the file into it.")
   (:help-string "Make a buffer containing the file Pathname current, creating a buffer
    if necessary.  The buffer is returned.")
-  (:applicability (climish::hemlock-applicability clim:application-frame))
+  (:applicability t)
   (:preparation (climish::hemlock-arguments clim:application-frame)))
 
 (defmethod find-file-command (view p &optional pathname)
@@ -290,7 +290,7 @@
 			      :prompt "Find File: "
 			      :must-exist nil
 			      :help "Name of file to read into its own buffer."
-			      :default (hemlock-ext:default-directory))))
+			      :default (namestring (hemlock-ext:default-directory)))))
          (buffer (find-file-buffer view pn)))
     (climish::find-or-create-text-editor-window-for-buffer buffer)
     buffer))

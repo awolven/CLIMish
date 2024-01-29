@@ -193,10 +193,11 @@
 
 (defmethod prompt-for-accept ((stream input-protocol-mixin) type view
 			      &rest accept-args
-			      &key query-identifier &allow-other-keys)
+			      &key query-identifier prompt &allow-other-keys)
   (declare (dynamic-extent accept-args))
-  (when (output-stream-p stream)
-    (apply #'prompt-for-accept-1 stream type accept-args))
+  (when prompt
+    (when (output-stream-p stream)
+      (apply #'prompt-for-accept-1 stream type accept-args)))
   query-identifier)
 
 (defun prompt-for-accept-1 (stream type
@@ -213,13 +214,14 @@
   (when (and display-default default-supplied-p)
     (when prompt (write-string " [" stream))
     (write-string "default " stream)
-    (write-string prompt stream)
+    (write-string (princ-to-string default) stream)
     #+NOTYET(present prompt default-type :stream stream)
     (when prompt (write-string "]" stream)))
   (when (eq prompt-mode ':normal)
     (when (or prompt (and display-default default-supplied-p))
       (write-string " " stream)))
-  (hi::buffer-end (hi::region-start hi::*parse-input-region*) hi::*echo-area-buffer*))
+  (hi::buffer-end (hi::region-start hi::*parse-input-region*) hi::*echo-area-buffer*)
+  (redraw-buffer hi::*echo-area-window*))
 
 
 ;;; If the input from stream, starting at location, is a request to use the default
@@ -261,7 +263,7 @@
 (defun accept-1 (stream type
 		 &key
 		   current-window
-		   view
+		   (view hi::*echo-area-window*)
 		   (default nil default-supplied-p)
 		   (default-type type)
 		   ((:history history-type) type)
@@ -291,6 +293,8 @@
 		 history-type type))
 	  (history-type
 	   (setq history (presentation-type-history history-type))))
+
+    (let ((hi::*parse-default* default))
 
     ;; Inside ACCEPTING-VALUES, ACCEPT can turn into PRESENT
     (when present-p
@@ -435,7 +439,7 @@
     #+NOTYET
     (when (output-recording-stream-p stream)
       (unhighlight-highlighted-presentation stream t))
-    (values the-object (or the-type type) the-options)))
+    (values the-object (or the-type type) the-options))))
 
 #+NOTYET
 (with-input-context (stream type)

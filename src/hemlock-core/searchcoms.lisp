@@ -201,7 +201,7 @@
   (let ((event nil))
     (loop
       until (setq event
-                  (climish::peek-next-event input))
+                  (climish::peek-event input))
       do (sleep 0.001)
       finally (return event))))
 

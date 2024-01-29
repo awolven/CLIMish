@@ -78,7 +78,8 @@
   (:documentation "Start an REPL in a thread")
   (:help-string "Start an REPL in a thread")
   (:applicability (climish::hemlock-applicability climish::application-frame))
-  (:preparation (climish::hemlock-arguments climish::application-frame)))
+  (:preparation (climish::hemlock-arguments climish::application-frame))
+  (:generic-function-class climish::not-everywhere-command))
 
 (defmethod lisp-listener-command (window p)
   (declare (ignore p))

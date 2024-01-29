@@ -84,11 +84,12 @@
 		     (lambda (application-frame results)
 		       (declare (ignorable application-frame))
 		       (if results
-			   (hi:message (format nil "~A returned: ~S~{, ~S~}"
-					       (slot-value ,fn 'pretty-name)
-					       (first results) (rest results)))
-			   (hi:message (format nil "~A returned no values."
-					       (slot-value ,fn 'pretty-name))))))))			   
+			   (hi:message "~A returned: ~S~{, ~S~}"
+				       (slot-value ,fn 'pretty-name)
+				       (first results)
+				       (rest results))
+			   (hi:message "~A returned no values."
+				       (slot-value ,fn 'pretty-name)))))))
        (pushnew ,fn *application-commands*)
        ,fn)))
 

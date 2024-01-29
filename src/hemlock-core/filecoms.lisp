@@ -19,7 +19,7 @@
   "Switches to buffer in the current window maintaining *buffer-history*."
   (let* ((cb (window-buffer current-window)))
     (setq *buffer-history* (cons cb (delq cb *buffer-history*)))
-    (setf (current-buffer cb) buffer)
+    ;;(setf (current-buffer cb) buffer)
     (setf (window-buffer current-window) buffer)))
 
 ;;;; PROCESS-FILE-OPTIONS.
@@ -744,21 +744,24 @@
    "Select a different buffer.
    The buffer to go to is prompted for.")
   (:help-string "Select a different buffer.
-   The buffer to go to is prompted for."))
+   The buffer to go to is prompted for.")
+  (:applicability t))
 
 (defmethod select-buffer-command (window p)
   (declare (ignore p))
   ;; what to do about (previous-buffer) ?
   ;; (previous-window-buffer (current-window)) ?
   ;; or some global previous buffer?
-  (let ((buf (clim:accept 'buffer
-                          :current-window window
-                          :prompt "Select Buffer: "
-                          :default (previous-buffer window))))
+  (let* ((buf (clim:accept 'buffer
+                           :current-window window
+                           :prompt "Select Buffer: "
+                           :default (buffer-name (previous-buffer window)))))
     (when (eq buf *echo-area-buffer*)
       (editor-error "Cannot select Echo Area buffer."))
-    (change-to-buffer buf window)
-    (climish::rm-redraw-node-recursively window)))
+    (when (eq window *echo-area-window*)
+      (setq window (climish::find-or-create-text-editor-window-for-buffer-1
+                    (climish::application-frame *echo-area-window*) buf)))
+    (change-to-buffer buf window)))
 
 
 (defvar *buffer-history-ptr* ()
@@ -881,9 +884,10 @@
                       (clim:accept 'buffer
                                    :current-window window
                                    :prompt "Kill Buffer: "
-                                   :default wb))))
+                                   :default (buffer-name wb)))))
       (unless buffer
-        (editor-error "No buffer named ~S" buffer-name))
+        (when buffer-name
+          (editor-error "No buffer named ~S" buffer-name)))
 
 
 

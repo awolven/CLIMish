@@ -81,7 +81,8 @@
    exists, go to that buffer, otherwise create one.  With an argument, include
    UNIX dot files.")
   (:applicability (climish::hemlock-applicability climish::application-frame))
-  (:preparation (climish::hemlock-arguments climish::application-frame)))
+  (:preparation (climish::hemlock-arguments climish::application-frame))
+  (:generic-function-class climish::not-everywhere-command))
 
 (defmethod dired-command (window p &optional (directory #p"~/"))
   (let* ((info (if (hemlock-bound-p 'dired-information)

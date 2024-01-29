@@ -171,7 +171,8 @@
    moving point past region if called with argument.")
   (:help-string
    "Invokes function held by the Hemlock variable \"Indent Function\"
-   moving point past region if called with argument."))
+   moving point past region if called with argument.")
+  (:applicability nil))
 
 (defmethod indent-command (window p)
   (let* ((buffer (window-buffer window))

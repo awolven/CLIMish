@@ -77,11 +77,28 @@
   (print-unreadable-object (object stream :type t :identity t)
     (princ (send object title) stream)))
 
-(defun find-or-create-text-editor-window-for-buffer (buffer)
+(defmethod find-or-create-text-editor-window-for-buffer-1
+    ((frame application-frame-mixin) buffer)
   (let ((window (or (first (hi::buffer-windows buffer))
-		    (make-instance 'text-editor-window :buffer buffer))))
+		    (let ((focused (focused-window frame)))
+		      (when (typep focused 'application-frame-mixin)
+			(setq focused *echo-area-window*))
+		      (if (or (eq focused *echo-area-window*)
+			      (not (typep focused 'text-editor-window)))
+			  (let ((next (next focused)))
+			    (if (or (eq next *echo-area-window*)
+				    (not (typep focused 'text-editor-window)))
+				(make-instance 'text-editor-window :buffer buffer)
+				next))
+			  focused)))))
+    (change-to-buffer buffer window)
     (focus-window window)
     window))
+	
+
+(defun find-or-create-text-editor-window-for-buffer (buffer)
+  (find-or-create-text-editor-window-for-buffer-1
+   (application-frame *echo-area-window*) buffer))
 
 (defun find-or-create-typeout-window (buffer-name)
   (let (#+NIL(first (focused-window (climish::application-frame *echo-area-window*)))

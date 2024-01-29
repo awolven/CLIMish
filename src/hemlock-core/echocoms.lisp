@@ -34,7 +34,7 @@
       ((null table) res)))
 
 (defun echo-area-mode-p (frame)
-  (or (null (climish::focused-window frame))
+  (or (eq (climish::focused-window frame) frame)
       (eq (climish::focused-window frame) *echo-area-window*)))
 
 (defhcommand help-on-parse-command (window p)
@@ -170,6 +170,7 @@
     (declare (simple-string typein))
     (case *parse-type*
       (:string
+       #+NIL
        (self-insert-command window p))
       (:file
        (file-completion-action typein))
@@ -177,9 +178,11 @@
        (let ((spacep
               ;; due to the use of spaces in command names, let's special
               ;; case on spaces here: The space key both completes and
-              ;; self inserts, where other keys (like tab) only complete.
-              (eql (hemlock-ext:key-event-char *last-key-event-typed*)
-                   #\space)))
+               ;; self inserts, where other keys (like tab) only complete.
+               (eql (climish::input-event-id
+                     (climish::window-last-keyboard-event
+                      (clim:application-frame window)))
+                   #k"Spacebar")))
          (when spacep
            (let ((point (buffer-point *echo-area-buffer*)))
              (unless (blank-after-p *echo-area-buffer* point)
@@ -195,7 +198,8 @@
                                               (subseq prefix 0 field)
                                               " ")
                                  (subseq prefix 0 field))))
-             (insert-string *echo-area-buffer* (region-start *parse-input-region*) new-typein)))))
+             (insert-string *echo-area-buffer* (region-start *parse-input-region*) new-typein)
+             (climish::redraw-buffer *echo-area-window*)))))
       (t
        (editor-error "Cannot complete input for this prompt.")))))
 

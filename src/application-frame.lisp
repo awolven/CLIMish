@@ -51,6 +51,7 @@
    (drag-last-x :initform nil :accessor drag-last-x)
    (drag-last-y :initform nil :accessor drag-last-y)
    (last-event :initform nil :accessor window-last-event)
+   (last-keyboard-event :initform nil :accessor window-last-keyboard-event)
    (popup-window :initform nil :accessor popup-window)
    (command-loop-go-semaphore :initform (bt:make-semaphore :name "command-loop-go-semaphore") :accessor command-loop-go-semaphore)
    (default-command :initform #'insert-character-command :accessor default-command)
@@ -430,6 +431,8 @@
      GET (setq event (read-event application-frame))
        (unless event (go GET))
        (setf (window-last-event application-frame) event)
+       (when (typep event 'clim:key-press-event)
+	 (setf (window-last-keyboard-event application-frame) event))
        (setq event-id (input-event-id event))
 
      CHECK 

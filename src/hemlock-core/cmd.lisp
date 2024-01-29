@@ -549,7 +549,8 @@ BOOL CreateProcessW(
   (:documentation "Start a CMD.EXE shell")
   (:help-string "Start a CMD.EXE shell")
   (:applicability (climish::hemlock-applicability climish::application-frame))
-  (:preparation (climish::hemlock-arguments climish::application-frame)))
+  (:preparation (climish::hemlock-arguments climish::application-frame))
+  (:generic-function-class climish::not-everywhere-command))
 
 (defmethod cmd-command (window &optional p)
   (declare (ignore p))
