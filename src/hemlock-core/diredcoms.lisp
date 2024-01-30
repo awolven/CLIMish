@@ -85,18 +85,20 @@
   (:generic-function-class climish::not-everywhere-command))
 
 (defmethod dired-command (window p &optional (directory #p"~/"))
-  (let* ((info (if (hemlock-bound-p 'dired-information)
-                   (if (eq window *echo-area-window*)
-                       nil
-                       (variable-value 'dired-information :buffer (window-buffer window)))))
-         (buffer (dired-guts window nil
-                             ;; Propagate dot-files property to subdirectory edits.
-                             (or (and info (dired-info-dot-files-p info))
-                                 p)
-                             directory)))
-    (if (eq window *echo-area-window*)
-        (climish::find-or-create-text-editor-window-for-buffer buffer)
-        (setf (window-buffer window) buffer))))
+  (let ((window (climish::find-or-create-window-of-class 'climish::dired-window)))
+    (let* ((info (if (hemlock-bound-p 'dired-information)
+                     (if (eq window *echo-area-window*)
+                         nil
+                         (variable-value 'dired-information :buffer (window-buffer window)))))
+           (buffer (dired-guts window nil
+                               ;; Propagate dot-files property to subdirectory edits.
+                               (or (and info (dired-info-dot-files-p info))
+                                   p)
+                               directory)))
+      
+      (setf (window-buffer window) buffer)
+      (climish::focus-window window)
+      window)))
 
 (defhcommand dired-with-pattern-command (window p)
   (:pretty-name "Dired with Pattern")
@@ -169,6 +171,7 @@
 ;;; satisfying directory, then this returns nil, otherwise t.
 ;;;
 (defun initialize-dired-buffer (current-window directory pattern dot-files-p buffer)
+  (setf (window-buffer current-window) buffer)
   (multiple-value-bind (pathnames dired-files)
                        (dired-in-buffer current-window directory pattern dot-files-p buffer)
     (if (zerop (length dired-files))

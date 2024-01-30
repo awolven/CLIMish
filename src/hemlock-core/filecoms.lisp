@@ -369,6 +369,9 @@
            (let ((kind (osicat::file-kind trial-pathname :follow-symlinks t)))
              (case kind
                (:directory
+                (let ((window (dired-command current-window nil trial-pathname)))
+                  (window-buffer window))
+                #+NIL
                 (dired-guts current-window nil nil trial-pathname))
                (:regular-file
                 (let* ((name (pathname-to-buffer-name trial-pathname))
@@ -709,6 +712,7 @@
       (error "Cannot delete only buffer ~S." buffer))
     (dolist (w (buffer-windows buffer))
       (setf (window-buffer w) new-buf))
+    #+NIL
     (when (eq buffer current-buffer)
       (setf (current-buffer (window-buffer (climish::focused-window (krma::main-window clim:*default-frame-manager*)))) new-buf)))
   (delete-buffer buffer current-buffer))
@@ -755,13 +759,12 @@
   (let* ((buf (clim:accept 'buffer
                            :current-window window
                            :prompt "Select Buffer: "
-                           :default (buffer-name (previous-buffer window)))))
+                           :default (previous-buffer window))))
     (when (eq buf *echo-area-buffer*)
       (editor-error "Cannot select Echo Area buffer."))
-    (when (eq window *echo-area-window*)
-      (setq window (climish::find-or-create-text-editor-window-for-buffer-1
-                    (climish::application-frame *echo-area-window*) buf)))
-    (change-to-buffer buf window)))
+    (let ((window (climish::find-or-create-window-of-class 'climish::text-editor-window)))
+      (setf (window-buffer window) buf)
+      buf)))
 
 
 (defvar *buffer-history-ptr* ()
@@ -884,7 +887,7 @@
                       (clim:accept 'buffer
                                    :current-window window
                                    :prompt "Kill Buffer: "
-                                   :default (buffer-name wb)))))
+                                   :default wb))))
       (unless buffer
         (when buffer-name
           (editor-error "No buffer named ~S" buffer-name)))

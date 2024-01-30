@@ -358,8 +358,6 @@
   (setf (next new-element) new-element)
   (setf (prev new-element) new-element)
   (values))
-  
-
 
 (defun ring-link-new-element-at-start (new start)
   (let ((last (prev start)))
@@ -645,23 +643,24 @@
 		    maximize (the-part z-index)))))
 	
     (setf (the z-index) (1+ highest-z-index))
-    (setf (krma::node-children (the scene)) (append (krma::node-children (the scene)) (list self)))
+    
+    (setf (krma::node-children (the scene))
+	  (append (krma::node-children (the scene)) (list self)))
 
-    (if (not (eq (focused-window application-frame) application-frame))
+    (if (typep self 'echo-area-window)
 	
-	(ring-link-new-element-at-start self (focused-window application-frame))
+	(ring-initialize self)
+	
+	(ring-link-new-element-at-start self *echo-area-window*))
 
-	(ring-initialize self)))
-
-  (unless (eq self (first (krma::node-children (the scene)))) ;; echo area window
-    (let ((next (next self)))
-      (if (eq next *echo-area-window*)
+  (unless (typep self 'echo-area-window)
+    (let ((prev (prev self)))
+      (if (eq prev *echo-area-window*)
 	  (set-window-position self 40 30)
-	  (multiple-value-bind (x y) (window-position next)
-	    (set-window-position self (+ x 40) (+ y 30))))))
-			     
+	  (multiple-value-bind (x y) (window-position prev)
+	    (set-window-position self (+ x 40) (+ y 30))))))		     
 
-  (values))
+  (values)))
 
 
 

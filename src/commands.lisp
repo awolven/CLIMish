@@ -24,7 +24,7 @@
    the prefix is negative)."))
 
 (defmethod next-line-command (window p)
-  (when (typep window 'climish::text-editor-window)
+  (when (typep window 'climish::text-editor-view-mixin)
     (let* ((buffer (window-buffer window))
 	   (point (buffer-point buffer)))
       (let* ((target (set-target-column buffer point)))
@@ -290,9 +290,14 @@
 			      :prompt "Find File: "
 			      :must-exist nil
 			      :help "Name of file to read into its own buffer."
-			      :default (namestring (hemlock-ext:default-directory)))))
+			      :default (hemlock-ext:default-directory))))
          (buffer (find-file-buffer view pn)))
-    (climish::find-or-create-text-editor-window-for-buffer buffer)
+    (if (buffer-windows buffer)
+	(climish::focus-window (first (buffer-windows buffer)))
+	(let ((window (climish::find-or-create-window-of-class
+		       'climish::text-editor-window)))
+	  (setf (window-buffer window) buffer)
+	  (climish::focus-window window)))	  
     buffer))
 
 (climish::define-everywhere-command mousewheel-scroll-command (window p)

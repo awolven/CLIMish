@@ -63,7 +63,8 @@
    (input-context :initform nil :accessor input-context)
    (echo-area-input-mode :initform nil :accessor echo-area-input-mode)
    (hovered :initform () :accessor hovered)
-   (hovered-3d :initform () :accessor hovered-3d)))
+   (hovered-3d :initform () :accessor hovered-3d)
+   (ll-package :initform :krma :accessor lisp-listener-package)))
 
 (defmethod clim:handle-event ((window application-frame-mixin) (event clui::input-event-mixin))
   ;; this forwarding logic is done in a primary method because

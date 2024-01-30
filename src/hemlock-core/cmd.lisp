@@ -554,16 +554,23 @@ BOOL CreateProcessW(
 
 (defmethod cmd-command (window &optional p)
   (declare (ignore p))
-  (let ((buffer (make-buffer "CMD"))
-	(current-buffer (window-buffer window)))
-    (setf (buffer-undo-p buffer) nil)
-    (setf (buffer-minor-mode buffer current-buffer :interactive-character-stream) t)
-    (setf (buffer-minor-mode buffer current-buffer :save) nil)
-    (let ((stream (variable-value 'hemlock::buffer-stream :buffer buffer)))
-      (bt:make-thread #'(lambda ()
-                          (hi::cmdline stream))
-                      :name "CMD"))
-    (climish::find-or-create-text-editor-window-for-buffer buffer)))
+  (let ((maybe-new-window (climish::find-or-create-window-of-class 'climish::cmd-window)))
+    (let ((current-buffer (window-buffer maybe-new-window)))
+      (if (and current-buffer (string= (buffer-name current-buffer) "CMD"))
+	  (prog1 maybe-new-window
+	    (climish::focus-window maybe-new-window))
+	  (let ((buffer (make-buffer "CMD"))
+		(current-buffer (window-buffer window)))
+	    (setf (buffer-undo-p buffer) nil)
+	    (setf (buffer-minor-mode buffer current-buffer :interactive-character-stream) t)
+	    (setf (buffer-minor-mode buffer current-buffer :save) nil)
+	    (let ((stream (variable-value 'hemlock::buffer-stream :buffer buffer)))
+	      (bt:make-thread #'(lambda ()
+				  (hi::cmdline stream))
+			      :name "CMD"))
+	    (setf (window-buffer maybe-new-window) buffer)
+	    (prog1 maybe-new-window
+	      (climish::focus-window maybe-new-window)))))))
 
 #+WIN32
 (cffi:defcfun (PeekNamedPipe "PeekNamedPipe") :bool

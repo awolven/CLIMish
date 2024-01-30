@@ -62,6 +62,27 @@
   (values))
 
 (defobject text-editor-window (text-editor-window-mixin))
+(defobject lisp-listener-window (text-editor-window-mixin))
+(defobject cmd-window (text-editor-window-mixin))
+(defobject dired-window (text-editor-window-mixin))
+
+(defun find-or-create-window-of-class (class)
+  (let* ((start hi::*echo-area-window*)
+	 (prev start))
+
+    (tagbody
+     prev
+       (setq prev (prev prev))
+
+       (when (eq prev start)
+	 (return-from find-or-create-window-of-class (make-instance class)))
+
+       (when (typep prev class)
+	 (return-from find-or-create-window-of-class prev))
+
+       (go prev))))
+
+       
 
 (defmethod destroy-window :after ((view text-editor-window-mixin))
   (let ((buffer (hi::window-buffer view)))

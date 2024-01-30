@@ -556,6 +556,7 @@
 (defun delete-buffer (buffer current-buffer)
   "Deletes a buffer.  If buffer is current, or if it is displayed in any
    windows, an error is signaled."
+  #+NIL
   (when (eq buffer current-buffer)
     (error "Cannot delete current buffer ~S." buffer))
   (when (buffer-windows buffer)

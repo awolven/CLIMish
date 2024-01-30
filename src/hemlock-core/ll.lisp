@@ -42,7 +42,9 @@
             #+sbcl (sb-ext:*invoke-debugger-hook* nil)
             (*debugger-hook* nil))
         (with-nonbroken-debugger
-	    (progn (eval (read-from-string "(in-package :krma)"))
+	    (progn (eval (read-from-string (format nil "(in-package ~S)"
+						   (climish::lisp-listener-package
+						    (clim:application-frame *echo-area-window*)))))
 	      (loop
 		(princ (or (first (package-nicknames *package*)) (package-name *package*)) stream)
 		(princ "> " stream)
@@ -93,7 +95,9 @@
 	  (setf (buffer-minor-mode buffer current-buffer :interactive-character-stream) t)
 	  (setf (buffer-minor-mode buffer current-buffer :lisp-listener) t)
 	  (setf (buffer-major-mode buffer current-buffer) :lisp)
-	  (climish::find-or-create-text-editor-window-for-buffer buffer)
+	    (let ((w
+		    (climish::find-or-create-window-of-class 'climish::lisp-listener-window)))
+	      (setf (window-buffer w) buffer)
 	  (let* ((stream (variable-value 'hemlock::buffer-stream :buffer buffer))
 		 (thread (bt:make-thread #'(lambda ()
 					     (repl stream))
@@ -104,7 +108,7 @@
 						      (when (buffer-minor-mode buffer :lisp-listener)
 							(bt:destroy-thread (hemlock::variable-value 'hemlock::lisp-listener-thread :buffer buffer)))))
 	    
-	    (values)))))))
+	    (values))))))))
 
 (defmethod find-window-named ((w climish::application-frame-mixin) name)
   (find-window-named-1 *echo-area-window* name))

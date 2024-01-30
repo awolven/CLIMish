@@ -366,7 +366,6 @@
 (defmethod bufferp ((thing buffer))
   t)
 
-#+FAILING!!
 (defmethod print-object ((object buffer) stream)
   (%print-hbuffer object stream nil))
 

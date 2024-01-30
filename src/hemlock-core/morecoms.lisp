@@ -718,7 +718,7 @@
   (declare (ignore window p))
   (values))
 
-(defmethod point-to-here-command ((window climish::text-editor-window) p)
+(defmethod point-to-here-command ((window climish::text-editor-view-mixin) p)
   (declare (ignore p))
   (let ((frame (clim:application-frame window)))
     (when (typep window 'climish::text-editor-view-mixin)
