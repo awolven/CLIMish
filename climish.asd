@@ -5,8 +5,8 @@
 	       :trivial-gray-streams
 	       :bordeaux-threads
 	       :iterate
-	       :conium
-	       :osicat
+	       #-os-windows :conium
+	       #-os-windows :osicat
 	       :cl-ppcre)
   :author "Andrew K Wolven <awolven@gmail.com>"
   :license "GPLv3"

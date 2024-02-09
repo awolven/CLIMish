@@ -210,6 +210,7 @@
 
 (defgeneric backend-init-raw-io (backend-type display))
 
+#+NOTYET
 (defmethod backend-init-raw-io ((backend (eql :tty)) display)
   (declare (ignore display))
   ;; The editor's file descriptor is Unix standard input (0).
@@ -478,6 +479,7 @@
 
 ;;;; Editor sleeping.
 
+#+NOTYET
 (defun editor-sleep (time)
   "Sleep for approximately Time seconds."
   (unless (or (zerop time) (listen-editor-input *editor-input*))
@@ -517,12 +519,13 @@
 ;;; returns a pathname for the file the function was defined in.  If it was
 ;;; not defined in some file, then nil is returned.
 ;;;
-#-(or cmu scl)
+;;#-(or cmu scl)
+#+NOTYET
 (defun fun-defined-from-pathname (function)
   "Takes a symbol or function and returns the pathname for the file the
    function was defined in.  If it was not defined in some file, nil is
    returned."
-  (let ((location (conium:find-source-location
+  (let ((location #+NOTYET(conium:find-source-location
                    (if (functionp function)
                        function
                        (fdefinition function)))))
@@ -635,6 +638,7 @@
         (when (= 1 (length string))
           (hemlock-ext:char-key-event (char string 0))))))
 
+#+NOTYET
 (defun tty-key-event (data)
   (loop with start = 0
         with length = (length data)

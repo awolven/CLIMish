@@ -279,7 +279,7 @@
    read the file into it.")
   (:help-string "Make a buffer containing the file Pathname current, creating a buffer
    if necessary.  The buffer is returned.")
-  (:applicability t)
+  (:applicability (climish:toplevel-context-p clim:application-frame))
   (:preparation (climish::hemlock-arguments clim:application-frame)))
 
 (defmethod find-file-command (view p &optional pathname)

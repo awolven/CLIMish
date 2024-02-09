@@ -521,7 +521,7 @@
                            current-window
 			   (if pattern
 			       (merge-pathnames directory pattern)
-                               (osicat::pathname-as-directory directory)
+                               (pathname-as-directory directory)
 			       #+NOTYET(merge-pathnames directory "*.*.~*~"))
                            point
                            dot-files-p))

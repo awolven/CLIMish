@@ -720,10 +720,12 @@
 
 (defmethod point-to-here-command ((window climish::text-editor-view-mixin) p)
   (declare (ignore p))
+  #+NIL
   (let ((frame (clim:application-frame window)))
     (when (typep window 'climish::text-editor-view-mixin)
       (let ((last-event (climish::window-last-event frame)))
-        (when (typep last-event 'clui::pointer-button-press-event-mixin)
+        (when (and (typep last-event 'clui::pointer-button-press-event-mixin)
+                   (eq clui::+pointer-left-button+ (clui::input-event-code last-event)))
           (let* ((pixel-x (clim:pointer-event-x last-event))
                  (pixel-y (clim:pointer-event-y last-event))
                  (buffer-view (adhoc:send window climish::buffer-view))
@@ -741,16 +743,14 @@
                        (point (buffer-point buffer)))
                   (move-mark point m)
                   (push-buffer-mark buffer (copy-mark point))
+                  #+NIL
                   (deactivate-region buffer))
               
                 (update-window-image window)
-                (supply-generic-pointer-move-function #'(lambda ()
-                                                          (point-to-here-move-action window)))
-                                                      
-                (supply-generic-pointer-up-function #'(lambda ()
-                                                        (point-to-here-up-action window)))))))))))
+                ))))))))
 
 (defun point-to-here-move-action (window)
+  #+NIL
   (when (typep window 'climish::text-editor-view-mixin)
     (let ((last-event (climish:window-last-event (clim:application-frame window))))
       (let* ((pixel-x (clim:pointer-event-x last-event))
@@ -775,6 +775,7 @@
               ))))))
 
 (defun point-to-here-up-action (window)
+  #+NIL
   (when (typep window 'climish::text-editor-view-mixin)
     (let ((last-event (climish:window-last-event (clim:application-frame window))))
       (when (typep last-event 'clui::pointer-button-release-event-mixin)

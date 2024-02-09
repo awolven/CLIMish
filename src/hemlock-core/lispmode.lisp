@@ -1343,7 +1343,7 @@
                  (pre-command-parse-check buffer m)
                  (unless (form-offset buffer m 1)
                    (editor-error "Not enough top level forms."))
-                 (when (blank-after-p buffer m) (line-offset m 1 0))
+                 (when (blank-after-p buffer m) (line-offset buffer m 1 0))
                  (move-mark point m)))))
     (update-window-image window)))
 

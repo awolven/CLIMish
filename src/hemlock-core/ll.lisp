@@ -98,17 +98,18 @@
 	    (let ((w
 		    (climish::find-or-create-window-of-class 'climish::lisp-listener-window)))
 	      (setf (window-buffer w) buffer)
-	  (let* ((stream (variable-value 'hemlock::buffer-stream :buffer buffer))
-		 (thread (bt:make-thread #'(lambda ()
-					     (repl stream))
-					 :name "Lisp Listener")))
-	    (defhvar "Lisp Listener Thread" "Lisp Listener Thread" :buffer buffer
-              :value thread)
-	    (add-hook buffer hemlock::delete-buffer-hook #'(lambda (buffer)
-						      (when (buffer-minor-mode buffer :lisp-listener)
-							(bt:destroy-thread (hemlock::variable-value 'hemlock::lisp-listener-thread :buffer buffer)))))
+	      (let* ((stream (variable-value 'hemlock::buffer-stream :buffer buffer))
+		     (thread (bt:make-thread #'(lambda ()
+						 (repl stream))
+					     :name "Lisp Listener")))
+		(defhvar "Lisp Listener Thread" "Lisp Listener Thread" :buffer buffer
+		  :value thread)
+		(add-hook buffer hemlock::delete-buffer-hook #'(lambda (buffer)
+								 (when (buffer-minor-mode buffer :lisp-listener)
+								   (bt:destroy-thread (hemlock::variable-value 'hemlock::lisp-listener-thread :buffer buffer)))))
+		(climish::focus-window w)
 	    
-	    (values))))))))
+		(values))))))))
 
 (defmethod find-window-named ((w climish::application-frame-mixin) name)
   (find-window-named-1 *echo-area-window* name))

@@ -17,6 +17,10 @@
 (defobject text-editor-view-mixin (view-mixin textual-view hi::window)
   :metaclass text-editor-view-class
 
+  :slots
+  ((dragging-select-box? :initform nil)
+   (maybe-drag :initform nil))
+
   :components
   ((buffer-view :type 'buffer-view
 		font (the font)
@@ -574,3 +578,111 @@
 (defun redraw-buffer (self)
   (unless (the iconified?)
     (rm-redraw-node (the buffer-view text))))
+
+(defmethod clim:handle-event :before ((self text-editor-view-mixin) (event clim:pointer-button-press-event))
+
+  ;; this must be before the before method to homemade-window which does a set focus
+
+  (when (eq clui::+pointer-left-button+ (clui::input-event-code event))
+    (bt:with-recursive-lock-held ((hi::window-lock self))
+      (let* ((pixel-x (clim:pointer-event-x event))
+	     (pixel-y (clim:pointer-event-y event))
+	     (buffer-view (the buffer-view))
+	     (coord (untransform-global-coordinate
+		     (vec3 pixel-x pixel-y 0) buffer-view)))
+	(when (and (<= 0 (vx coord) (send buffer-view width))
+		   (<= 0 (vy coord) (send buffer-view height)))
+	  (let* ((font (hi::window-font-family self))
+		 (x (round (vx coord)
+			   (slot-value (slot-value font 'krma::data)
+				       '3b-bmfont-common::space-size)))
+		 (y (floor (vy coord) (font-size font)))
+		 (m (hi::cursorpos-to-mark x y self))
+		 (buffer (window-buffer self)))			
+	    (when m
+	      (bt:with-recursive-lock-held ((hi::buffer-lock buffer))
+		(move-mark (buffer-point buffer) m))))))))
+
+  (values))
+  
+
+(defmethod clim:handle-event ((self text-editor-view-mixin) (event clim:pointer-motion-event))
+
+  (if (the maybe-drag)
+	
+      (let* ((start-event (the maybe-drag))
+	     (start-x (clim:pointer-event-x start-event))
+	     (start-y (clim:pointer-event-y start-event))
+	     (monitor (window-monitor (application-frame self)))
+	     (monitor-width-mm (clui::monitor-width-mm monitor))
+	     (video-mode (clui::get-monitor-video-mode monitor)) 
+	     (monitor-width-px (clui::video-mode-width video-mode))
+	     (px-per-mm (/ monitor-width-px monitor-width-mm))
+	     (curr-x (clim:pointer-event-x event))
+	     (curr-y (clim:pointer-event-y event))
+	     (delta-px (sqrt (+ (expt (- curr-x start-x) 2)
+				(expt (- curr-y start-y) 2))))
+	     (delta-mm (/ delta-px px-per-mm)))
+
+	(when (> delta-mm 2)
+
+	  (setf (the dragging-select-box?) (the maybe-drag))
+	  (setf (the maybe-drag) nil)))
+	
+      (if (the dragging-select-box?)
+
+	  (bt:with-recursive-lock-held ((hi::window-lock self))
+	    (let* ((pixel-x (clim:pointer-event-x event))
+		   (pixel-y (clim:pointer-event-y event))
+		   (buffer-view (the buffer-view))
+		   (coord (untransform-global-coordinate
+			   (vec3 pixel-x pixel-y 0) buffer-view)))
+	      (when (and (<= 0 (vx coord) (send buffer-view width))
+			 (<= 0 (vy coord) (send buffer-view height)))
+		(let* ((font (hi::window-font-family self))
+		       (x (round (vx coord)
+				 (slot-value (slot-value font 'krma::data)
+					     '3b-bmfont-common::space-size)))
+		       (y (floor (vy coord) (font-size font)))
+		       (m (hi::cursorpos-to-mark x y self))
+		       (buffer (window-buffer self)))
+
+		  (when m
+		    (push-buffer-mark buffer m t))))))
+
+	  (let ((last-event (climish::window-last-event (application-frame self))))
+	    (when (and (typep last-event 'clui::pointer-button-press-event-mixin)
+		       (eq clui::+pointer-left-button+ (clui::input-event-code last-event)))
+
+	      (setf (the maybe-drag) last-event))))))
+
+(defmethod clim:handle-event :after ((self text-editor-view-mixin)
+				     (event clim:pointer-button-release-event))
+
+  (when (the dragging-select-box?)
+    
+    (bt:with-recursive-lock-held ((hi::window-lock self))
+      (let* ((pixel-x (clim:pointer-event-x event))
+	     (pixel-y (clim:pointer-event-y event))
+	     (buffer-view (the buffer-view))
+	     (coord (untransform-global-coordinate
+		     (vec3 pixel-x pixel-y 0) buffer-view)))
+	(when (and (<= 0 (vx coord) (send buffer-view width))
+		   (<= 0 (vy coord) (send buffer-view height)))
+
+	  (let* ((font (hi::window-font-family self))
+		 (x (round (vx coord)
+			   (slot-value (slot-value font 'krma::data)
+				       '3b-bmfont-common::space-size)))
+		 (y (floor (vy coord) (font-size font)))
+		 (m (hi::cursorpos-to-mark x y self))
+		 (buffer (hi::window-buffer self)))
+	    (when m
+	      (ring-push (current-region buffer nil) hemlock::*kill-ring*)
+	      (move-mark (buffer-point buffer) m)
+	      (hi::update-window-image self)))))))
+  
+  (setf (the dragging-select-box?) nil)
+  (setf (the maybe-drag) nil)
+
+  (values))

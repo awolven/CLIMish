@@ -52,6 +52,7 @@
    (drag-last-y :initform nil :accessor drag-last-y)
    (last-event :initform nil :accessor window-last-event)
    (last-keyboard-event :initform nil :accessor window-last-keyboard-event)
+   (maybe-drag :initform nil :accessor window-maybe-drag)
    (popup-window :initform nil :accessor popup-window)
    (command-loop-go-semaphore :initform (bt:make-semaphore :name "command-loop-go-semaphore") :accessor command-loop-go-semaphore)
    (default-command :initform #'insert-character-command :accessor default-command)
@@ -157,6 +158,7 @@
       (clim:handle-event resize-window (make-instance 'clui:window-resize-event :window resize-window))))
 
   (setf (window-to-drag self) nil)
+  (setf (window-maybe-drag self) nil)
 
   ;; make sure the event-queue sees this event
   (lparallel.queue:push-queue event (input-event-queue self))
@@ -180,50 +182,70 @@
 	;; forward event to view
 	(clim:handle-event 2d-object event)
 
-	(if (dragging-select-box? self)
-	    
-	    (progn
-	      (setf (krma::krma-select-box-x1 self) (clim:pointer-event-x event))
-	      (setf (krma::krma-select-box-y1 self) (clim:pointer-event-y event))
+	(if (window-maybe-drag self)
 
-	      (setf (krma::immediate-mode-work-function-4 (window-display self))
-		    (draw-select-box-closure-generator
-		     self (krma::viewport-scene (first (krma::window-viewports self)))))
+	    (let* ((start-x (clim:pointer-event-x (window-maybe-drag self)))
+		   (start-y (clim:pointer-event-y (window-maybe-drag self)))
+		   (monitor (window-monitor self))
+		   (monitor-width-mm (clui::monitor-width-mm monitor))
+		   (video-mode (clui::get-monitor-video-mode monitor)) 
+		   (monitor-width-px (clui::video-mode-width video-mode))
+		   (px-per-mm (/ monitor-width-px monitor-width-mm))
+		   (curr-x (clim:pointer-event-x event))
+		   (curr-y (clim:pointer-event-y event))
+		   (delta-px (sqrt (+ (expt (- curr-x start-x) 2)
+				      (expt (- curr-y start-y) 2))))
+		   (delta-mm (/ delta-px px-per-mm)))
+
+	      (when (> delta-mm 2)
+		    
+		(setf (dragging-select-box? self) t)
+		(setf (window-maybe-drag self) nil)
+		    
+		(setf (drag-initial-x self) start-x)
+		(setf (drag-initial-y self) start-y)
+		    
+		(setf (krma::krma-select-box-x0 self) start-x)
+		(setf (krma::krma-select-box-y0 self) start-y)
+		    
+		(change-class event 'clui::pointer-button-hold-and-drag-event-mixin)
+		    
+		(setf (clui::pointer-drag-delta-x event) (- (clim:pointer-event-x event)
+							    start-x))
+		    
+		(setf (clui::pointer-drag-delta-y event) (- (clim:pointer-event-y event)
+							    start-y))
+		    
+		(clim:handle-event self event)))
+
+	    (if (dragging-select-box? self)
+	    
+		(progn
+		  (setf (krma::krma-select-box-x1 self) (clim:pointer-event-x event))
+		  (setf (krma::krma-select-box-y1 self) (clim:pointer-event-y event))
+
+		  (setf (krma::immediate-mode-work-function-4 (window-display self))
+			(draw-select-box-closure-generator
+			 self (krma::viewport-scene (first (krma::window-viewports self)))))
 	      
-	      (monitor-selection-set self))
-	    
-	    (let ((last-event (clui::display-last-event (clui::window-display self))))
+		  (monitor-selection-set self))
 
-	      (if (and (typep last-event 'clui::pointer-button-press-event-mixin)
-		       (eq clui::+pointer-left-button+ (clui::input-event-code last-event)))
+		(let ((last-event (clui::display-last-event (clui::window-display self))))
 
-		  (progn
-		    
-		    (setf (dragging-select-box? self) t)
-		    
-		    (setf (drag-initial-x self) (clim:pointer-event-x event))
-		    (setf (drag-initial-y self) (clim:pointer-event-y event))
-		    
-		    (setf (krma::krma-select-box-x0 self) (clim:pointer-event-x event))
-		    (setf (krma::krma-select-box-y0 self) (clim:pointer-event-y event))
-		    
-		    (change-class event 'clui::pointer-button-hold-and-drag-event-mixin)
-		    
-		    (setf (clui::pointer-drag-delta-x event) (- (clim:pointer-event-x event)
-								(clim:pointer-event-x last-event)))
-		    
-		    (setf (clui::pointer-drag-delta-y event) (- (clim:pointer-event-y event)
-								(clim:pointer-event-y last-event)))
-		    
-		    (clim:handle-event self event))
+		  (if (and (typep last-event 'clui::pointer-button-press-event-mixin)
+			   (eq clui::+pointer-left-button+ (clui::input-event-code last-event)))
+
+		      (progn
+
+			(setf (window-maybe-drag self) last-event))
 	  
-		  (let ((mouse-x (clim:pointer-event-x event))
-			(mouse-y (clim:pointer-event-y event)))
+		      (let ((mouse-x (clim:pointer-event-x event))
+			    (mouse-y (clim:pointer-event-y event)))
 	      
-		    (setf (krma::krma-select-box-x0 self) mouse-x)
-		    (setf (krma::krma-select-box-x1 self) mouse-x)
-		    (setf (krma::krma-select-box-y0 self) mouse-y)
-		    (setf (krma::krma-select-box-y1 self) mouse-y))))))
+			(setf (krma::krma-select-box-x0 self) mouse-x)
+			(setf (krma::krma-select-box-x1 self) mouse-x)
+			(setf (krma::krma-select-box-y0 self) mouse-y)
+			(setf (krma::krma-select-box-y1 self) mouse-y)))))))
 	
 	  (values)))
 
@@ -455,6 +477,9 @@
 
 	      (pop (command-stack application-frame))
 	      (compute-applicable-commands application-frame)
+	      (when (typep (focused-window application-frame) 'text-editor-view-mixin)
+		(deactivate-region (window-buffer (focused-window application-frame))))
+	      (setf (dragging-select-box? application-frame) nil)
 	      
 	      (unless table-chain
 		;; we've over aborted:

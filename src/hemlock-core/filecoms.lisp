@@ -366,7 +366,7 @@
          (found (find trial-pathname (the list *buffer-list*)
                       :key #'buffer-pathname :test #'equal)))
     (cond ((not found)
-           (let ((kind (osicat::file-kind trial-pathname :follow-symlinks t)))
+           (let ((kind (file-kind trial-pathname :follow-symlinks t)))
              (case kind
                (:directory
                 (let ((window (dired-command current-window nil trial-pathname)))
@@ -1014,7 +1014,7 @@
   ;; TODO: handle patterns in the file, type, and version.
   (let ((list ()))
     (loop for file in (directory (concatenate 'string directory "*.*"))
-          do (push (namestring (osicat::pathname-as-file file)) list))
+          do (push (namestring (pathname-as-file file)) list))
     (sort list #'string<)))
 
 #-(or cmu scl)
@@ -1302,7 +1302,7 @@
     ;;
     ;; Get the data.
     (dolist (file result)
-      (let* ((name (namestring (osicat::pathname-as-file file)))
+      (let* ((name (namestring (pathname-as-file file)))
              (length (length name))
              (end (if (and (plusp length)
                            (char= (schar name (1- length)) #\/))

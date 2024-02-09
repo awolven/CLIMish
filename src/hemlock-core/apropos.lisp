@@ -162,7 +162,7 @@
   (let ((data
          (mapcar (lambda (sym)
                    (cons (make-slave-symbol sym)
-                         (conium:describe-symbol-for-emacs sym)))
+                         (describe-symbol-for-emacs sym)))
                  (apropos-list str))))
     (hemlock::eval-in-master `(%apropos-results ',data ',str))))
 

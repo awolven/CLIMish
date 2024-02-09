@@ -110,7 +110,7 @@
   (cond
    ((not directoryp)
     (let* ((ses-name1 (namestring spec1))
-           (exists1p (osicat::file-kind spec1))
+           (exists1p (file-kind spec1))
            (ses-name2 (namestring spec2))
            (pname1 (pathname ses-name1))
            (pname2 (pathname ses-name2))
@@ -311,7 +311,7 @@
   (cond
    ((not directoryp)
     (let* ((ses-name1 (namestring spec1))
-           (exists1p (osicat::file-kind ses-name1))
+           (exists1p (file-kind ses-name1))
            (ses-name2 (namestring spec2))
            (pname1 (pathname ses-name1))
            (pname2 (pathname ses-name2))
@@ -565,7 +565,7 @@
 (defun make-directory (name)
   "Creates directory name.  If name exists, then an error is signaled."
   (let ((ses-name (namestring name)))
-    (when (osicat::file-kind ses-name)
+    (when (file-kind ses-name)
       (funcall *error-function* "Name already exists -- ~S" ses-name))
     (enter-directory ses-name))
   t)

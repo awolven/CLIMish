@@ -207,14 +207,15 @@
   (values))
 
 (defmethod rm-draw-node ((self resize-border))
-  (let ((scene (the scene)))
-    (push
-     (medium-add-filled-2d-rectangle-list-primitive
-      scene (the group) nil (the color)
-      (list (the x0) (the y0) (the x1) (the y1))
-      (the object-id)
-      (the elevation))
-     (the primitive-handles))))
+  (unless (the window iconified?)
+    (let ((scene (the scene)))
+      (push
+       (medium-add-filled-2d-rectangle-list-primitive
+	scene (the group) nil (the color)
+	(list (the x0) (the y0) (the x1) (the y1))
+	(the object-id)
+	(the elevation))
+       (the primitive-handles)))))
 
 (defmethod rm-draw-node ((self border))
   (unless (the window iconified?)
@@ -473,18 +474,22 @@
 
 (defmethod clim:handle-event ((self title-bar) (event clim:pointer-motion-event))
   (let ((last-event (clui::display-last-event (window-display self))))
-
-    (when (or (typep last-event 'clui::pointer-button-press-event-mixin))
-
-      (setf (window-to-drag (application-frame self)) (the window))
-
-      (change-class event 'clui::pointer-button-hold-and-drag-event-mixin)
-
-      (setf (clui::pointer-drag-delta-x event) (- (clim:pointer-event-x event) (clim:pointer-event-x last-event)))
-
-      (setf (clui::pointer-drag-delta-y event) (- (clim:pointer-event-y event) (clim:pointer-event-y last-event)))
+    
+    (when (and (typep last-event 'clui::pointer-button-press-event-mixin)
+	       (eq clui::+pointer-left-button+ (clui::input-event-code last-event)))
       
-      (clim:handle-event (application-frame self) event))
+	  (setf (window-to-drag (application-frame self)) (the window))
+	  (setf (window-maybe-drag (application-frame self)) nil)
+	  
+	  (change-class event 'clui::pointer-button-hold-and-drag-event-mixin)
+	  
+	  (setf (clui::pointer-drag-delta-x event) (- (clim:pointer-event-x event)
+						      (clim:pointer-event-x last-event)))
+	  
+	  (setf (clui::pointer-drag-delta-y event) (- (clim:pointer-event-y event)
+						      (clim:pointer-event-y last-event)))
+	  
+	  (clim:handle-event (application-frame self) event))
     
     (values)))
 

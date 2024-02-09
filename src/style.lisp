@@ -36,7 +36,7 @@
    (current-font (the roboto-font (bmfonts 3.5) bmfont))
    (lisp-defines-text-color #(0.545f0 0.980f0 0.439f0 1.0f0))
    (lisp-names-text-color #(0.888f0 0.814f0 0.310f0 1.0f0))
-   (lisp-strings-color #(0.914f0 0.325f0 0.331f0 1.0f0))
+   (lisp-strings-color #(0.714f0 0.325f0 0.331f0 1.0f0))
    (lisp-&keywords-text-color #(0.549 0.769f0 1.0f0 1.0f0))
    (lisp-error-text-color #(1.0f0 0.278f0 0.255f0 1.0f0))
    (lisp-keywords-color #(0.878f0 0.565f0 0.843f0 1.0f0))

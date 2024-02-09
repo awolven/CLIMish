@@ -170,6 +170,12 @@
                    (funcall set gesture))
            (return-from delimiter-gesture-p t)))))
 
+(defun hemlock::file-kind (pathspec &key follow-symlinks)
+  #+os-windows
+  (clui::file-kind pathspec :follow-symlinks follow-symlinks)
+  #-os-windows
+  (osicat::file-kind pathspec :follow-symlinks follow-symlinks))
+
 (in-package :hemlock-internals)
 
 (defvar *echo-area-buffer* nil
