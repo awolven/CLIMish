@@ -33,7 +33,7 @@
   (declare (ignore new-x new-y new-height new-width))
   (let ((font-family (send view font)))
     (setf (hi::window-width view) (floor (send view client-rect width) (slot-value (slot-value font-family 'krma::data) '3b-bmfont-common::space-size))
-	  (hi::window-height view) (floor (send view client-rect height) (font-size font-family)))
+	  (hi::window-height view) (floor (send view client-rect height) (* 1.2 (font-size font-family))))
 
     (invalidate-hemlock-window-size view)
     
@@ -64,7 +64,7 @@
 					 (width-chars
 					  (floor (send view client-rect width) (slot-value (slot-value font-family 'krma::data) '3b-bmfont-common::space-size)))
 					 (height-lines
-					  (floor (send view client-rect height) (font-size font-family)))
+					  (floor (send view client-rect height) (* 1.2 (font-size font-family))))
 					 &allow-other-keys)
   (declare (ignore initargs))
 
@@ -94,10 +94,10 @@
 			       (font-data (font-data font))
 			       (space-width (slot-value font-data '3b-bmfont-common::space-size))
 			       (xval (+ (* x space-width) ox))
-			       (yval (+ (* y font-size) oy)))
+			       (yval (+ (* y 1.2 font-size) oy)))
 			  (medium-draw-filled-2d-rectangle-list
 			   scene :cursor #xffff0077
-			   (list xval yval (+ xval space-width) (+ yval font-size))
+			   (list xval yval (+ xval space-width) (+ yval (* 1.2 font-size)))
 			   0 (1+ (the buffer-view text elevation)))))))))))))))
 
 
@@ -434,8 +434,8 @@
 					  (flet ((draw (y x0 x1)
 						   (medium-draw-filled-2d-rectangle-list
 						    scene :cursor #xff770033
-						    (list (+ (* x0 space-width) ox) (+ (* y font-size) oy)
-							  (+ (* x1 space-width) ox) (+ (* (1+ y) font-size) oy))
+						    (list (+ (* x0 space-width) ox) (+ (* y 1.2 font-size) oy)
+							  (+ (* x1 space-width) ox) (+ (* (1+ y) 1.2 font-size) oy))
 						    0 (1+ (the buffer-view text elevation)))))
 
 					    (when (eql dis-line-m0 dis-line-m1)
@@ -552,7 +552,7 @@
 			   (when (< start end)
 			     (let* ((color (lookup-text-color (or text-color-key 0)))
 				    (xval (float (+ (* x space-width) xp)))
-				    (yval (float (+ (* y font-size) -2 yp))))
+				    (yval (float (+ (* y 1.2 font-size) -2 yp))))
 			       (krma::draw-data-add-text-primitive draw-data group nil font color
 							 xval yval (subseq string start end)
 							 0 elevation)))))
@@ -567,10 +567,15 @@
 	  (values))))))))
 
 (defmethod handle-character-input ((window text-editor-view-mixin) char p)
-  (dotimes (n p)
-    (hi::insert-character (hi::window-buffer window) (hi::buffer-point (hi::window-buffer window)) char))
-  (redraw-buffer window)
-  (values))
+  (let* ((buffer (hi::window-buffer window))
+	 (point (hi::buffer-point buffer)))
+    (dotimes (n p)
+      (hi::insert-character buffer point char))
+    (update-window-image window)
+    (unless (displayed-p point window)
+      (hi::bottom-window-on-mark window point))
+    (redraw-buffer window)
+    (values)))
 
 (defun hi::view-buffer (view)
   (hi::window-buffer view))
@@ -596,7 +601,7 @@
 		 (x (round (vx coord)
 			   (slot-value (slot-value font 'krma::data)
 				       '3b-bmfont-common::space-size)))
-		 (y (floor (vy coord) (font-size font)))
+		 (y (floor (vy coord) (* 1.2 (font-size font))))
 		 (m (hi::cursorpos-to-mark x y self))
 		 (buffer (window-buffer self)))			
 	    (when m
@@ -643,7 +648,7 @@
 		       (x (round (vx coord)
 				 (slot-value (slot-value font 'krma::data)
 					     '3b-bmfont-common::space-size)))
-		       (y (floor (vy coord) (font-size font)))
+		       (y (floor (vy coord) (* 1.2 (font-size font))))
 		       (m (hi::cursorpos-to-mark x y self))
 		       (buffer (window-buffer self)))
 
@@ -674,7 +679,7 @@
 		 (x (round (vx coord)
 			   (slot-value (slot-value font 'krma::data)
 				       '3b-bmfont-common::space-size)))
-		 (y (floor (vy coord) (font-size font)))
+		 (y (floor (vy coord) (* 1.2 (font-size font))))
 		 (m (hi::cursorpos-to-mark x y self))
 		 (buffer (hi::window-buffer self)))
 	    (when m

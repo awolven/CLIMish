@@ -193,3 +193,6 @@
 					
      
 	   
+(defaccelerator "Yank From Lisp Listener History" #k"Meta-p")
+(defaccelerator "Yank Next From Lisp Listener History" #k"Meta-n")
+(defaccelerator "Interrupt Lisp" #k"Ctrl-c" #k"Ctrl-c")

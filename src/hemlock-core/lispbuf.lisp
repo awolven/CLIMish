@@ -524,23 +524,24 @@
    "Evaluates the current or next top-level form in the editor Lisp."))
 
 (defmethod editor-compile-defun-command (window p)
-  (declare (ignore p))
   (let* ((buffer (window-buffer window)))
     (if buffer
         ;;(if (region-active-p buffer)
         ;;  (editor-compile-region window buffer (current-region buffer))
-        (let ((region (defun-region buffer (buffer-point buffer)))
-              (saved (copy-mark (buffer-point buffer))))
-          (unwind-protect (progn
-                            (move-mark (buffer-point buffer) (region-start region))
-                            (push-buffer-mark buffer (region-end region) t)
-                            (update-window-image window)
-                            (editor-compile-region window buffer region t)
-                            (sleep 0.1))
-            (move-mark (buffer-point buffer) saved)
-            (pop-buffer-mark buffer)
-            (update-window-image window)
-            (adhoc::adhoc-redefinition-hook)))
+        (if (buffer-minor-mode buffer :lisp-listener)
+            (hemlock::interrupt-lisp-command window p)
+            (let ((region (defun-region buffer (buffer-point buffer)))
+                  (saved (copy-mark (buffer-point buffer))))
+              (unwind-protect (progn
+                                (move-mark (buffer-point buffer) (region-start region))
+                                (push-buffer-mark buffer (region-end region) t)
+                                (update-window-image window)
+                                (editor-compile-region window buffer region t)
+                                (sleep 0.1))
+                (move-mark (buffer-point buffer) saved)
+                (pop-buffer-mark buffer)
+                (update-window-image window)
+                (adhoc::adhoc-redefinition-hook))))
         (editor-error "No current buffer"))))
 
 #+NIL

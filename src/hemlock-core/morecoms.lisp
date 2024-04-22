@@ -560,7 +560,7 @@
                (coord (climish::untransform-global-coordinate (3dm.f::vec3 x y 0) (adhoc::send window climish::buffer-view)))
                (font (hi::window-font-family window))
                (cursor-pos-x (floor (climish::vx coord) (slot-value (slot-value font 'krma::data) '3b-bmfont-common::space-size)))
-               (cursor-pos-y (floor (climish::vy coord) (climish::font-size font))))
+               (cursor-pos-y (floor (climish::vy coord) (* 1.2 (climish::font-size font)))))
           (with-buffer-globals ((window-buffer window))
             ;;(unless cursor-pos-y (editor-error))
             (cond ((< cursor-pos-x 2)

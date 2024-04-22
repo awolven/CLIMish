@@ -412,6 +412,7 @@
 ;;; otherwise false.  We assume the window image is up to date.
 ;;;
 
+#+NO
 (defun displayed-p (mark window)
   (let ((start (window-display-start window))
         (end (window-display-end window)))
@@ -420,6 +421,15 @@
                  (let ((ch (next-character (window-buffer window) end)))
                    (and ch (char/= ch #\newline)))
                  nil)))))
+
+
+(defun displayed-p (mark window)
+  (let ((start (window-display-start window))
+        (end (window-display-end window)))
+    (or (and (mark> mark start) (mark< mark end))
+        (mark= mark start)
+        (mark= mark end))))
+
 
 
 ;;; Displayed-p  --  Public

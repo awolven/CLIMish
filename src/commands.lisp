@@ -84,12 +84,48 @@
 	  (enter-command window buffer :interactive-character-stream nil)
 	  (climish::handle-character-input window #\Newline (or p 1)))))
 
+
+
 (defmethod enter-command (window buffer (major-mode (eql :lisp)) p)
   ;; indent-new-line
   (let* ((point (buffer-point buffer)))
     (let ((prefix (hi::value buffer fill-prefix)))
       (delete-horizontal-space buffer point)
-      (enter-command window buffer nil p)
+      (cond ((buffer-active-region-p buffer)
+	     (ring-push (hi::current-region buffer) hemlock::*kill-ring*))
+
+	    ((buffer-minor-mode buffer :lisp-listener)
+	     (let* ((stream (value buffer buffer-stream))
+		    (point (buffer-point buffer)))
+
+	       (with-buffer-globals (buffer)
+		 (let* ((prompt (variable-value 'hemlock::prompt-mark :buffer buffer))
+			(whole-input-region (region prompt (buffer-end-mark buffer)))
+			(string2 (region-to-string buffer whole-input-region)))
+
+		   (when (let ((*read-eval* nil))
+			   (handler-case
+			       (progn (read-from-string string2)
+				      t)
+			     (error () nil)))
+		     (add-to-lisp-listener-history string2))
+
+		   (insert-character buffer point #\Newline)
+		       
+		   (let* ((mark (hemlock-character-io-stream-mark stream))
+			  (input-region (region mark (buffer-end-mark buffer)))
+			  (string (region-to-string buffer input-region)))
+		       
+		     (move-mark
+		      (hemlock-character-io-stream-mark stream)
+		      (buffer-end-mark buffer))
+		       
+		     (with-slots (input-line input-line-position) stream
+		       (setf input-line-position 0
+			     input-line (copy-seq string))))
+		   (buffer-end point buffer))
+		 (f-o stream))))
+	    (t (climish::handle-character-input window #\Newline (or p 1))))
       (if prefix
           (insert-string buffer point prefix)
           (funcall (hi::value buffer indent-function) buffer point)))

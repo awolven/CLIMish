@@ -128,7 +128,9 @@
 ;;;
 (defun variable-value (name &optional (kind :current) where)
   "Return the value of the Hemlock variable given."
-  (variable-object-value (get-variable-object name kind where)))
+  (let ((obj (get-variable-object name kind where)))
+    (when obj
+      (variable-object-value obj))))
 
 ;;; %VALUE  --  Internal
 ;;;

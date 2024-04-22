@@ -14,6 +14,19 @@
 
 (in-package :hemlock)
 
+(defvar *lisp-listener-history* (make-array 100 :fill-pointer 0 :adjustable t))
+
+(defun add-to-lisp-listener-history (string)
+  (let ((length (length *lisp-listener-history*)))
+    (loop for i from (1- length) downto 0
+	  do (let ((item (aref *lisp-listener-history* i)))
+	       (when (string= item string)
+		 (setq *last-lisp-listener-history-index* nil)
+		 (return-from add-to-lisp-listener-history t)))
+	  finally (vector-push-extend string *lisp-listener-history*)
+		  (setq *last-lisp-listener-history-index* nil)
+		  (return t))))
+
 (defun invoke-a-restart ()
   (let ((restarts (butlast (compute-restarts))))
 
@@ -49,6 +62,9 @@
 		(princ (or (first (package-nicknames *package*)) (package-name *package*)) stream)
 		(princ "> " stream)
 		(finish-output)
+		(let ((buffer (hemlock::hemlock-character-io-stream-buffer stream)))
+		  (setf (variable-value 'hemlock::prompt-mark :buffer buffer)
+			(copy-mark (buffer-point buffer) :temporary)))
 		(restart-case
                     (let ()
                       (tagbody
@@ -72,6 +88,73 @@
                               (format stream "Return to the top level."))
                     (values nil t))))))))))
 
+(defvar *last-lisp-listener-history-index* nil)
+
+(defcommand yank-from-lisp-listener-history (window p)
+  (:pretty-name "Yank From Lisp Listener History")
+  (:documentation "Yank From Lisp Listener History")
+  (:help-string "Yank From Lisp Listener History")
+  (:applicability (let ((focused (climish::focused-window climish::application-frame)))
+		    (and focused
+			 (let ((buffer (window-buffer focused)))
+			   (and buffer
+				(buffer-minor-mode buffer :lisp-listener))))))
+  (:preparation (climish::hemlock-arguments climish::application-frame)))
+
+(defcommand yank-next-from-lisp-listener-history (window p)
+  (:pretty-name "Yank Next From Lisp Listener History")
+  (:documentation "Yank Next From Lisp Listener History")
+  (:help-string "Yank Next From Lisp Listener History")
+  (:applicability (let ((focused (climish::focused-window climish::application-frame)))
+		    (and focused
+			 (let ((buffer (window-buffer focused)))
+			   (and buffer
+				(buffer-minor-mode buffer :lisp-listener))))))
+  (:preparation (climish::hemlock-arguments climish::application-frame)))
+
+(defmethod yank-next-from-lisp-listener-history (window p)
+  (yank-from-lisp-listener-history window t))
+
+(defmethod yank-from-lisp-listener-history (window p)
+  (when (> (length *lisp-listener-history*) 0)
+    (let* ((buffer (window-buffer window))
+	   (prompt (variable-value 'hemlock::prompt-mark :buffer buffer)))
+      (flet ((reinit ()
+	       (if *last-lisp-listener-history-index*
+		   (if p
+		       (if (= *last-lisp-listener-history-index* (1- (length *lisp-listener-history*)))
+			   (setq *last-lisp-listener-history-index* 0)
+			   (setq *last-lisp-listener-history-index* (1+ *last-lisp-listener-history-index*)))
+		       (if (zerop *last-lisp-listener-history-index*)
+			   (setq *last-lisp-listener-history-index* (1- (length *lisp-listener-history*)))
+			   (setq *last-lisp-listener-history-index* (1- *last-lisp-listener-history-index*))))
+		   (if p
+		       (setq *last-lisp-listener-history-index* 0)
+		       (setq *last-lisp-listener-history-index* (1- (length *lisp-listener-history*)))))))
+	
+	(cond ((mark= prompt (buffer-point buffer))
+	       (reinit)
+	       (insert-string buffer (buffer-point buffer) (aref *lisp-listener-history*
+								 *last-lisp-listener-history-index*))
+	       (update-window-image window)
+	       (unless (displayed-p (buffer-point buffer) window)
+		 (hi::bottom-window-on-mark window (buffer-point buffer)))
+	       (climish::redraw-buffer window))
+		   
+	      ((mark> (buffer-point buffer) prompt)
+	       (ignore-errors
+		(delete-region buffer (region prompt (buffer-point buffer))))
+	       (reinit)
+	       (insert-string buffer (buffer-point buffer) (aref *lisp-listener-history*
+								 *last-lisp-listener-history-index*))
+	       (update-window-image window)
+	       (unless (displayed-p (buffer-point buffer) window)
+		 (hi::bottom-window-on-mark window (buffer-point buffer)))
+	       (climish::redraw-buffer window)))))))
+	      
+	       
+	     
+    
 
 
 
@@ -104,9 +187,14 @@
 					     :name "Lisp Listener")))
 		(defhvar "Lisp Listener Thread" "Lisp Listener Thread" :buffer buffer
 		  :value thread)
-		(add-hook buffer hemlock::delete-buffer-hook #'(lambda (buffer)
-								 (when (buffer-minor-mode buffer :lisp-listener)
-								   (bt:destroy-thread (hemlock::variable-value 'hemlock::lisp-listener-thread :buffer buffer)))))
+		(defhvar "Prompt Mark" "Prompt Mark" :buffer buffer
+		  :value nil)
+		(add-hook buffer hemlock::delete-buffer-hook
+			  #'(lambda (buffer)
+			      (when (buffer-minor-mode buffer :lisp-listener)
+				(let ((thread (hemlock::variable-value 'hemlock::lisp-listener-thread :buffer buffer)))
+				  (when (and thread (bt:thread-alive-p thread))
+				    (bt:destroy-thread thread))))))
 		(climish::focus-window w)
 	    
 		(values))))))))
@@ -128,10 +216,16 @@
 	((eq next w))
       (is-named? next))))
 
-(defhcommand interrupt-lisp-command (window p)
+(defcommand interrupt-lisp-command (window p)
   (:pretty-name "Interrupt Lisp")
   (:documentation "Interrupt a running Lisp Listener Thread")
-  (:help-string "Interrupt a running Lisp Listener Thread"))
+  (:help-string "Interrupt a running Lisp Listener Thread")
+  (:applicability (let ((focused (climish::focused-window climish::application-frame)))
+		    (and focused
+			 (let ((buffer (window-buffer focused)))
+			   (and buffer
+				(buffer-minor-mode buffer :lisp-listener))))))
+  (:preparation (climish::hemlock-arguments climish::application-frame)))
 
 (defmethod interrupt-lisp-command (window p)
   (declare (ignore p))

@@ -400,8 +400,9 @@
              (setf (last-command-type) :unkill))
             (t (editor-error)))
       (deactivate-region buffer))
-    ;; displayed-p is giving a poor result here, so we're not going to check
-    (hi::bottom-window-on-mark window point)
+    (update-window-image window)
+    (unless (displayed-p point window)
+      (hi::bottom-window-on-mark window point))
     (climish:redraw-buffer window)))
 ;;;
 (push :unkill *ephemerally-active-command-types*)
