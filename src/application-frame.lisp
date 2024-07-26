@@ -503,7 +503,7 @@
 		      ((hash-table-p result)
 		       (push result table-chain)
 		       (GO GET))
-				   
+
 		      (t (return-from read-frame-command result))))))))
 
 (defun start-command-loop (application-frame)

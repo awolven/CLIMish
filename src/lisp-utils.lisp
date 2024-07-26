@@ -10,6 +10,32 @@
   (make-symbol (format nil "~{~A-~}~D" parts (incf *gensymbol*))))
 )
 
+(defun component-present-p (value)
+  (and value (not (eql value :unspecific))))
+
+(defun directory-pathname-p (pathspec)
+  "Returns NIL if PATHSPEC (a pathname designator) does not
+designate a directory, PATHSPEC otherwise.  It is irrelevant
+whether file or directory designated by PATHSPEC does actually
+exist."
+  (and (not (component-present-p (pathname-name pathspec)))
+       (not (component-present-p (pathname-type pathspec)))
+       pathspec))
+
+(defun pathname-as-file (pathspec)
+  "Converts the non-wild pathname designator PATHSPEC to file form."
+  (let ((pathname (pathname pathspec)))
+    (when (wild-pathname-p pathname)
+      (error "Can't reliably convert wild pathnames."))
+    (if (directory-pathname-p pathspec)
+        (let* ((directory (pathname-directory pathname))
+               (name-and-type (pathname (first (last directory)))))
+          (make-pathname :directory (butlast directory)
+                         :name (pathname-name name-and-type)
+                         :type (pathname-type name-and-type)
+                         :defaults pathname))
+        pathname)))
+
 (defmacro define-group (name type &body body)
   (declare (ignore name type))
   `(progn ,@body))

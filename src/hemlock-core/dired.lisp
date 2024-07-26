@@ -598,7 +598,7 @@
       (funcall *error-function* "Couldn't stat file ~S failed: ~A."
                ses-name dev-or-err))
     mtime))
-#-(or cmu scl ccl)
+#-(or cmu scl ccl allegro)
 (defun get-write-date (ses-name)
   (sb-posix::stat-mtime
    (or (sb-posix::stat ses-name)

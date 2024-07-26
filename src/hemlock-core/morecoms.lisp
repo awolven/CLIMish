@@ -631,6 +631,7 @@
   (when *generic-pointer-up-fun*
     (funcall *generic-pointer-up-fun*)))
 
+#+NOOO
 (climish::define-everywhere-command generic-pointer-move-command (window p)
   (:pretty-name "Generic Pointer Move")
   (:documentation
@@ -643,10 +644,12 @@
   (:help-string
    "Invoke whatever is on *generic-pointer-move-fun*."))
 
+#+NOOOO
 (defmethod generic-pointer-move-command (window p)
   (declare (ignore window p))
   (when *generic-pointer-move-fun*
     (funcall *generic-pointer-move-fun*)))
+
 
 (climish::define-everywhere-command point-to-here-command (window p)
   (:pretty-name "Point to Here")
@@ -700,6 +703,7 @@
                 event
                 (list :point point))))))
 
+#+NIL
 (defmethod hemlock::point-to-here-command ((window context-menu) p)
   (declare (ignore p))
   (let* ((frame (application-frame window))

@@ -201,8 +201,7 @@
 				     *pointer-button-press-handler*)
 				 #+NOTYET #+NOTYET
 			       :timeout (and click-only timeout)))
-	  (print event)
-	  (force-output)
+
 	  (cond ((typep event 'clim:pointer-motion-event)
 		   ;; do nothing
 		 )

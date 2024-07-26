@@ -55,12 +55,13 @@
     (let ((.form. nil))
 	       (in-lisp buffer
 		 (let ((hi::*debug-on-error* t)
-		       (#+CCL *debugger-hook* #+sbcl sb-ext:*invoke-debugger-hook*
-			      #'(lambda (condition hook-value)
-					    (climish::my-debugger
-					     window
-					     buffer
-					     condition hook-value))))
+		       (#+(or CCL ALLEGRO) *debugger-hook*
+			  #+sbcl sb-ext:*invoke-debugger-hook*
+			  #'(lambda (condition hook-value)
+			      (climish::my-debugger
+			       window
+			       buffer
+			       condition hook-value))))
 		   (progn
 		     (princ condition *debug-io*)
 		     #+sbcl

@@ -592,7 +592,7 @@
 
 (defpackage :hemlock-internals
   (:use :common-lisp :hemlock-interface
-        #-(or cmu scl ccl sbcl) :command-line-arguments
+        #-(or cmu scl ccl sbcl allegro) :command-line-arguments
         :iterate)
   (:nicknames :hi)
   (:shadow #:char-code-limit #:show-option-help)

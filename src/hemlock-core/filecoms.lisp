@@ -1014,7 +1014,7 @@
   ;; TODO: handle patterns in the file, type, and version.
   (let ((list ()))
     (loop for file in (directory (concatenate 'string directory "*.*"))
-          do (push (namestring (pathname-as-file file)) list))
+          do (push (namestring (climish::pathname-as-file file)) list))
     (sort list #'string<)))
 
 #-(or cmu scl)
@@ -1215,7 +1215,7 @@
 
 
 
-#-(or cmu scl ccl)
+#-(or cmu scl ccl allegro)
 (defun print-directory-verbose (pathname all return-list)
   (let* ((contents (%directory pathname all))
          (result nil)
@@ -1302,7 +1302,7 @@
     ;;
     ;; Get the data.
     (dolist (file result)
-      (let* ((name (namestring (pathname-as-file file)))
+      (let* ((name (namestring (climish::pathname-as-file file)))
              (length (length name))
              (end (if (and (plusp length)
                            (char= (schar name (1- length)) #\/))

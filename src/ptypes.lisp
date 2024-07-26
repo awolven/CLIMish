@@ -374,6 +374,7 @@
             record stream state))
 )
 
+(eval-when (:compile-toplevel :load-toplevel :execute)
 ;;; ONCE-ONLY does the same thing as it does in zetalisp.  I should have just
 ;;; lifted it from there but I am honest.  Not only that but this one is
 ;;; written in Common Lisp.  I feel a lot like bootstrapping, or maybe more
@@ -402,7 +403,7 @@
 		  ,@body)))
 	 `(let ,(mapcar #'list (reverse ,run-time-vars)
 			       (reverse ,run-time-vals))
-	    ,wrapped-body)))))
+	    ,wrapped-body))))))
 
 ;;; Decode a presentation type specifier into its name, parameters, and options
 ;;; Any of the three variables can be NIL meaning not to bother with that component
@@ -1062,8 +1063,11 @@
                      (make-instance 'presentation-type-class
 				    :direct-superclasses direct-superclasses
 				    :direct-slots nil))
+	       #+SBCL
 	       (setf (slot-value class 'sb-pcl::%class-precedence-list)
 		     (compute-class-precedence-list class))
+	       #+ALLEGRO
+	       (find-class-precedence-list class)
 
 	       
                ;; Workaround for apparent MCL bug that otherwise causes
@@ -1071,9 +1075,12 @@
                #+CCL-2 (setf (slot-value class 'ccl::slots) (cons nil (vector)))
                ;; If the class name couldn't be set while making the class, set it now
                #-(or Genera Cloe-Runtime Lucid aclpc CCL-2) (setf (class-name class) class-name)))
-            ((progn 
+            ((progn
+	       #+SBCL
 	       (setf (slot-value class 'sb-pcl::%class-precedence-list)
 		     (compute-class-precedence-list class))
+	       #+ALLEGRO
+	       (find-class-precedence-list class)
 	       (not (or (equal (class-direct-superclasses class) direct-superclasses)
                       ;; The above equal would suffice if it were not for the fact that when
                       ;; a CLOS class in the compile-file environment has a superclass in the
@@ -1087,6 +1094,7 @@
              ;; but only when CLOS and CLIM use the same class object.
              ;; When using different class objects, e.g. for built-in-classes, the
              ;; inheritance will necessarily be different since the metaclasses differ.
+	     #+SBCL
 	     (unless (or (typep (find-class name) 'sb-pcl::built-in-class)
 			 (typep (find-class name) 'sb-pcl::system-class))
 	       (warn "The direct supertypes of presentation type ~S, ~S, do not match the direct superclasses of ~S, ~S."
@@ -1176,6 +1184,7 @@
       (unless (compile-file-environment-p environment)
         (unless (equal new-inheritance old-inheritance)
           (unless (or (equal direct-superclasses old-direct-superclasses)
+		      #+SBCL
 		      (typep class 'sb-pcl::system-class))
 	    (reinitialize-instance class :direct-superclasses direct-superclasses))))
 
@@ -1760,9 +1769,12 @@
 (defun generate-map-over-presentation-type-supertypes-method-if-needed
        (name class function-var parameters-var options-var type-var
         &optional environment)
+  #+SBCL
   (setf (slot-value class 'sb-pcl::%class-precedence-list)
 	(compute-class-precedence-list class))
-  (let ((superclasses (cdr (class-precedence-list class))))
+  #+ALLEGRO
+  (find-class-precedence-list class)
+  (let ((superclasses (cdr (find-class-precedence-list class))))
     (multiple-value-bind (bindings alist)
         (generate-type-massagers class superclasses parameters-var options-var t environment)
       (unless (every #'(lambda (class)

@@ -1184,12 +1184,14 @@
 (defun highlight-completion-choice (continuation object stream)
   (funcall continuation object stream))
 
+#+NOTYET
 (defparameter *boolean-member-type*
               (expand-presentation-type-abbreviation `(member-alist ,*boolean-member-alist*)));;;; Compound Presentation Types
 
 (define-presentation-type boolean ()
   :inherit-from t)                        ;enforce CL definition
 
+#+NOTYET
 (define-presentation-method accept ((type boolean) stream view &rest options)
   (declare (dynamic-extent options))
   (values

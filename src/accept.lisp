@@ -399,7 +399,7 @@
 			;; doesn't come back to the window.  Furthermore, 
 			;; trying to read the gesture goes into an infinite loop,
 			;; because there's nothing there to read.		
-			#+mswindows
+			#+(and mswindows nil)
 			(when (eql (if (listp the-type)
 				       (first the-type)
 				       the-type) 
