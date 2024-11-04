@@ -92,7 +92,7 @@
     (quat 0 0 0 1))
    (scene :defaulting))
 
-  :default-initargs (scene (krma:default-medium))
+  :default-initargs (scene (krma:default-scene))
   
   :attributes
   ((rotation-matrix
@@ -123,12 +123,12 @@
 				     (typep child 'node-mixin))
 				 (the children)))))
 
-(defmethod add-to-scene (node &optional (scene (krma:default-medium)))
+(defmethod add-to-scene (node &optional (scene (krma:default-scene)))
   (push node (krma::node-children scene))
   (rm-redraw-node-recursively node)
   (values))  
 
-(defun remove-from-scene (node &optional (scene (krma:default-medium)))
+(defun remove-from-scene (node &optional (scene (krma:default-scene)))
   (rm-erase-node-recursively node)
   (setf (krma::node-children scene)
 	(remove node (krma::node-children scene)))
@@ -156,7 +156,7 @@
 (defmethod initialize-instance ((self group-owner-mixin) &rest initargs)
   (declare (ignore initargs))
   (call-next-method)
-  (krma::medium-ensure-group (the scene) (the group)))
+  (krma::scene-ensure-group (the scene) (the group)))
 
 (defmethod node-parent ((self node-mixin))
   (the superior))
@@ -172,7 +172,7 @@
 
 (defmethod rm-draw-node :after ((self node-mixin))
   (if (typep self 'group-owner-mixin)
-      (group-set-model-matrix (the scene) (the group) (the global-matrix))
+      (group-set-transform (the scene) (the group) (the global-matrix))
       (node-set-model-matrix self))
   (values))
 
@@ -182,7 +182,7 @@
   (values))
 
 (defmethod krma-set-model-matrix-recursively ((self group-owner-mixin))
-  (group-set-model-matrix (the scene) (the group) (the global-matrix))
+  (group-set-transform (the scene) (the group) (the global-matrix))
   (mapcar #'krma-set-model-matrix-recursively (the node-children)))  
 
 (defmethod adhoc::unbind-this-variable :before ((variable adhoc::component-variable))
@@ -219,7 +219,7 @@
 (defun adhoc::adhoc-redefinition-hook ()
   #+NIL
   (when (boundp 'krma::*media*)
-    (loop for node in (krma::node-children (krma:default-medium))
+    (loop for node in (krma::node-children (krma:default-scene))
 	  do (rm-redraw-node-recursively node))))
 
 (defun touch-instance-recursively (self)

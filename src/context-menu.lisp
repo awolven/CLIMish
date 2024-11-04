@@ -132,10 +132,10 @@
 
 (defmethod rm-draw-node ((self button-mixin))
   (when (the command)
-  (medium-add-filled-2d-rectangle-list-primitive
+  (scene-add-filled-2d-rectangle-list-primitive
    (the scene) (the group) nil (the color)
    (list (the x0) (the y0) (the x1) (the y1))
    (the object-id)
    (the elevation))
-  (medium-add-text (the scene) (the group) (the style current-font) #x000000ff (the x0) (the y0) (the title) (the object-id) (1+ (the elevation)))))
+  (scene-add-text (the scene) (the group) (the style current-font) #x000000ff (the x0) (the y0) (the title) (the object-id) (1+ (the elevation)))))
   

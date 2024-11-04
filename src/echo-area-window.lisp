@@ -28,7 +28,7 @@
 (defobject echo-area-window (echo-area-window-mixin))
 
 (defun make-echo-area-window (&key (frame (main-window clim:*default-frame-manager*))
-				(scene (krma:default-medium)))
+				(scene (krma:default-scene)))
   (setq hi::*echo-area-stream*
 	(hemlock::make-hemlock-interactive-character-io-stream
 	 hi::*echo-area-buffer*))

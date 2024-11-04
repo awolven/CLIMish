@@ -210,7 +210,7 @@
   (unless (the window iconified?)
     (let ((scene (the scene)))
       (push
-       (medium-add-filled-2d-rectangle-list-primitive
+       (scene-add-filled-2d-rectangle-list-primitive
 	scene (the group) nil (the color)
 	(list (the x0) (the y0) (the x1) (the y1))
 	(the object-id)
@@ -221,7 +221,7 @@
   (unless (the window iconified?)
     (let ((scene (the scene)))
       (push
-       (medium-add-filled-2d-rectangle-list-primitive
+       (scene-add-filled-2d-rectangle-list-primitive
 	scene (the group) nil (the color)
 	(list (the x0) (the y0) (the x1) (the y1))
 	(if (typep (the root (resize-borders (the index))) 'null-object)
@@ -325,7 +325,7 @@
 	(let ((title-bar-color (if focused? (send style title-bg-active-color) (send style title-bg-collapsed-color))))
 	  ;; draw just title bar
 	  (push
-	   (medium-add-filled-2d-rectangle-list-primitive
+	   (scene-add-filled-2d-rectangle-list-primitive
 	    scene group nil title-bar-color
 	    (list (the x0) (the y0) (the x1) (the y1))
 	    (the object-id)
@@ -334,7 +334,7 @@
     
 	(let ((title-bar-color (if focused? (send style title-bg-active-color) (send style title-bg-color))))
 	  (push
-	   (medium-add-filled-2d-rectangle-list-primitive
+	   (scene-add-filled-2d-rectangle-list-primitive
 	    scene group nil title-bar-color
 	    (list (the x0) (the y0) (the x1) (the y1))
 	    (the object-id)
@@ -345,7 +345,7 @@
     (let ((layout-r-x0 (+ (the x0) (send style frame-padding-x)))
 	  (layout-r-y0 (the y0)))
 
-      (medium-add-text-primitive
+      (scene-add-text-primitive
        scene group nil (send style current-font) (send style text-color) layout-r-x0 layout-r-y0
        (send window title)
        (the object-id)
@@ -385,7 +385,7 @@
 
   :inputs
   ((parent (main-window clim:*default-frame-manager*))
-   (scene (krma:default-medium))
+   (scene (krma:default-scene))
    (style *style*)
    (color (the style window-bg-color))
    (font (the style current-font))
@@ -680,7 +680,7 @@
 	  (when (the title-bar transparency-button opaque?)
 	    (setf (aref color 3) 1.0f0))))
       ;; draw window background
-      (medium-add-filled-2d-rectangle-list-primitive
+      (scene-add-filled-2d-rectangle-list-primitive
        scene group nil color
        (list (the x0) (if (the title-bar?) (the title-bar y1) (the y0)) (the x1) (the y1))
        (the object-id)
@@ -728,7 +728,7 @@
 			    (+ size-avail (* 2.0f0 (elt (window-padding window) 1))))))
     (multiple-value-bind (bb-x0 bb-y0 bb-x1 bb-y1)
 	(get-window-scrollbar-rect window axis)
-      (medium-add-scrollbar scene group bb-x0 bb-y0 bb-x1 bb-y1
+      (scene-add-scrollbar scene group bb-x0 bb-y0 bb-x1 bb-y1
 			   window
 			   axis
 			   (if (eq axis :horizontal)
@@ -738,20 +738,20 @@
 			   :style style))))
 
 #+NOTYET
-(defun medium-add-scrollbar (scene group bb-x0 bb-y0 bb-x1 bb-y1 window axis scroll-amount size-avail size-contents &key (style *style*))
+(defun scene-add-scrollbar (scene group bb-x0 bb-y0 bb-x1 bb-y1 window axis scroll-amount size-avail size-contents &key (style *style*))
   (let ((frame-width (- bb-x1 bb-x0))
 	(frame-height (- bb-y1 bb-y0))
 	(font-size (font-size (current-font style))))
 
     (unless (and (plusp frame-width) (plusp frame-height))
       (warn "invalid scrollbar size: ~S X ~S" frame-width frame-height)
-      (return-from medium-add-scrollbar-1 (values)))
+      (return-from scene-add-scrollbar-1 (values)))
 
     (let ((alpha 1.0f0))
       (when (and (eq axis :vertical) (< frame-height (+ font-size (* 2.0f0 (frame-padding-y style)))))
 	(setq alpha (saturate (/ (- frame-height font-size) (* 2.0f0 (frame-padding-y style)))))))
     (unless (plusp alpha)
-      (return-from medium-add-scrollbar-1 (values)))
+      (return-from scene-add-scrollbar-1 (values)))
 
     (let ((allow-interaction? )))))
 								     
@@ -769,7 +769,7 @@
 	 (elevation (the elevation))
 	 (hovered? (the hovered?)))
 
-    (push (medium-add-filled-2d-circle-primitive scene group nil (if hovered? (send style button-hovered-color) 0)
+    (push (scene-add-filled-2d-circle-primitive scene group nil (if hovered? (send style button-hovered-color) 0)
 						(the center-x) (the center-y) (max 2.0f0 (1+ (* 0.5f0 font-size)))
 						12
 						object-id
@@ -777,7 +777,7 @@
 	  (the primitive-handles))
 
     (let ((cross-extent (the cross-extent)))
-      (push (medium-add-2d-line-primitive scene group nil 2.0f0 cross-color
+      (push (scene-add-2d-line-primitive scene group nil 2.0f0 cross-color
 					 (+ (the center-x) cross-extent)
 					 (+ (the center-y) cross-extent)
 					 (- (the center-x) cross-extent)
@@ -786,7 +786,7 @@
 					 (1+ elevation))
 	    (the primitive-handles))
     
-      (push (medium-add-2d-line-primitive scene group nil 2.0f0 cross-color
+      (push (scene-add-2d-line-primitive scene group nil 2.0f0 cross-color
 					 (+ (the center-x) cross-extent)
 					 (- (the center-y) cross-extent)
 					 (- (the center-x) cross-extent)
@@ -807,7 +807,7 @@
 	 (elevation (the elevation))
 	 (hovered? (the hovered?)))
 
-    (push (medium-add-filled-2d-circle-primitive scene group nil (if hovered? (send style button-hovered-color) 0)
+    (push (scene-add-filled-2d-circle-primitive scene group nil (if hovered? (send style button-hovered-color) 0)
 						(the center-x) (the center-y) (max 2.0f0 (1+ (* 0.5f0 font-size)))
 						12
 						object-id
@@ -816,7 +816,7 @@
 
     (let ((side-extent (max 2.0f0 (1+ (* 0.33f0 font-size))))
 	  (side-extent2 (max 2.0f0 (1+ (* 0.22f0 font-size)))))
-      (push (medium-add-2d-rectangle-primitive scene group nil 2.0f0 cross-color
+      (push (scene-add-2d-rectangle-primitive scene group nil 2.0f0 cross-color
 					 (- (the center-x) side-extent)
 					 (- (the center-y) side-extent)
 					 (+ (the center-x) side-extent)
@@ -826,7 +826,7 @@
 	    (the primitive-handles))
 
       (when (the opaque?)
-	(push (medium-add-filled-2d-rectangle-list-primitive
+	(push (scene-add-filled-2d-rectangle-list-primitive
 	       scene group nil cross-color
 	       (list (- (the center-x) side-extent2)
 		     (- (the center-y) side-extent2)
@@ -838,7 +838,7 @@
 
       
       #+NIL
-      (push (medium-add-2d-line-primitive scene group nil 2.0f0 cross-color
+      (push (scene-add-2d-line-primitive scene group nil 2.0f0 cross-color
 					 (- (the center-x) (max 2.0f0 (1+ (* 0.5f0 font-size))))
 					 (- (the center-y) (max 2.0f0 (1+ (* 0.5f0 font-size))))
 					 (+ (the center-x) (max 2.0f0 (1+ (* 0.5f0 font-size))))
@@ -849,7 +849,7 @@
 
     (values)))
 
-(defun medium-add-arrow (scene group pos-x pos-y color dir scale object-id elevation &key (style *style*))
+(defun scene-add-arrow (scene group pos-x pos-y color dir scale object-id elevation &key (style *style*))
   (let* ((h (font-size (send style current-font)))
 	 (r (* h 0.40f0 scale))
 	 (center-x (+ pos-x (* h 0.50f0)))
@@ -887,7 +887,7 @@
 	     c-x (*  0.866 r)
 	     c-y (* -0.750 r)))) ;; down
 
-    (medium-add-filled-2d-triangle-list-primitive
+    (scene-add-filled-2d-triangle-list-primitive
      scene group nil color
      (list (+ center-x a-x) (+ center-y a-y)
 	   (+ center-x b-x) (+ center-y b-y)
@@ -895,7 +895,7 @@
      object-id
      elevation)))
 
-(defun medium-add-arrow-pointing-at (scene group pos-x pos-y half-size-x half-size-y color dir &optional (object-id 0) (elevation 0))
+(defun scene-add-arrow-pointing-at (scene group pos-x pos-y half-size-x half-size-y color dir &optional (object-id 0) (elevation 0))
   (let ((a-x)
 	(a-y)
 	(b-x)
@@ -925,7 +925,7 @@
        (setq b-x (+ pos-x half-size-x))
        (setq b-y (- pos-y half-size-y))))
 
-    (medium-add-filled-2d-triangle-list-primitive
+    (scene-add-filled-2d-triangle-list-primitive
      scene group nil color
      (list a-x a-y
 	   b-x b-y
@@ -933,9 +933,9 @@
      object-id
      elevation)))    
 
-(defun medium-add-arrow-dock-menu (scene group p-min-x p-min-y size color object-id elevation &key (style *style*))
+(defun scene-add-arrow-dock-menu (scene group p-min-x p-min-y size color object-id elevation &key (style *style*))
   (declare (ignorable style))
-  (medium-add-filled-2d-rectangle-list-primitive
+  (scene-add-filled-2d-rectangle-list-primitive
    scene group nil color
    (list (+ p-min-x (* size 0.10f0))
 	 (+ p-min-y (* size 0.15f0))
@@ -943,7 +943,7 @@
 	 (+ p-min-y (* size 0.30f0)))
    object-id
    elevation)
-  (medium-add-arrow-pointing-at scene group
+  (scene-add-arrow-pointing-at scene group
 			       (+ p-min-x (* size 0.40f0))
 			       (+ p-min-y (* size 0.85f0))
 			       (* size 0.30f0)
@@ -966,7 +966,7 @@
 	 (window (the window))
 	 (dock-node? nil))
 
-    (push (medium-add-filled-2d-circle-primitive scene group nil (if hovered? (send style button-hovered-color) 0)
+    (push (scene-add-filled-2d-circle-primitive scene group nil (if hovered? (send style button-hovered-color) 0)
 						(the center-x) (the center-y) (max 2.0f0 (1+ (* 0.5f0 font-size)))
 						12
 						object-id
@@ -974,7 +974,7 @@
 	  (the primitive-handles))
 
     (if dock-node?
-	(push (medium-add-arrow-dock-menu scene group
+	(push (scene-add-arrow-dock-menu scene group
 					 (+ (the x) (send style frame-padding-x))
 					 (+ (the y) (send style frame-padding-y))
 					 (font-size (send style current-font))
@@ -983,7 +983,7 @@
 					 (1+ elevation)
 					 :style style)
 	      (the primitive-handles))
-	(push (medium-add-arrow scene group
+	(push (scene-add-arrow scene group
 			       (+ (the x) (send style frame-padding-x))
 			       (+ (the y) (send style frame-padding-y))
 			       text-col (if (send window iconified?) :right :down)
@@ -1000,7 +1000,7 @@
 	(style (the style))
 	(group (send menu-bar group))
 	(window (send menu-bar window)))
-    (medium-add-filled-2d-rectangle-list-primitive
+    (scene-add-filled-2d-rectangle-list-primitive
      scene group nil (menu-bar-bg-color style)
      (list (+ (box-x0 menu-bar) (send window border-size))
 	   (box-y0 menu-bar)
@@ -1010,7 +1010,7 @@
      (send menu-bar elevation))
     (when (and (plusp (frame-border-size style))
 	       (> (box-y1 menu-bar) (+ (box-y window) (box-height window))))
-      (medium-add-2d-line-primitive scene group nil (frame-border-size style) (border-color style)
+      (scene-add-2d-line-primitive scene group nil (frame-border-size style) (border-color style)
 			 (box-x0 menu-bar) (box-y1 menu-bar)
 			 (box-x1 menu-bar) (box-y1 menu-bar)
 			 (send menu-bar object-id)
@@ -1032,7 +1032,7 @@
 (defobject homemade-window (homemade-window-mixin))
 
 (defun make-test-window (&optional (parent (main-window clim:*default-frame-manager*))
-				   (scene (krma:default-medium)))
+				   (scene (krma:default-scene)))
   
   (let ((w (make-instance 'homemade-window
 			  'origin (vec3 25 50 0)

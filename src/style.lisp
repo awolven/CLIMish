@@ -4,11 +4,11 @@
   :inputs
   ((display)
    (monitor)
-   (monitor-width-mm (clui::monitor-width-mm (the monitor)))
-   (monitor-height-mm (clui::monitor-height-mm (the monitor)))
-   (monitor-video-mode (clui::get-monitor-video-mode (the monitor)))
-   (monitor-width-px (clui::video-mode-width (the monitor-video-mode)))
-   (monitor-height-px (clui::video-mode-height (the monitor-video-mode)))
+   (monitor-width-mm (if (the monitor) (clui::monitor-width-mm (the monitor)) 320))
+   (monitor-height-mm (if (the monitor) (clui::monitor-height-mm (the monitor)) 180))
+   (monitor-video-mode (when (the monitor) (clui::get-monitor-video-mode (the monitor))))
+   (monitor-width-px (if (the monitor-video-mode) (clui::video-mode-width (the monitor-video-mode)) 1024))
+   (monitor-height-px (if (the monitor-video-mode) (clui::video-mode-height (the monitor-video-mode)) 768))
    (px-per-mm-width (/ (the monitor-width-px) (the monitor-width-mm)))
    (px-per-mm-height (/ (the monitor-height-px) (the monitor-height-mm)))
    

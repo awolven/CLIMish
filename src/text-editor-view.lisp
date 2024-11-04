@@ -95,7 +95,7 @@
 			       (space-width (slot-value font-data '3b-bmfont-common::space-size))
 			       (xval (+ (* x space-width) ox))
 			       (yval (+ (* y 1.2 font-size) oy)))
-			  (medium-draw-filled-2d-rectangle-list
+			  (scene-draw-filled-2d-rectangle-list
 			   scene :cursor #xffff0077
 			   (list xval yval (+ xval space-width) (+ yval (* 1.2 font-size)))
 			   0 (1+ (the buffer-view text elevation)))))))))))))))
@@ -432,7 +432,7 @@
 					(let ((ypos (hi::dis-line-position (car dis-line-m0))))
 
 					  (flet ((draw (y x0 x1)
-						   (medium-draw-filled-2d-rectangle-list
+						   (scene-draw-filled-2d-rectangle-list
 						    scene :cursor #xff770033
 						    (list (+ (* x0 space-width) ox) (+ (* y 1.2 font-size) oy)
 							  (+ (* x1 space-width) ox) (+ (* (1+ y) 1.2 font-size) oy))
@@ -563,7 +563,7 @@
 			(buffer-view-add-string last position font text-color-key chars last x)
 			(setq last x
 			      text-color-key (hi::font-change-font change)))))))))
-	  (krma::group-set-model-matrix-1 draw-data group gm)
+	  (krma::group-set-transform-1 draw-data group gm)
 	  (values))))))))
 
 (defmethod handle-character-input ((window text-editor-view-mixin) char p)
@@ -619,9 +619,9 @@
 	     (start-x (clim:pointer-event-x start-event))
 	     (start-y (clim:pointer-event-y start-event))
 	     (monitor (window-monitor (application-frame self)))
-	     (monitor-width-mm (clui::monitor-width-mm monitor))
-	     (video-mode (clui::get-monitor-video-mode monitor)) 
-	     (monitor-width-px (clui::video-mode-width video-mode))
+	     (monitor-width-mm (if monitor (clui::monitor-width-mm monitor) 300))
+	     (video-mode (when monitor (clui::get-monitor-video-mode monitor)))
+	     (monitor-width-px (if video-mode (clui::video-mode-width video-mode) 1024))
 	     (px-per-mm (/ monitor-width-px monitor-width-mm))
 	     (curr-x (clim:pointer-event-x event))
 	     (curr-y (clim:pointer-event-y event))
