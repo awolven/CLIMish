@@ -562,7 +562,7 @@
 	(draw-select-box window scene))))
 
 (defun draw-select-box (window scene)
-  (medium-draw-filled-2d-rectangle-list
+  (scene-draw-filled-2d-rectangle-list
    scene :select-box #xff00ff33
    (list (krma::krma-select-box-x0 window) (krma::krma-select-box-y0 window)
 	 (krma::krma-select-box-x1 window) (krma::krma-select-box-y1 window))	   
