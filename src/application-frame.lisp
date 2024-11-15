@@ -99,8 +99,11 @@
   ;; if window-framebuffer-size is already correct for application-frame
   ;; then bashing this attribute will cause the echo area size and position to recompute
   (when hi::*echo-area-window*
-    (setf (send hi::*echo-area-window* parent) window)
-    (rm-redraw-node-recursively hi::*echo-area-window*))
+    (let ((self hi::*echo-area-window*))
+      (rm-erase-node-recursively self)
+      (setf (the parent) window)
+      (resize-text-editor-window-before self)
+      (adhoc-scene-graph::rm-draw-node-recursively self)))
   (values))
 
 (defmethod clim:handle-event ((window application-frame-mixin) (event clui::window-monitor-switched-event-mixin))
@@ -112,7 +115,7 @@
     (mapcar #'(lambda (window)
 		(when (typep window 'hi::window)
 		  (invalidate-hemlock-window-size window))
-		(rm-redraw-node-recursively window))
+		#+NIL(rm-redraw-node-recursively window))
 	    windows)))
   (values))
 

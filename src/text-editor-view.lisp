@@ -7,12 +7,19 @@
 
 (defobject buffer-view (group-mixin view-mixin)
   :inputs
-  (font)
+  ((font :visual))
+
+  :attributes
+  ((elevation (+ 0.1 (the superior elevation))))
   
   :components
-  ((text :type 'buffer-view-text)))
+  ((text :type 'buffer-view-text
+	 :eager t)))
 
-(defobject buffer-view-text (group-owner-view-mixin))
+(defobject buffer-view-text (group-owner-view-mixin)
+  :attributes
+  ((iconified? (the window iconified?))
+   (elevation (+ 0.1 (the superior elevation)))))
 
 (defobject text-editor-view-mixin (view-mixin textual-view hi::window)
   :metaclass text-editor-view-class
@@ -23,23 +30,28 @@
 
   :components
   ((buffer-view :type 'buffer-view
+		:eager t
 		font (the font)
 		x (+ (the client-rect x) (the style frame-padding-x))
 		y (+ (the client-rect y) (the style frame-padding-y))
 		width (- (the client-rect width) (* 2 (the style frame-padding-x)))
 		height (- (the client-rect height) (* 2 (the style frame-padding-y))))))
 
-(defmethod resize-window :before ((view text-editor-view-mixin) new-x new-y new-width new-height)
-  (declare (ignore new-x new-y new-height new-width))
+(defun resize-text-editor-window-before (view)
   (let ((font-family (send view font)))
     (setf (hi::window-width view) (floor (send view client-rect width) (slot-value (slot-value font-family 'krma::data) '3b-bmfont-common::space-size))
 	  (hi::window-height view) (floor (send view client-rect height) (* 1.2 (font-size font-family))))
-
+    
     (invalidate-hemlock-window-size view)
     
     (hi::update-window-image view)
     
     (values)))
+  
+
+(defmethod resize-window :before ((view text-editor-view-mixin) new-x new-y new-width new-height)
+  (declare (ignore new-x new-y new-height new-width))
+  (resize-text-editor-window-before view))
 
 (defun invalidate-hemlock-window-size (view)
   (bt:with-recursive-lock-held ((hi::window-lock view))
@@ -59,24 +71,33 @@
 
 	
 
-(defmethod initialize-instance :after ((view text-editor-view-mixin) &rest initargs
-				       &key (font-family (send view style current-font))
-					 (width-chars
-					  (floor (send view client-rect width) (slot-value (slot-value font-family 'krma::data) '3b-bmfont-common::space-size)))
-					 (height-lines
-					  (floor (send view client-rect height) (* 1.2 (font-size font-family))))
-					 &allow-other-keys)
+(defmethod initialize-instance ((view text-editor-view-mixin) &rest initargs
+				&key (font-family nil)
+				  (width-chars nil)
+				  (height-lines nil)
+				&allow-other-keys)
   (declare (ignore initargs))
 
+  (call-next-method)
+
+  (unless font-family
+    (setq font-family (send view style current-font)))
+
+  (unless width-chars
+    (setq width-chars (floor (send view client-rect width) (slot-value (slot-value font-family 'krma::data) '3b-bmfont-common::space-size))))
+
+  (unless height-lines
+    (setq height-lines (floor (send view client-rect height) (* 1.2 (font-size font-family)))))
+  
   (setf (hi::window-font-family view) font-family)
   (setf (hi::window-width view) width-chars)
   (setf (hi::window-height view) height-lines)
 
   (invalidate-hemlock-window-size view)
 
-  (hi::update-window-image view)
+  ;;(hi::update-window-image view)
   
-  (values))
+  view)
 
 (defun draw-cursor-closure-generator (window scene)
   #'(lambda ()
@@ -98,7 +119,8 @@
 			  (scene-draw-filled-2d-rectangle-list
 			   scene :cursor #xffff0077
 			   (list xval yval (+ xval space-width) (+ yval (* 1.2 font-size)))
-			   0 (1+ (the buffer-view text elevation)))))))))))))))
+			   0 (+ (the base-z)
+				(1+ (the buffer-view text elevation))))))))))))))))
 
 
 (defun cursorpos-to-mark (x y window)
@@ -436,7 +458,7 @@
 						    scene :cursor #xff770033
 						    (list (+ (* x0 space-width) ox) (+ (* y 1.2 font-size) oy)
 							  (+ (* x1 space-width) ox) (+ (* (1+ y) 1.2 font-size) oy))
-						    0 (1+ (the buffer-view text elevation)))))
+						    0 (+ (the base-z) (1+ (the buffer-view text elevation))))))
 
 					    (when (eql dis-line-m0 dis-line-m1)
 					      ;; it's just a partial line, draw and return
@@ -512,59 +534,66 @@
    (mod key 17))
    )
 
-(defmethod rm-redraw-node ((text buffer-view-text))
+
+(defmethod rm-erase-node ((text buffer-view-text))
+  ;;(when (send text iconified?)
+    (delete-group (send text scene) (send text group) nil));;)
+
+(defmethod rm-draw-node ((text buffer-view-text))
   (let ((window (send text window)))
     (let ((buffer (window-buffer window)))
-      (unless (string= "Random Typeout" (buffer-name buffer))
-    (unless (send window iconified?)
-      (let*((xp (send text superior x))
-	    (yp (send text superior y))
-	    (scene (send text scene))
-	    (group (send text group))
-	    (elevation (float (send text elevation)))
-	    (font (send window font))
-	    (font-size (font-size font))
-	    (font-data (font-data font))
-	    (space-width (slot-value font-data '3b-bmfont-common::space-size))
-	    (gm (send text global-matrix)))
-	(update-window-image window)	
-	(krma:rm-dispatch-to-render-thread (scene draw-data)
-	  (krma::delete-groups-1 draw-data (list group) nil)
-	  (when (slot-boundp window 'hi::the-sentinel)
-	    (let ((last-line (car (hi::window-last-line window)))
-		  (last-line-seen? nil))
-	      (do ((dis-lines (hi::window-first-line window) (cdr dis-lines)))
-		  ((or last-line-seen?
-		       (null dis-lines)
-		       (eq dis-lines (slot-value window 'hi::the-sentinel))))
-		(let* ((dl (car dis-lines))
-		       (chars (hi::dis-line-chars dl))
-		       (length (hi::dis-line-length dl))
-		       (position (hi::dis-line-position dl))
-		       (last 0)
-		       (text-color-key 0))
-		  (setq last-line-seen? (eq dl last-line))
-		  (flet ((buffer-view-add-string (x y font text-color-key string start end)
-			   (unless x (setq x 0))
-			   (unless y (setq y 0))
-			   (unless end (setq end length))
-			   (unless start (setq start 0))
-			   (when (< start end)
-			     (let* ((color (lookup-text-color (or text-color-key 0)))
-				    (xval (float (+ (* x space-width) xp)))
-				    (yval (float (+ (* y 1.2 font-size) -2 yp))))
-			       (krma::draw-data-add-text-primitive draw-data group nil font color
-							 xval yval (subseq string start end)
-							 0 elevation)))))
-		    (do ((change (hi::dis-line-font-changes dl) (hi::font-change-next change)))
-			((null change)
-			 (buffer-view-add-string last position font text-color-key chars last length))
-		      (let ((x (hi::font-change-x change)))
-			(buffer-view-add-string last position font text-color-key chars last x)
-			(setq last x
-			      text-color-key (hi::font-change-font change)))))))))
-	  (krma::group-set-transform-1 draw-data group gm)
-	  (values))))))))
+      (when buffer 
+	(unless (string= "Random Typeout" (buffer-name buffer))
+	  (unless (send text iconified?)
+	    (let*((xp (send text superior x))
+		  (yp (send text superior y))
+		  (scene (send text scene))
+		  (group (send text group))
+		  (elevation (float (send text elevation)))
+		  (font (send window font))
+		  (font-size (font-size font))
+		  (font-data (font-data font))
+		  (space-width (slot-value font-data '3b-bmfont-common::space-size))
+		  (gm (send text global-matrix)))
+	      (update-window-image window)	
+	      (krma:rm-dispatch-to-render-thread (scene draw-data)
+		(krma::delete-groups-1 draw-data (list group) nil)
+		(when (slot-boundp window 'hi::the-sentinel)
+		  (let ((last-line (car (hi::window-last-line window)))
+			(last-line-seen? nil))
+		    (do ((dis-lines (hi::window-first-line window) (cdr dis-lines)))
+			((or last-line-seen?
+			     (null dis-lines)
+			     (eq dis-lines (slot-value window 'hi::the-sentinel))))
+		      (let* ((dl (car dis-lines))
+			     (chars (hi::dis-line-chars dl))
+			     (length (hi::dis-line-length dl))
+			     (position (hi::dis-line-position dl))
+			     (last 0)
+			     (text-color-key 0))
+			(setq last-line-seen? (eq dl last-line))
+			(flet ((buffer-view-add-string (x y font text-color-key string start end)
+				 (unless x (setq x 0))
+				 (unless y (setq y 0))
+				 (unless end (setq end length))
+				 (unless start (setq start 0))
+				 (when (< start end)
+				   (let* ((color (lookup-text-color (or text-color-key 0)))
+					  (xval (float (+ (* x space-width) xp)))
+					  (yval (float (+ (* y 1.2 font-size) -2 yp))))
+				     (krma::draw-data-add-text-primitive
+				      draw-data group nil font color
+				      xval yval (subseq string start end)
+				      0 elevation)))))
+			  (do ((change (hi::dis-line-font-changes dl) (hi::font-change-next change)))
+			      ((null change)
+			       (buffer-view-add-string last position font text-color-key chars last length))
+			    (let ((x (hi::font-change-x change)))
+			      (buffer-view-add-string last position font text-color-key chars last x)
+			      (setq last x
+				    text-color-key (hi::font-change-font change)))))))))
+		(krma::group-set-transform-1 draw-data group gm)
+		(values)))))))))
 
 (defmethod handle-character-input ((window text-editor-view-mixin) char p)
   (let* ((buffer (hi::window-buffer window))
@@ -606,7 +635,8 @@
 		 (buffer (window-buffer self)))			
 	    (when m
 	      (bt:with-recursive-lock-held ((hi::buffer-lock buffer))
-		(move-mark (buffer-point buffer) m))))))))
+		(move-mark (buffer-point buffer) m)
+		(hi::update-window-image self))))))))
 
   (values))
   

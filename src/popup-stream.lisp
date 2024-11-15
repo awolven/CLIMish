@@ -28,7 +28,7 @@
     (multiple-value-bind (dx dy) (window-framebuffer-size parent)
       (declare (ignore dy))
       (set-window-position self (- dx (the width) 100) 50))
-    (rm-redraw-node-recursively self)
+    #+NIL(rm-redraw-node-recursively self)
     (values)))
 
 (defmethod rm-draw-node ((self popup-stream-mixin))
@@ -62,10 +62,10 @@
   (values))
 
 (defmethod trivial-gray-streams:stream-finish-output ((stream popup-stream-mixin))
-  (rm-redraw-node-recursively stream))
+  #+NIL(rm-redraw-node-recursively stream))
 
 (defmethod trivial-gray-streams:stream-force-output ((stream popup-stream-mixin))
-  (rm-redraw-node-recursively stream))
+  #+NIL(rm-redraw-node-recursively stream))
 
 (defmethod trivial-gray-streams:stream-line-column ((stream popup-stream-mixin))
   (let* ((point (send stream point))
@@ -112,7 +112,7 @@
 	   (unless popup-window
 	     (setq popup-window
 		   (setf (popup-window application-frame) (make-instance 'popup-stream))))
-	   (rm-redraw-node-recursively popup-window)
+	   #+NIL(rm-redraw-node-recursively popup-window)
 	   (loop
 	     (when (> (incf count) 20)
 	       (return))
@@ -123,7 +123,7 @@
 		   (change-alpha (send popup-window color) (decf alpha #x05)))
 	     (setf (send popup-window fg-color)
 		   (change-alpha (send popup-window fg-color) (decf alpha #x05)))
-	     (rm-redraw-node-recursively popup-window))
+	     #+NIL(rm-redraw-node-recursively popup-window))
 	   (destroy-window popup-window)
 	   (setf (popup-window application-frame) nil))))))
 

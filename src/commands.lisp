@@ -101,14 +101,25 @@
 	       (with-buffer-globals (buffer)
 		 (let* ((prompt (variable-value 'hemlock::prompt-mark :buffer buffer))
 			(whole-input-region (region prompt (buffer-end-mark buffer)))
-			(string2 (region-to-string buffer whole-input-region)))
-
-		   (when (let ((*read-eval* nil))
-			   (handler-case
-			       (progn (read-from-string string2)
-				      t)
-			     (error () nil)))
-		     (add-to-lisp-listener-history string2))
+			(string2 (region-to-string buffer whole-input-region))
+			(length (length string2))
+			(success? t)
+			(read)
+			(start 0)
+			(end 0))
+		   
+		   (loop while (and success? (< end length))
+			 do
+			    (when (let ((*read-eval* nil))
+				    (handler-case
+					(progn (multiple-value-setq (read end)
+						 (read-from-string string2 t nil :start start))
+					       (setq success? t))
+				      (error () (setq success? nil))))
+			      (add-to-lisp-listener-history
+			       (string-trim '(#\Newline #\Return #\Tab #\Space)
+					    (subseq string2 start end)))
+			      (setq start end)))
 
 		   (insert-character buffer point #\Newline)
 		       
@@ -171,12 +182,22 @@
   next line."))
 
 (defmethod beginning-of-line-command (window p)
-  (let* ((buffer (window-buffer window))
-	 (point (buffer-point buffer)))
-    (unless (line-offset buffer point (if p p 0)) (editor-error "No such line."))
-    (line-start point)
-    (setf (last-command-type) nil)
-    (climish:redraw-buffer window)))
+  (let ((buffer (window-buffer window)))
+    (flet ((default ()
+	     (let ((point (buffer-point buffer)))
+	       (unless (line-offset buffer point (if p p 0)) (editor-error "No such line."))
+	       (line-start point)
+	       (setf (last-command-type) nil))))
+      (if (buffer-minor-mode buffer :lisp-listener)
+	  (let ((maybe-mark (variable-value 'hemlock::prompt-mark :buffer buffer)))
+	    (if maybe-mark
+		(if (and (mark>= (buffer-point buffer) maybe-mark)
+			 (eq (mark-line (buffer-point buffer)) (mark-line maybe-mark)))
+		    (move-mark (buffer-point buffer) maybe-mark)
+		    (default))
+		(default)))
+	  (default))))
+  (climish:redraw-buffer window))
 
 
 (defhcommand end-of-line-command (window p)
@@ -316,7 +337,8 @@
   (:help-string "Make a buffer containing the file Pathname current, creating a buffer
    if necessary.  The buffer is returned.")
   (:applicability (climish:toplevel-context-p clim:application-frame))
-  (:preparation (climish::hemlock-arguments clim:application-frame)))
+  (:preparation (climish::hemlock-arguments clim:application-frame))
+  (:generic-function-class climish::not-everywhere-command))
 
 (defmethod find-file-command (view p &optional pathname)
   (declare (ignore p))
@@ -329,11 +351,14 @@
 			      :default (hemlock-ext:default-directory))))
          (buffer (find-file-buffer view pn)))
     (if (buffer-windows buffer)
-	(climish::focus-window (first (buffer-windows buffer)))
+	(progn
+	  (climish::focus-window (first (buffer-windows buffer)))
+	  (adhoc-scene-graph::rm-redraw-node-recursively (first (buffer-windows buffer))))
 	(let ((window (climish::find-or-create-window-of-class
-		       'climish::text-editor-window)))
+		       'climish::text-editor-window :buffer buffer)))
 	  (setf (window-buffer window) buffer)
-	  (climish::focus-window window)))	  
+	  (climish::focus-window window)
+	  (climish::redraw-buffer window)))
     buffer))
 
 (climish::define-everywhere-command mousewheel-scroll-command (window p)
@@ -466,13 +491,14 @@
 		      (climish::applicable-commands clim:application-frame))))
 
 (defmethod options (frame applicable-commands)
-  (let* ((menu (make-instance 'climish::context-menu
+  (let* ((event (climish::window-last-event frame))
+	 (menu (make-instance 'climish::context-menu
 			      'climish::applicable-commands
-			      applicable-commands))
-	 (event (climish::window-last-event frame)))
-    (climish::set-window-position menu
-				  (- (clim:pointer-event-x event) 70)
-				  (- (clim:pointer-event-y event) 70))
+			      applicable-commands
+			      'adhoc-scene-graph:origin
+			      (3dm.f::vec3 (- (clim:pointer-event-x event) 70)
+					   (- (clim:pointer-event-y event) 70)
+					   0))))
     (let ((choice))
       (unwind-protect
 	   (progn

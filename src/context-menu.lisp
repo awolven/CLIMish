@@ -43,7 +43,28 @@
 		    (declare (ignore b))
 		    (if (cad-command-p a)
 			t
-			nil))))))
+			nil)))))
+   (titles (loop for command in (the commands)
+		 collect (let ((gestures (gethash command *accelerator-table*)))
+			   (if (null command)
+			       "                            "
+			       (concatenate 'string
+					    " "
+					    (hemlock::command-name command)
+					    (when gestures
+					      (list #\, #\Space))
+					    (when gestures
+					      (apply #'concatenate 'string
+						     (mapcar #'(lambda (string)
+								 (format nil "~A " string))
+							     (mapcar #'(lambda (id)
+									 (with-output-to-string (stream)
+									   (print-pretty-input-event-id id stream)))
+								     (first gestures))))))))))
+   (text-sizes (mapcar #'(lambda (title)
+			   (third (multiple-value-list
+				   (calc-text-size title (the font)))))
+		       (the titles))))
 
   :components
   ((button :type 'context-button
@@ -54,11 +75,14 @@
 	   height (the button-height)
 	   width (the column-width)
 	   y (let ((i (mod (the-part index) (the buttons-per-column))))
-	       (+ (* i (the-part height)) (the title-bar height)))
+	       (+ (* i (the button-height)) (the title-bar height)))
 	   x (let ((i (floor (the-part index) (the buttons-per-column))))
-	       (* i (the-part width)))
-	   presentation-object (the-part command)
-	   presentation-type (type-of (the-part command)))))
+	       (* i (the column-width)))
+	   title (nth (the-part index) (the titles))
+	   command (nth (the-part index) (the commands))
+	   text-size (nth (the-part index) (the text-sizes))
+	   presentation-object (nth (the-part index) (the commands))
+	   presentation-type (type-of (nth (the-part index) (the commands))))))
 
 
 (defobject context-menu (context-menu-mixin))
@@ -93,26 +117,9 @@
 
 (defobject button-mixin (clim:presentation selectable-mixin group-mixin view-mixin)
   :inputs
-  ((title (if (null (the command))
-	      "                            "
-	      (concatenate 'string
-		       " "
-		       (hemlock::command-name (the command))
-		       (when (the gestures)
-			 (list #\, #\Space))
-		       (the gesture-string))))
-   (gestures (gethash (the command) *accelerator-table*))
-   (gesture-string (apply #'concatenate 'string
-			  (mapcar #'(lambda (string)
-				       (format nil "~A " string))
-				   (mapcar #'(lambda (id)
-					       (with-output-to-string (stream)
-						 (print-pretty-input-event-id id stream)))
-					   (first (the gestures))))))
-			  
+  (title			  
    command
-   (text-size (third (multiple-value-list
-		      (calc-text-size (the title) (the superior font)))))
+   text-size
    (width (- (the superior width) 20))
    (height 34)
    (x 10)
@@ -128,14 +135,22 @@
 
 (defobject context-button (button-mixin)
   :inputs
-  ((color (the style window-bg-color))))
+  ((color :visual (the style window-bg-color))))
 
 (defmethod rm-draw-node ((self button-mixin))
   (when (the command)
-  (scene-add-filled-2d-rectangle-list-primitive
-   (the scene) (the group) nil (the color)
-   (list (the x0) (the y0) (the x1) (the y1))
-   (the object-id)
-   (the elevation))
-  (scene-add-text (the scene) (the group) (the style current-font) #x000000ff (the x0) (the y0) (the title) (the object-id) (1+ (the elevation)))))
+    (push
+     (scene-add-filled-2d-rectangle-list-primitive
+      (the scene) (the group) nil (if (the hovered?)
+				      (the style button-hovered-color)
+				      (the color))
+     (list (the x0) (the y0) (the x1) (the y1))
+     (the object-id)
+     (the elevation))
+     (the primitive-handles))
+    (push (scene-add-text-primitive (the scene) (the group) nil
+				    (the style current-font) #x000000ff
+				    (the x0) (the y0) (the title)
+				    (the object-id) (1+ (the elevation)))
+	  (the primitive-handles))))
   

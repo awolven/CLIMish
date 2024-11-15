@@ -86,7 +86,7 @@
     (unless (probe-file cache-filename)
       (sdf-bmfont:create-bmfont (the font ttf-file)
 				cache-filename
-				:size (the px-size)
+				:size (max (the px-size) 1)
 				:mode :msdf+a
 				:type :json
 				:spread 8))

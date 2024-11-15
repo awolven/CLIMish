@@ -688,7 +688,7 @@
            (format s "~%Restarts would have been:~%~%")
            (simple-print-restarts s)
            (hemlock::beginning-of-buffer-command cw nil)
-           (climish:rm-redraw-node-recursively cw)))
+           #+NIL(climish:rm-redraw-node-recursively cw)))
        (throw 'command-loop-catcher nil))
       (message-only-p
        (message "Error: ~A" condition)

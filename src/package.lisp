@@ -1,6 +1,6 @@
 (adhoc:defpackage :climish
   (:use :cl :clim :clui :krma :3dm
-	:hemlock-interface)
+	:hemlock-interface :adhoc-scene-graph)
 
   (:import-from :3dm.d
 		#:vec2
@@ -17,6 +17,36 @@
 		#:with-vec4
 		#:with-vec)
 
+  #+NIL
+  (:import-from :adhoc-scene-graph
+		#:node-mixin
+		#:group-mixin
+		#:selectable-mixin
+		#:group-owner-mixin
+		#:rm-draw-node
+		#:rm-erase-node
+		#:rm-redraw-node
+		#:matrix
+		#:global-matrix
+		#:origin
+		#:safe-euclid
+		#:group
+		#:hovered?
+		#:new-object-id
+		#:forget-object
+		#:node-set-model-matrix
+		#:redraw?
+		#:retransform?
+		#:pimitive-handles
+		#:visible?
+		#:rotation
+		#:rotation-matrix
+		#:translation-matrix
+		#:inverse-matrix
+		#:inverse-global-matrix
+		#:node-children
+		#:object-id)
+
   (:export #:redraw-buffer)
 
   (:export #:input-context
@@ -29,11 +59,8 @@
 	   #:defcommand
 	   #:defaccelerator
 	   #:rm-redraw-node
-	   #:rm-redraw-node-recursively
 	   #:rm-erase-node
-	   #:rm-erase-node-recursively
 	   #:rm-draw-node
-	   #:rm-draw-node-recursively
 	   #:redraw-buffer
 	   #:toplevel-context-p
 	   #:command
@@ -43,8 +70,8 @@
 	   #:selection-set
 	   #:results
 	   #:primitive-handles ;; slot-name
-	   #:*object-id->object-table*
-	   #:object-id ;; slot-name
+	   ;;#:*object-id->object-table*
+	   ;;#:object-id ;; slot-name
 	   #:rotation
 	   #:origin
 	   #:node-mixin

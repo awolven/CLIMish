@@ -960,7 +960,7 @@
           (obj (eval exp)))
      (with-pop-up-display (*standard-output* :current-window window)
        (describe obj)
-       (climish::rm-redraw-node-recursively window)
+       #+NIL(climish::rm-redraw-node-recursively window)
        ))))
 
 #+NIL

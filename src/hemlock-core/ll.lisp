@@ -21,10 +21,15 @@
     (loop for i from (1- length) downto 0
 	  do (let ((item (aref *lisp-listener-history* i)))
 	       (when (string= item string)
-		 (setq *last-lisp-listener-history-index* nil)
+		 (unless (= 1 (length *lisp-listener-history*))
+		   ;; replace entry at end
+		   (loop for j from i below (1- (length *lisp-listener-history*))
+			 do (setf (aref *lisp-listener-history* j)
+				  (aref *lisp-listener-history* (1+ j)))
+			 finally (setf (aref *lisp-listener-history* (1- (length *lisp-listener-history*)))
+				       item)))
 		 (return-from add-to-lisp-listener-history t)))
 	  finally (vector-push-extend string *lisp-listener-history*)
-		  (setq *last-lisp-listener-history-index* nil)
 		  (return t))))
 
 (defun invoke-a-restart ()
@@ -39,6 +44,13 @@
              (setq n (read))
              (fresh-line))
        (invoke-restart-interactively (nth n restarts)))))
+
+(defun drop-prompt-mark (buffer)
+  (setf (variable-value 'hemlock::prompt-mark :buffer buffer)
+	(copy-mark (buffer-point buffer) :right-inserting))
+  (setq *last-lisp-listener-history-index* nil)
+  (values))
+  
 
 (defun repl (stream) ;; this function should only depend on stream being a character-io-stream
   ;; so that it is general to any character-io-stream, regardless of buffers/marks etc.
@@ -63,8 +75,7 @@
 		(princ "> " stream)
 		(finish-output)
 		(let ((buffer (hemlock::hemlock-character-io-stream-buffer stream)))
-		  (setf (variable-value 'hemlock::prompt-mark :buffer buffer)
-			(copy-mark (buffer-point buffer) :temporary)))
+		  (drop-prompt-mark buffer))
 		(restart-case
                     (let ()
                       (tagbody
@@ -99,7 +110,8 @@
 			 (let ((buffer (window-buffer focused)))
 			   (and buffer
 				(buffer-minor-mode buffer :lisp-listener))))))
-  (:preparation (climish::hemlock-arguments climish::application-frame)))
+  (:preparation (climish::hemlock-arguments climish::application-frame))
+  (:generic-function-class climish::not-everywhere-command))
 
 (defcommand yank-next-from-lisp-listener-history (window p)
   (:pretty-name "Yank Next From Lisp Listener History")
@@ -110,7 +122,8 @@
 			 (let ((buffer (window-buffer focused)))
 			   (and buffer
 				(buffer-minor-mode buffer :lisp-listener))))))
-  (:preparation (climish::hemlock-arguments climish::application-frame)))
+  (:preparation (climish::hemlock-arguments climish::application-frame))
+  (:generic-function-class climish::not-everywhere-command))
 
 (defmethod yank-next-from-lisp-listener-history (window p)
   (yank-from-lisp-listener-history window t))
@@ -125,6 +138,7 @@
 		       (if (= *last-lisp-listener-history-index* (1- (length *lisp-listener-history*)))
 			   (setq *last-lisp-listener-history-index* 0)
 			   (setq *last-lisp-listener-history-index* (1+ *last-lisp-listener-history-index*)))
+
 		       (if (zerop *last-lisp-listener-history-index*)
 			   (setq *last-lisp-listener-history-index* (1- (length *lisp-listener-history*)))
 			   (setq *last-lisp-listener-history-index* (1- *last-lisp-listener-history-index*))))
@@ -179,7 +193,8 @@
 	  (setf (buffer-minor-mode buffer current-buffer :lisp-listener) t)
 	  (setf (buffer-major-mode buffer current-buffer) :lisp)
 	    (let ((w
-		    (climish::find-or-create-window-of-class 'climish::lisp-listener-window)))
+		    (climish::find-or-create-window-of-class
+		     'climish::lisp-listener-window :buffer buffer)))
 	      (setf (window-buffer w) buffer)
 	      (let* ((stream (variable-value 'hemlock::buffer-stream :buffer buffer))
 		     (thread (bt:make-thread #'(lambda ()
@@ -225,7 +240,9 @@
 			 (let ((buffer (window-buffer focused)))
 			   (and buffer
 				(buffer-minor-mode buffer :lisp-listener))))))
-  (:preparation (climish::hemlock-arguments climish::application-frame)))
+  (:preparation (climish::hemlock-arguments climish::application-frame))
+  (:generic-function-class climish::not-everywhere-command))
+		
 
 (defmethod interrupt-lisp-command (window p)
   (declare (ignore p))
@@ -238,4 +255,19 @@
         (sb-thread:release-mutex (buffer-lock buffer)))
       (bt:interrupt-thread thread #'break))))
 
+#+SBCL
+(sb-ext::without-package-locks
 
+  (fmakunbound 'sb-debug::debug-prompt)
+  
+  (defmethod sb-debug::debug-prompt :after ((stream hemlock-interactive-character-io-stream))
+    (let ((buffer (hemlock::hemlock-character-io-stream-buffer stream)))
+      (drop-prompt-mark buffer)))
+  
+  sb-debug::(defmethod debug-prompt (stream)
+	      (sb-thread::get-foreground)
+	      (format stream
+		      "~%~W~:[~;[~W~]] "
+		      (frame-number *current-frame*)
+		      (> *debug-command-level* 1)
+		      *debug-command-level*)))

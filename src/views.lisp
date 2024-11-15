@@ -1,7 +1,5 @@
 (in-package :climish)
 
-
-
 (defmethod transform-coordinate ((vec 3dm.f:vec2) (node node-mixin))
   (transform-coordinate (vec3 (vx vec) (vy vec) 0) node))
 
@@ -49,10 +47,10 @@
 
 (defobject 2d-box-mixin ()
   :inputs
-  ((x (if (the parent) (send (the parent) x) 0))
-   (y (if (the parent) (send (the parent) y) 0))
-   (width (if (the parent) (send (the parent) width) 10))
-   (height (if (the parent) (send (the parent) height) 10)))
+  ((x :visual (if (the parent) (send (the parent) x) 0))
+   (y :visual (if (the parent) (send (the parent) y) 0))
+   (width :visual (if (the parent) (send (the parent) width) 10))
+   (height :visual (if (the parent) (send (the parent) height) 10)))
 
   :attributes
   ((x0 :uncached (the x))
@@ -70,7 +68,7 @@
   :inputs
   ((parent (the superior))
    (window :defaulting)
-   (style :defaulting))
+   (style :visual :defaulting))
 
   :attributes
   ((elevation (if (the superior)
@@ -78,10 +76,13 @@
 		  0)))
 
   :components
-  ((client-rect :type 'client-rect)))
+  ((client-rect :type 'client-rect
+		:eager t)))
+
+
 
 (defmethod application-frame ((view view-mixin))
-  (clui:window-parent (send view root)))
+  (application-frame (send view root parent)))
 
 (defmethod application-frame ((frame application-frame-mixin))
   frame)
@@ -112,32 +113,37 @@
 
 (defobject border (selectable-mixin group-mixin view-mixin)
   :inputs
-  ((color (the style border-color))
-   (border-size 1)
-   (base-elevation 13)
+  ((color :visual (the style border-color))
+   (border-size :visual 1)
+   (base-elevation :visual 13)
 
-   (x (ecase (the index)
+   (x :visual
+      (ecase (the index)
 	((:west :north :south) (+ (the window x) (- (/ (the border-size) 2))))
 	((:east) (+ (the window x) (the window width) (- (/ (the border-size) 2))))))
-   (y (ecase (the index)
+   (y :visual
+      (ecase (the index)
 	((:west :east :north) (+ (the window y) (- (/ (the border-size) 2))))
 	((:south) (+ (the window y) (the window height) (- (/ (the border-size) 2))))))
-   (width (ecase (the index)
+   (width :visual
+	  (ecase (the index)
 	    ((:north :south) (+ (the border-size) (the window width)))
 	    ((:east :west) (the border-size))))
-   (height (ecase (the index)
+   (height :visual
+	   (ecase (the index)
 	     ((:north :south) (the border-size))
 	     ((:east :west) (+ (the border-size) (the window height))))))
   
   :attributes
-  ((index (first (the indices)))
+  ((iconified? (the window iconified?))
+   (index (first (the indices)))
    (elevation (ecase (the index)
-	    ((:north :south) (+ (the base-elevation) 1))
-	    ((:east :west) (+ (the base-elevation) 0))))))
+		((:north :south) (+ (the base-elevation) 1))
+		((:east :west) (+ (the base-elevation) 0))))))
 
 (defobject resize-border (border)
   :inputs
-  ((color #xffffff00)))
+  ((color :visual #xffffff00)))
 
 (defmethod clim:handle-event :around ((view view-mixin) (event clim:pointer-event))
   (setf (clim:pointer-event-native-x event) (clim:pointer-event-x event)
@@ -207,7 +213,7 @@
   (values))
 
 (defmethod rm-draw-node ((self resize-border))
-  (unless (the window iconified?)
+  (unless (the iconified?)
     (let ((scene (the scene)))
       (push
        (scene-add-filled-2d-rectangle-list-primitive
@@ -218,7 +224,7 @@
        (the primitive-handles)))))
 
 (defmethod rm-draw-node ((self border))
-  (unless (the window iconified?)
+  (unless (the iconified?)
     (let ((scene (the scene)))
       (push
        (scene-add-filled-2d-rectangle-list-primitive
@@ -234,7 +240,7 @@
 
 (defobject title-bar-button-mixin (selectable-mixin group-mixin view-mixin)
   :inputs
-  ((size))
+  ((size :visual))
   
   :attributes
   ((center-x (/ (+ (the x0) (the x1)) 2))
@@ -243,7 +249,9 @@
    (height (+ (the size) (* 2 (the style frame-padding-y))))))
 
 
-(defobject iconify-button (title-bar-button-mixin))
+(defobject iconify-button (title-bar-button-mixin)
+  :attributes
+  ((value :eager (the window iconified?))))
 
 
 (defobject close-button (title-bar-button-mixin)
@@ -252,7 +260,7 @@
 
 (defobject transparency-button (title-bar-button-mixin)
   :inputs
-  ((opaque? t)))
+  ((opaque? :visual t)))
 
 
 (defobject menu-bar (selectable-mixin group-mixin view-mixin))
@@ -261,15 +269,17 @@
 (defobject title-bar (selectable-mixin group-mixin view-mixin)
 
   :inputs
-  ((title)
-   (button-size)
+  ((title :visual)
+   (button-size :visual)
 
-   (transparency-button? t)
-   (iconify-button? t)
-   (close-button? t))
+   (transparency-button? :visual t)
+   (iconify-button? :visual t)
+   (close-button? :visual t))
   
   :attributes
   ((height (the style title-bar-height))
+
+   (iconified? (the window iconified?))
    
    (pad-left (+ (the style frame-padding-x) (if (eq (the style window-menu-button-position) :left)
 						  (the button-size)
@@ -278,6 +288,7 @@
   
   :components
   ((close-button :type (if (the close-button?) 'close-button 'null-object)
+		 :eager t
 		 group (the group)
 		 size (the button-size)
 		 x (- (the x1)
@@ -285,6 +296,7 @@
 			   (* 2 (the style frame-padding-x))))
 
    (iconify-button :type (if (the iconify-button?) 'iconify-button 'null-object)
+		   :eager t
 		    group (the group)
 		    size (the button-size)
 		    x (ecase (the style window-menu-button-position)
@@ -296,6 +308,7 @@
 					4
 					(* 2 (the style frame-padding-x))))))
    (transparency-button :type (if (the transparency-button?) 'transparency-button 'null-object)
+			:eager t
 			group (the group)
 			size (the button-size)
 			x (ecase (the style window-menu-button-position)
@@ -321,7 +334,7 @@
 	 (group (the group))
 	 (focused? (send window focused?)))
     
-    (if (send window iconified?)
+    (if (the iconified?)
 	(let ((title-bar-color (if focused? (send style title-bg-active-color) (send style title-bg-collapsed-color))))
 	  ;; draw just title bar
 	  (push
@@ -340,16 +353,16 @@
 	    (the object-id)
 	    (the elevation))
 	   (the primitive-handles))))
-	  
 
     (let ((layout-r-x0 (+ (the x0) (send style frame-padding-x)))
 	  (layout-r-y0 (the y0)))
 
-      (scene-add-text-primitive
-       scene group nil (send style current-font) (send style text-color) layout-r-x0 layout-r-y0
-       (send window title)
-       (the object-id)
-       (1+ (the elevation))))))
+      (push (scene-add-text-primitive
+	     scene group nil (send style current-font) (send style text-color) layout-r-x0 layout-r-y0
+	     (send window title)
+	     (the object-id)
+	     (1+ (the elevation)))
+	    (the primitive-handles)))))
 
 (defclass ring-element-mixin ()
   ((next :initform nil :accessor next)
@@ -386,80 +399,94 @@
   :inputs
   ((parent (main-window clim:*default-frame-manager*))
    (scene (krma:default-scene))
-   (style *style*)
-   (color (the style window-bg-color))
-   (font (the style current-font))
-   (iconified? (:noticer (if value
-			     (progn
-			       (rm-erase-node-recursively self)
-			       (setf (the focused?) nil)
-			       (rm-draw-node-recursively (the title-bar)))
-			     (setf (the focused?) t)))
-	       nil)
-   (focused? (:noticer (if value
-			   (%focus-window self)
-			   (%unfocus-window self)))
-	     nil)
-   (resizable? t)
-   (menu-bar? nil)
-   (scrollbar-x? nil)
-   (scrollbar-y? nil)
-   (title-bar? t)
-   (iconify-button? t)
-   (close-button? t)
-   (transparency-button? t)
-   (rounding? nil)
-   (alpha 0.7)
+   (style :visual *style*)
+   (color :visual (the style window-bg-color))
+   (font :visual (the style current-font))
+   (iconified? :visual nil)
+   (focused? :visual nil)
+   (resizable? :visual t)
+   (menu-bar? :visual nil)
+   (scrollbar-x? :visual nil)
+   (scrollbar-y? :visual nil)
+   (title-bar? :visual t)
+   (iconify-button? :visual t)
+   (close-button? :visual t)
+   (transparency-button? :visual t)
+   (rounding? :visual nil)
+   (alpha :visual 0.7)
    
    (window self)
    
-   (title "krma")
+   (title :visual "krma")
 
-   (border-size 1)
+   (border-size :visual 1)
 
-   (x 0)
-   (y 0)
-   (width (the style default-initial-window-width))
-   (height (the style default-initial-window-height)))
+   (x :visual 0)
+   (y :visual 0)
+   (width :visual (the style default-initial-window-width))
+   (height :visual (the style default-initial-window-height)))
 
   :attributes
-  ((z-index :modifiable 0)
-   (elevation (* (the z-index) krma::+view-depth+))
-   (border-indices '((:north) (:south) (:east) (:west))))
+  ((opaque? (if (the title-bar transparency-button?)
+		(the title-bar transparency-button opaque?)
+		t))
+   (z-index :modifiable 0)
+   (elevation 0)
+   (border-indices '((:north) (:south) (:east) (:west)))
+
+   (base-z (* (the z-index) krma::+view-depth+))
+
+   (translation-matrix
+    (let* ((origin (the origin))
+	   (x (vx origin))
+	   (y (vy origin))
+	   (z (the base-z)))
+      (mat4 1 0 0 x
+	    0 1 0 y
+	    0 0 1 z
+	    0 0 0 1))))
 
   :components
   ((client-rect :type 'client-rect
+		:eager t
 		y (if (the title-bar?) (the title-bar y1) (the y))
 		height (if (the title-bar?) (- (the height) (the title-bar height)) (the height)))
 
    (title-bar :type (if (the title-bar?) 'title-bar 'null-object)
+	      :eager t
 	      title (the title)
 	      iconify-button? (the iconify-button?)
 	      close-button? (the close-button?)
 	      transparency-button? (the transparency-button?)
 	      button-size (font-size (the font)))
 
-   (menu-bar :type (if (the menu-bar?) 'menu-bar 'null-object))
+   (menu-bar :type (if (the menu-bar?) 'menu-bar 'null-object)
+	     :eager t)
 
    (resize-borders :type (if (the resizable?) 'resize-border 'null-object)
+		   :eager t
 		   :aggregate (:indices (the border-indices))
 		   border-size 6
 		   base-elevation (+ (the elevation) 11))
 
    (border :type 'border
+	   :eager t 
 	   :aggregate (:indices (the border-indices))
 	   border-size 2
 	   base-elevation (+ (the elevation) 13))
 
    (horizontal-scrollbar :type (if (the scrollbar-x?) 'scrollbar 'null-object)
+			 :eager t 
 			 axis :horizontal)
 
    (vertical-scrollbar :type (if (the scrollbar-y?) 'scrollbar 'null-object)
+		       :eager t
 		       axis :vertical)))
 
 (defmethod resize-window ((window homemade-window-mixin) new-x new-y new-width new-height)
   (clui:set-window-size window new-width new-height)
   (clui:set-window-position window new-x new-y)
+  (adhoc-scene-graph::rm-redraw-node-recursively window)
   (values))
 
 (defmethod node-parent ((self homemade-window-mixin))
@@ -498,7 +525,8 @@
 (defmethod window-cursor-position ((self view-mixin))
   (multiple-value-bind (x y) (window-cursor-position (application-frame self))
     (let ((coord (untransform-global-coordinate (vec3 x y 0) self)))
-      (values (vx coord) (vy coord)))))
+      (values (vx coord) (vy coord)))
+    (values x y)))
       
 
 (defmethod destroy-window ((homemade-window homemade-window-mixin))
@@ -523,19 +551,17 @@
   (if (the opaque?)
       (setf (the opaque?) nil)
       (setf (the opaque?) t))
-  (rm-redraw-node-recursively (the window))
+  #+NIL(rm-redraw-node-recursively (the window))
   (values))
 
 (defmethod clim:handle-event ((button iconify-button) (event clim:pointer-button-press-event))
-  (let ((homemade-window (send button window)))
-    (if (send homemade-window iconified?)
-	(setf (send homemade-window iconified?) nil)
-	(setf (send homemade-window iconified?) t))
-    (values)))
+  (if (send button window iconified?)
+      (setf (send button window iconified?) nil)
+      (setf (send button window iconified?) t)))
 
 (defmethod clim:handle-event ((button title-bar-button-mixin) (event clim:pointer-boundary-event))
   (call-next-method)
-  (rm-redraw-node-recursively button)
+  #+NIL(rm-redraw-node-recursively button)
   (values))
 
 
@@ -545,7 +571,8 @@
 
 (defmethod %focus-window ((self homemade-window-mixin))
   (if (the iconified?)
-      (setf (the iconified?) nil) ;; will reenter %focus-window with (the iconified?) --> nil
+      (progn (setf (the iconified?) nil)
+	     (focus-window self))
       (let ((scene (the scene)))
 	(let ((siblings (remove self (remove-if-not #'(lambda (node)
 							(typep node 'homemade-window-mixin))
@@ -555,8 +582,8 @@
 		for sibling in siblings
 		do (setf (send sibling z-index) i)
 		finally (setf (the z-index) (length siblings))
-			(mapcar #'rm-redraw-node-recursively (nconc siblings (list self)))
-			(setf (focused-window (application-frame self)) self))
+		#+WAS(mapcar #'rm-redraw-node-recursively (nconc siblings (list self)))
+		     (setf (focused-window (application-frame self)) self))
 	  (unless (typep self 'context-menu)
 	    (climish::compute-applicable-commands (application-frame self)))
 	  (values)))))
@@ -575,14 +602,14 @@
 
 (defmethod clui:focus-window ((self homemade-window-mixin))
   (unless (eq self (focused-window (application-frame self)))
-    (setf (the focused?) t))
+    (%focus-window self))
   (values))
 
 (defmethod clui:focus-window ((self application-frame-mixin))
   (%focus-window self))
 
 (defmethod clui::unfocus-window ((self homemade-window-mixin))
-  (setf (the focused?) nil)
+  (%unfocus-window self)
   (values))
 
 (defmethod clui::iconify-window ((self homemade-window-mixin))
@@ -627,28 +654,35 @@
 (defmethod clui:set-window-size ((self group-owner-view-mixin) (width real) (height real))
   (setf (the width) width
 	(the height) height)
-  (rm-redraw-node-recursively self)
+  #+NIL(rm-redraw-node-recursively self)
   (values))
 
 (defmethod transform-coordinate ((vec vec2) (view view-mixin))
-  (transform-coordinate (vec3 (vx vec) (vy vec) (send view elevation)) view))
+  (transform-coordinate (vec3 (vx vec) (vy vec) 0) view))
 
-(defmethod initialize-instance :after ((self homemade-window-mixin) &rest initargs)
+(defmethod initialize-instance :around ((self homemade-window-mixin) &rest initargs)
   (declare (ignore initargs))
 
+  (call-next-method)
+  
   (let ((highest-z-index 0)
+	#+NIL
 	(application-frame (application-frame self)))
 
     (let ((siblings (remove-if-not #'(lambda (thing)
 				       (typep thing 'homemade-window-mixin))
 				   (krma::node-children (the scene)))))
+      
       (when siblings
 	(setq highest-z-index
 	      (loop for part in siblings
 		    maximize (the-part z-index)))))
-	
+
+    #+NIL
     (setf (the z-index) (1+ highest-z-index))
-    
+
+    #+NIL
+    ;; moved to initialize-instance :around (node-mixin)
     (setf (krma::node-children (the scene))
 	  (append (krma::node-children (the scene)) (list self)))
 
@@ -658,14 +692,17 @@
 	
 	(ring-link-new-element-at-start self *echo-area-window*))
 
-  (unless (typep self 'echo-area-window)
-    (let ((prev (prev self)))
-      (if (eq prev *echo-area-window*)
-	  (set-window-position self 40 30)
-	  (multiple-value-bind (x y) (window-position prev)
-	    (set-window-position self (+ x 40) (+ y 30))))))		     
+    #+NOTYET
+    (unless (typep self 'echo-area-window)
+      (let ((basket (adhoc::slot-basket self 'adhoc-scene-graph::origin)))
+	(let ((prev (prev self)))
+	  (unless (eq :set (adhoc::basket-status basket))
+	    (if (eq prev *echo-area-window*)
+		(set-window-position self 40 30)
+		(multiple-value-bind (x y) (window-position prev)
+		  (set-window-position self (+ x 40) (+ y 30))))))))
 
-  (values)))
+    self))
 
 
 
@@ -677,14 +714,17 @@
 	   (color (copy-seq (the color))))
       (when (the title-bar?)
 	(when (the title-bar transparency-button?)
-	  (when (the title-bar transparency-button opaque?)
+	  (when (the opaque?)
 	    (setf (aref color 3) 1.0f0))))
       ;; draw window background
-      (scene-add-filled-2d-rectangle-list-primitive
-       scene group nil color
-       (list (the x0) (if (the title-bar?) (the title-bar y1) (the y0)) (the x1) (the y1))
-       (the object-id)
-       (the elevation)))))
+      (push (scene-add-filled-2d-rectangle-list-primitive
+	     scene group nil color
+	     (list (the x0) (if (the title-bar?) (the title-bar y1) (the y0)) (the x1) (the y1))
+	     (the object-id)
+	     (the elevation))
+	    (the primitive-handles))))
+  (values))
+      
 
   
 
@@ -1019,12 +1059,13 @@
 
 
 (defmethod clim:handle-event :before ((window homemade-window-mixin) (event clim:pointer-button-press-event))
-  (setf (send window focused?) t)
+  ;;(setf (send window focused?) t)
+  (focus-window window)
   (values))
 
 (defmethod clim:handle-event :before ((self title-bar) (event clim:pointer-button-press-event))
   (unless (the window iconified?)
-    (setf (the window focused?) t))
+    (focus-window (the window)))
   (values))
 
 (defobject popup-window-mixin (homemade-window-mixin))

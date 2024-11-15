@@ -4,17 +4,17 @@
   :metaclass echo-area-window-class
 
   :inputs
-  ((parent (main-window clim:*default-frame-manager*))
-   (iconified? nil)
-   (resizable? nil)
-   (memu-bar? nil)
-   (scrollbar-x? nil)
-   (scrollbar-y? nil)
-   (title-bar? nil)
-   (modeline? nil)
-   (iconify-button? nil)
-   (close-button? nil)
-   (rounding? nil))
+  ((parent :visual (main-window clim:*default-frame-manager*))
+   (iconified? :visual nil)
+   (resizable? :visual nil)
+   (menu-bar? :visual nil)
+   (scrollbar-x? :visual nil)
+   (scrollbar-y? :visual nil)
+   (title-bar? :visual nil)
+   (modeline? :visual nil)
+   (iconify-button? :visual nil)
+   (close-button? :visual nil)
+   (rounding? :visual nil))
 
   :attributes
   ((x 0)
@@ -37,7 +37,7 @@
 		       'scene scene
 		       'parent frame))
   (when (send hi::*echo-area-window* visible?)
-    (rm-draw-node-recursively hi::*echo-area-window*))
+    #+NIL(rm-draw-node-recursively hi::*echo-area-window*))
   hi::*echo-area-window*)
   
 

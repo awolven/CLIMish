@@ -85,20 +85,21 @@
   (:generic-function-class climish::not-everywhere-command))
 
 (defmethod dired-command (window p &optional (directory #p"~/"))
-  (let ((window (climish::find-or-create-window-of-class 'climish::dired-window)))
-    (let* ((info (if (hemlock-bound-p 'dired-information)
-                     (if (eq window *echo-area-window*)
-                         nil
-                         (variable-value 'dired-information :buffer (window-buffer window)))))
-           (buffer (dired-guts window nil
-                               ;; Propagate dot-files property to subdirectory edits.
-                               (or (and info (dired-info-dot-files-p info))
-                                   p)
-                               directory)))
+  (let* ((window (climish::find-or-create-window-of-class 'climish::dired-window))
+         (info (if (hemlock-bound-p 'dired-information)
+                   (if (eq window *echo-area-window*)
+                       nil
+                       (variable-value 'dired-information :buffer (window-buffer window)))))
+         (buffer (dired-guts window nil
+                             ;; Propagate dot-files property to subdirectory edits.
+                             (or (and info (dired-info-dot-files-p info))
+                                 p)
+                             directory)))
       
-      (setf (window-buffer window) buffer)
-      (climish::focus-window window)
-      window)))
+    (setf (window-buffer window) buffer)
+    (climish::focus-window window)
+    (adhoc-scene-graph::rm-redraw-node (adhoc:send window climish::buffer-view climish::text))
+    window))
 
 (defhcommand dired-with-pattern-command (window p)
   (:pretty-name "Dired with Pattern")
@@ -107,7 +108,8 @@
    argument, include UNIX dit files.")
   (:help-string
    "Do a dired, prompting for a pattern which may include a single *.  With an
-   argument, include UNIX dit files."))
+   argument, include UNIX dit files.")
+  (:generic-function-class climish::not-everywhere-command))
 
 (defmethod dired-with-pattern-command (window p)
   (dired-guts window t p nil))
@@ -221,7 +223,8 @@
   (:help-string
    "Marks a file for deletion; signals an error if not in a dired buffer.")
   (:applicability (dired-context? climish::application-frame))
-  (:preparation (climish::hemlock-arguments climish::application-frame)))
+  (:preparation (climish::hemlock-arguments climish::application-frame))
+  (:generic-function-class climish::not-everywhere-command))
 
 (defmethod dired-delete-file-command (window p)
   (dired-frob-deletion window p t))
@@ -236,7 +239,8 @@
   (:help-string
    "Removes a mark for deletion; signals and error if not in a dired buffer.")
   (:applicability (dired-context? climish::application-frame))
-  (:preparation (climish::hemlock-arguments climish::application-frame)))
+  (:preparation (climish::hemlock-arguments climish::application-frame))
+  (:generic-function-class climish::not-everywhere-command))
 
 (defmethod dired-undelete-file-command (window p)
   (dired-frob-deletion window p nil))
@@ -248,7 +252,8 @@
   (:help-string "Marks file for deletion and moves down a line.
    See \"Dired Delete File\".")
   (:applicability (dired-context? climish::application-frame))
-  (:preparation (climish::hemlock-arguments climish::application-frame)))
+  (:preparation (climish::hemlock-arguments climish::application-frame))
+  (:generic-function-class climish::not-everywhere-command))
 
 (defmethod dired-delete-file-and-down-line-command (window p)
   (declare (ignore p))
@@ -263,7 +268,8 @@
   (:help-string "Marks file undeleted and moves down a line.
    See \"Dired Delete File\".")
   (:applicability (dired-context? climish::application-frame))
-  (:preparation (climish::hemlock-arguments climish::application-frame)))
+  (:preparation (climish::hemlock-arguments climish::application-frame))
+  (:generic-function-class climish::not-everywhere-command))
   
 
 (defmethod dired-undelete-file-and-down-line-command (window p)
@@ -279,7 +285,8 @@
   (:help-string "Prompts for a pattern and marks matching files for deletion.
    See \"Dired Delete File\".")
   (:applicability (dired-context? climish::application-frame))
-  (:preparation (climish::hemlock-arguments climish::application-frame)))
+  (:preparation (climish::hemlock-arguments climish::application-frame))
+  (:generic-function-class climish::not-everywhere-command))
 
 (defmethod dired-delete-file-with-pattern-command (window p)
   (declare (ignore p))
@@ -294,7 +301,8 @@
   (:help-string "Prompts for a pattern and marks matching files undeleted.
    See \"Dired Delete File\".")
   (:applicability (dired-context? climish::application-frame))
-  (:preparation (climish::hemlock-arguments climish::application-frame)))
+  (:preparation (climish::hemlock-arguments climish::application-frame))
+  (:generic-function-class climish::not-everywhere-command))
 
 (defmethod dired-undelete-file-with-pattern-command (window p)
   (declare (ignore p))
@@ -355,7 +363,8 @@
   (:documentation "Read in file or recursively \"Dired\" a directory.")
   (:help-string "Read in file or recursively \"Dired\" a directory.")
   (:applicability (dired-context? climish::application-frame))
-  (:preparation (climish::hemlock-arguments climish::application-frame)))
+  (:preparation (climish::hemlock-arguments climish::application-frame))
+  (:generic-function-class climish::not-everywhere-command))
 
 (defmethod dired-edit-file-command (window p)
   (declare (ignore p))
@@ -369,7 +378,7 @@
       (if (directoryp pathname)
           (dired-command window nil (directory-namestring pathname))
           (change-to-buffer (find-file-buffer window pathname) window)))
-    (climish::rm-redraw-node-recursively window)))
+    #+NIL(climish::rm-redraw-node-recursively window)))
 
 (defcommand dired-view-file-command (window p)
   (:pretty-name "Dired View File")
@@ -380,7 +389,8 @@
    "Read in file as if by \"View File\".
    This associates the file's buffer with the dired buffer.")
   (:applicability (dired-context? climish::application-frame))
-  (:preparation (climish::hemlock-arguments climish::application-frame)))
+  (:preparation (climish::hemlock-arguments climish::application-frame))
+  (:generic-function-class climish::not-everywhere-command))
 
 (defmethod dired-view-file-command (window p)
   (declare (ignore p))
@@ -428,7 +438,8 @@
   (:help-string "Invokes \"Dired\" on the directory up one level from the current Dired
    buffer.")
   (:applicability (dired-context? climish::application-frame))
-  (:preparation (climish::hemlock-arguments climish::application-frame)))
+  (:preparation (climish::hemlock-arguments climish::application-frame))
+  (:generic-function-class climish::not-everywhere-command))
 
 (defmethod dired-up-directory-command (window p)
   (declare (ignore p))
@@ -453,7 +464,8 @@
    "Recompute the contents of a dired buffer.
    This maintains delete flags for files that have not been modified.")
   (:applicability (dired-context? climish::application-frame))
-  (:preparation (climish::hemlock-arguments climish::application-frame)))
+  (:preparation (climish::hemlock-arguments climish::application-frame))
+  (:generic-function-class climish::not-everywhere-command))
 
 (defmethod dired-update-buffer-command (window p)
   (declare (ignore p))
@@ -548,7 +560,8 @@
   (:documentation "How to use dired.")
   (:help-string "How to use dired.")
   (:applicability (dired-context? climish::application-frame))
-  (:preparation (climish::hemlock-arguments climish::application-frame)))
+  (:preparation (climish::hemlock-arguments climish::application-frame))
+  (:generic-function-class climish::not-everywhere-command))
 
 (defmethod dired-help-command (window p)
   (declare (ignore p))
@@ -559,7 +572,8 @@
   (:documentation "Moves to next undeleted file.")
   (:help-string "Moves to next undeleted file.")
   (:applicability (dired-context? climish::application-frame))
-  (:preparation (climish::hemlock-arguments climish::application-frame)))
+  (:preparation (climish::hemlock-arguments climish::application-frame))
+  (:generic-function-class climish::not-everywhere-command))
 
 (defmethod dired-next-file-command (window p)
   (let ((buffer (window-buffer window)))
@@ -571,7 +585,8 @@
   (:documentation "Moves to previous undeleted file.")
   (:help-string "Moves to next undeleted file.")
   (:applicability (dired-context? climish::application-frame))
-  (:preparation (climish::hemlock-arguments climish::application-frame)))
+  (:preparation (climish::hemlock-arguments climish::application-frame))
+  (:generic-function-class climish::not-everywhere-command))
 
 (defmethod dired-previous-file-command (window p)
   (let ((buffer (window-buffer window)))
@@ -624,7 +639,8 @@
    the same with directories and the value of \"Dired Directory Expunge
    Confirm\".")
   (:applicability (dired-context? climish::application-frame))
-  (:preparation (climish::hemlock-arguments climish::application-frame)))
+  (:preparation (climish::hemlock-arguments climish::application-frame))
+  (:generic-function-class climish::not-everywhere-command))
 
 (defmethod dired-expunge-files-command (window p)
   (declare (ignore p))
@@ -637,7 +653,8 @@
   (:documentation "Expunges the files in a dired buffer and then exits.")
   (:help-string "Expunges the files in a dired buffer and then exits.")
   (:applicability (dired-context? climish::application-frame))
-  (:preparation (climish::hemlock-arguments climish::application-frame)))
+  (:preparation (climish::hemlock-arguments climish::application-frame))
+  (:generic-function-class climish::not-everywhere-command))
 
 (defmethod dired-quit-command (window p)
   (declare (ignore p))
@@ -697,7 +714,8 @@
   (:documentation "Copy the file under the point")
   (:help-string "Copy the file under the point")
   (:applicability (dired-context? climish::application-frame))
-  (:preparation (climish::hemlock-arguments climish::application-frame)))
+  (:preparation (climish::hemlock-arguments climish::application-frame))
+  (:generic-function-class climish::not-everywhere-command))
 
 (defmethod dired-copy-file-command (window p)
   (declare (ignore p))
@@ -728,7 +746,8 @@
   (:documentation "Rename the file or directory under the point")
   (:help-string "Rename the file or directory under the point")
   (:applicability (dired-context? climish::application-frame))
-  (:preparation (climish::hemlock-arguments climish::application-frame)))
+  (:preparation (climish::hemlock-arguments climish::application-frame))
+  (:generic-function-class climish::not-everywhere-command))
 
 (defmethod dired-rename-file-command (window p)
   (declare (ignore p))
@@ -757,7 +776,8 @@
   (:documentation "Copy files that match a pattern containing ONE wildcard.")
   (:help-string "Copy files that match a pattern containing ONE wildcard.")
   (:applicability (dired-context? climish::application-frame))
-  (:preparation (climish::hemlock-arguments climish::application-frame)))
+  (:preparation (climish::hemlock-arguments climish::application-frame))
+  (:generic-function-class climish::not-everywhere-command))
 
 (defmethod dired-copy-with-wildcard-command (window p)
   (declare (ignore p))
@@ -788,7 +808,8 @@
   (:documentation "Rename files that match a pattern containing ONE wildcard.")
   (:help-string "Rename files that match a pattern containing ONE wildcard.")
   (:applicability (dired-context? climish::application-frame))
-  (:preparation (climish::hemlock-arguments climish::application-frame)))
+  (:preparation (climish::hemlock-arguments climish::application-frame))
+  (:generic-function-class climish::not-everywhere-command))
 
 (defmethod dired-rename-with-wildcard-command (window p)
   (declare (ignore p))
@@ -818,7 +839,8 @@
   (:documentation "Delete a file.  Specify directories with a trailing slash.")
   (:help-string "Delete a file.  Specify directories with a trailing slash.")
   (:applicability (dired-context? climish::application-frame))
-  (:preparation (climish::hemlock-arguments climish::application-frame)))
+  (:preparation (climish::hemlock-arguments climish::application-frame))
+  (:generic-function-class climish::not-everywhere-command))
 
 (defmethod delete-file-command (window p)
   (declare (ignore p))
@@ -850,7 +872,8 @@
   (:documentation "Copy a file, allowing ONE wildcard.")
   (:help-string "Copy a file, allowing ONE wildcard.")
   (:applicability (dired-context? climish::application-frame))
-  (:preparation (climish::hemlock-arguments climish::application-frame)))
+  (:preparation (climish::hemlock-arguments climish::application-frame))
+  (:generic-function-class climish::not-everywhere-command))
 
 (defmethod copy-file-command (window p)
   (declare (ignore p))
@@ -882,7 +905,8 @@
   (:documentation "Rename a file, allowing ONE wildcard.")
   (:help-string "Rename a file, allowing ONE wildcard.")
   (:applicability (dired-context? climish::application-frame))
-  (:preparation (climish::hemlock-arguments climish::application-frame)))
+  (:preparation (climish::hemlock-arguments climish::application-frame))
+  (:generic-function-class climish::not-everywhere-command))
 
 (defmethod rename-file-command (window p)
   (declare (ignore p))
@@ -988,7 +1012,8 @@
   (:help-string "Reads a file in as if by \"Find File\", but read-only.  Commands exist
    for scrolling convenience.")
   (:applicability (dired-context? climish::application-frame))
-  (:preparation (climish::hemlock-arguments climish::application-frame)))
+  (:preparation (climish::hemlock-arguments climish::application-frame))
+  (:generic-function-class climish::not-everywhere-command))
 
 (defmethod view-file-command (window p &optional pathname)
   (declare (ignore p))
@@ -1010,7 +1035,8 @@
   (:documentation "Return to a parent buffer, if it exists.")
   (:help-string "Return to a parent buffer, if it exists.")
   (:applicability (view-context? climish::application-frame))
-  (:preparation (climish::hemlock-arguments climish::application-frame)))
+  (:preparation (climish::hemlock-arguments climish::application-frame))
+  (:generic-function-class climish::not-everywhere-command))
 
 (defmethod view-return-command (window p)
   (declare (ignore p))
@@ -1023,7 +1049,8 @@
   (:help-string "Delete a buffer in view mode, invoking VIEW-RETURN-FUNCTION if it exists for
    this buffer.")
   (:applicability (view-context? climish::application-frame))
-  (:preparation (climish::hemlock-arguments climish::application-frame)))
+  (:preparation (climish::hemlock-arguments climish::application-frame))
+  (:generic-function-class climish::not-everywhere-command))
 
 (defmethod view-quit-command (window p)
   (declare (ignore p))
@@ -1057,7 +1084,8 @@
    Deleting Buffer\" is set.  If the buffer is associated with a dired buffer,
    this returns there instead of to the previous buffer.")
   (:applicability (view-context? climish::application-frame))
-  (:preparation (climish::hemlock-arguments climish::application-frame)))
+  (:preparation (climish::hemlock-arguments climish::application-frame))
+  (:generic-function-class climish::not-everywhere-command))
 
 (defmethod view-scroll-down-command (window p)
   (if (and (not p)
@@ -1072,7 +1100,8 @@
   (:documentation "Turn off \"View\" mode in this buffer.")
   (:help-string "Turn off \"View\" mode in this buffer.")
   (:applicability (view-context? climish::application-frame))
-  (:preparation (climish::hemlock-arguments climish::application-frame)))
+  (:preparation (climish::hemlock-arguments climish::application-frame))
+  (:generic-function-class climish::not-everywhere-command))
 
 (defmethod view-edit-file-command (window p)
   (declare (ignore p))
@@ -1085,7 +1114,8 @@
   (:documentation "Shows \"View\" mode help message.")
   (:help-string "Shows \"View\" mode help message.")
   (:applicability (view-context? climish::application-frame))
-  (:preparation (climish::hemlock-arguments climish::application-frame)))
+  (:preparation (climish::hemlock-arguments climish::application-frame))
+  (:generic-function-class climish::not-everywhere-command))
 
 (defmethod view-help-command (window p) 
   (declare (ignore p))

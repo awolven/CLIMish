@@ -139,23 +139,37 @@
 (defmethod windowp ((thing window))
   t)
 
-(defmethod initialize-instance :after ((view window)
-				       &rest args
-				       &key
-					 (buffer (make-instance 'buffer))
-					 (start (buffer-start-mark buffer))
-					 (display-start (copy-mark start :right-inserting))
-					 (old-start (copy-mark start :temporary))
-					 (display-end (copy-mark start :right-inserting))
-					 (point (copy-mark (buffer-point buffer)))
-					 (tick -1)
-					 (the-sentinel (make-the-sentinel))
-					 (first-line (cons dummy-line the-sentinel))
-					 (last-line the-sentinel)
-					 (first-changed the-sentinel)
-					 (last-changed first-line)
-				       &allow-other-keys)
+(defmethod initialize-instance ((view window)
+				&rest args
+				&key buffer
+				  start
+				  display-start
+				  old-start
+				  display-end
+				  point
+				  tick
+				  the-sentinel
+				  first-line
+				  last-line
+				  first-changed
+				  last-changed
+				&allow-other-keys)
   (declare (ignore args))
+
+  (call-next-method)
+
+  (setq buffer (or buffer (make-instance 'buffer)))
+  (setq start (or start (buffer-start-mark buffer)))
+  (setq display-start (or display-start (copy-mark start :right-inserting)))
+  (setq old-start (or old-start (copy-mark start :temporary)))
+  (setq display-end (or display-end (copy-mark start :right-inserting)))
+  (setq point (or point (copy-mark (buffer-point buffer))))
+  (setq tick (or tick -1))
+  (setq the-sentinel (or the-sentinel (make-the-sentinel)))
+  (setq first-line (or first-line (cons dummy-line the-sentinel)))
+  (setq last-line (or last-line the-sentinel))
+  (setq first-changed (or first-changed the-sentinel))
+  (setq last-changed (or last-changed first-line))
   
   (setf (window-display-start view) display-start)
   (setf (window-old-start view) old-start)

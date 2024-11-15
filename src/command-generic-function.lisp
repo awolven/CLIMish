@@ -109,7 +109,8 @@
      ,@(when (not (assoc :applicability initargs))
 	 `((:applicability (hemlock-applicability climish::application-frame))))
      (:resolution (values))
-     (:generic-function-class text-editor-command)
+     ,@(when (not (assoc :generic-function-class initargs))
+	 `((:generic-function-class text-editor-command)))
      ,@initargs))
 
 (defmacro hemlock::define-lisp-mode-command (name arglist &rest initargs)

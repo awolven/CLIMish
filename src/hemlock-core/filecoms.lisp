@@ -920,7 +920,7 @@
           (dolist (w (buffer-windows buffer))
             (clui:destroy-window w)))
       (delete-buffer buffer *echo-area-window*)
-      (climish:rm-redraw-node-recursively window))))
+      #+NIL(climish:rm-redraw-node-recursively window))))
 
 
 (defhcommand rename-buffer-command (window p)
@@ -944,7 +944,7 @@
       (cond ((or (not foundp) (eq entry buf))
              (setf (buffer-name buf) new))
             (t (editor-error "Name ~S already in use." new))))
-    (climish::rm-redraw-node-recursively window)))
+    #+NIL(climish::rm-redraw-node-recursively window)))
 
 
 (defhcommand insert-buffer-command (window p)

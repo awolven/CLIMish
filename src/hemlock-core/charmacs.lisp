@@ -65,7 +65,7 @@
   (when (> end (length string))
     (warn "%sp-find-character-with-attribute: end was too large")
     (setq end (length string)))
-  (when (>= start (length string))
+  (when (> start (length string))
     (warn "%sp-find-character-with-attribute: start was too large")
     (setq start (length string)))
   (when (minusp end)

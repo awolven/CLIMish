@@ -4,27 +4,6 @@
 
 (defclass textual-view () ())
 
-;; start the counter for lisp objects at the end of half of int so we can use foreign handled ints
-;; as oids directly without needing to access this counter (such as parasolid tags)
-(defvar *object-id-counter* (expt 2 31)) 
-
-(defun new-object-id ()
-  (incf *object-id-counter*))
-
-(defvar *object-id->object-table*
-  (make-hash-table :test #'eq))
-
-(defun (setf krma::object-from-id) (object id)
-  (setf (gethash id *object-id->object-table*) object))
-
-(defun krma::object-from-id (id)
-  (gethash id *object-id->object-table*))
-
-(defvar *group-counter* 0)
-
-(defun new-group ()
-  (incf *group-counter*))
-
 (defmacro regenerate! (object)
   `(eval (list* 'send ,object (send ,object root-path))))
 

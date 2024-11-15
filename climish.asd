@@ -2,6 +2,7 @@
   :description "A CLIM-like platform independent gui library."
   :depends-on (:krma
 	       :adhoc
+	       :scene-graph
 	       :trivial-gray-streams
 	       :bordeaux-threads
 	       :iterate
@@ -80,7 +81,7 @@
    (:file "src/hemlock-ptypes")   
    (:file "src/completer")
    (:file "src/kill-ring")
-   (:file "src/scene-graph")
+   ;;(:file "src/scene-graph")
    (:file "src/metaclasses")
    (:file "src/style")
    (:file "src/views")
