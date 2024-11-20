@@ -214,7 +214,7 @@
 
 (defun maybe-discard-char-event (input)
   (sleep 0.01) ;; race condition problem.
-  (let ((peeked-event (climish::peek-next-event input)))
+  (let ((peeked-event (my-listen input)))
     (when (typep peeked-event 'clui::character-event-mixin)
       (discard-next-event input))))
   
@@ -389,7 +389,7 @@
                   (move-mark point trailer)
                   (character-offset buffer trailer found-offset)))
 
-           (push-buffer-mark buffer trailer t)
+           (push-buffer-mark buffer (copy-mark trailer) t)
 
            (if (hi::maybe-recenter-window-on-mark current-window point)
                (climish::redraw-buffer current-window)

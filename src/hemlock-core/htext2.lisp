@@ -194,7 +194,7 @@
                   (setf (line-next line) new)
                   (when next (setf (line-previous next) new))
                   (setq right-open-pos line-cache-length)
-                  (number-line .buffer new)))
+                  (number-line .buffer. new)))
                (t
                 (setf (char (the simple-string open-chars) right-open-pos)
                       ,character-sym))))

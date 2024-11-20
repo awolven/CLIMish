@@ -1,8 +1,14 @@
 (in-package :climish)
+	   
+#+SBCL
+(declaim (sb-ext:muffle-conditions SB-KERNEL:&OPTIONAL-AND-&KEY-IN-LAMBDA-LIST))
 
 ;;;"Copyright (c) 1990, 1991, 1992 Symbolics, Inc.  All rights reserved."
 
 ;;; This file contains the standard, canned presentation types
+
+;; Used for passing information from ACCEPT through the input editor to here
+(defvar *presentation-type-for-yanking* nil)
 
 ;;;; Basic Presentation Types
 
@@ -344,6 +350,7 @@
                            :version default-version))))
   (values default default-type))
 
+#+NOTYET
 (define-presentation-method accept ((type pathname) stream (view textual-view) &key default)
   (when (null default)
     (setq default *default-pathname-defaults*))
@@ -469,14 +476,14 @@
        (getf (cdr item) :documentation)))
 
 (define-presentation-method accept ((type completion) stream (view textual-view) &key)
-  (flet ((possibility-printer (possibility type stream)
-	   #+NOTYET
+  (flet (#+NOTYET
+	 (possibility-printer (possibility type stream)
             (with-output-as-presentation (stream (funcall value-key (second possibility)) type)
               (funcall printer
                        (funcall name-key (find (second possibility) sequence
                                                :key value-key :test test))
                        stream))))
-    (declare (dynamic-extent #'possibility-printer))
+    ;;(declare (dynamic-extent #'possibility-printer))
     (values
      #+NOTYET
       (completing-from-suggestions
@@ -617,16 +624,15 @@
           (if (eql separator #\space)
               " "
               (make-array 2 :initial-contents (list separator #\space)))))
-    (flet ((possibility-printer (possibility type stream)
-	     #+NOTYET
+    (flet (#+NOTYET(possibility-printer (possibility type stream)
              (with-output-as-presentation (stream (list (funcall value-key (second possibility))) type)
                (funcall printer
                         (funcall name-key (find (second possibility) sequence
                                                 :key value-key :test test))
                         stream))))
-      (declare (dynamic-extent #'possibility-printer))
+      ;;(declare (dynamic-extent #'possibility-printer))
       (loop
-        (when (eq (read-event stream #+NOTYET #+NOTYET :peek-p t :timeout 0) *end-of-file-marker*)
+        (when (eq (read-event stream #+NOTYET #+NOTYET :peek-p t :timeout 0) +end-of-file-marker+)
           (return-from accept (nreverse list)))
         (let ((element
                 (with-delimiter-gestures (separators)
@@ -1219,8 +1225,9 @@
 (define-presentation-type expression ()
   :options ((auto-activate nil boolean)))
 
+#+NOTYET
 (define-presentation-method presentation-type-history ((type expression))
-  (presentation-type-history-for-frame type *application-frame*))
+  (presentation-type-history-for-frame type (main-window clim:*default-frame-manager*)))
 
 (define-presentation-method accept ((type expression) stream (view textual-view) &key)
   (let ((*read-recursive-objects* nil))
@@ -1263,7 +1270,7 @@
   (with-presentation-type-decoded (name) type
     (funcall function name type)
     (with-stack-list (new-name 'command-or-form
-                               :command-table (frame-command-table *application-frame*))
+                               :command-table (frame-command-table (main-window clim:*default-frame-manager*)))
       (with-stack-list (new-type new-name :auto-activate auto-activate)
         (funcall function 'command-or-form new-type))
       (with-stack-list (new-name 'expression)

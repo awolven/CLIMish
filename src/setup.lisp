@@ -1,5 +1,8 @@
 (in-package :climish)
 
+#+SBCL
+(declaim (sb-ext:muffle-conditions SB-KERNEL:&OPTIONAL-AND-&KEY-IN-LAMBDA-LIST))
+
 (defvar *style*)
 
 (defclass textual-view () ())
@@ -77,6 +80,7 @@
                                &key input-sensitizer initial-contents
                                     (class `*default-input-editing-stream-class*))
                               &body body)
+  (declare (sb-ext:muffle-conditions SB-KERNEL:&OPTIONAL-AND-&KEY-IN-LAMBDA-LIST))
   (default-input-stream stream with-input-editing)
   `(flet ((with-input-editing-body (,stream) ,@body))
      (declare (dynamic-extent #'with-input-editing-body))

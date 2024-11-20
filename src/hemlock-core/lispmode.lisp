@@ -806,9 +806,9 @@
 
 
 (macrolet ((frob (buffer step end)
-             `(let ((min (value buffer minimum-lines-parsed))
-                    (max (value buffer maximum-lines-parsed))
-                    (goal (value buffer defun-parse-goal))
+             `(let ((min (value ,buffer minimum-lines-parsed))
+                    (max (value ,buffer maximum-lines-parsed))
+                    (goal (value ,buffer defun-parse-goal))
                     (last-defun nil))
                 (declare (fixnum min max goal))
                 (do ((line (mark-line mark) (,step line))
@@ -1662,6 +1662,7 @@
                               (delete-characters buffer m -1))
                             (mark-after buffer m)
                             (move-mark point m)
+                            #+NOTYET
                             (indent-new-line-command window 1))
                            (t
                             (mark-after buffer m)

@@ -79,10 +79,13 @@
     ;; The remainder of this function should go away when
     ;; transparent key bindings are per binding instead of
     ;; per mode.
+    #+NOTYET
     (multiple-value-bind (command t-bindings)
+        
                          (get-command #k"Linefeed" :current)
       (declare (ignore command)) ;command is this one, so don't invoke it
       (dolist (c t-bindings) (funcall *invoke-hook* c p)))
+    #+NOTYET
     (indent-new-line-command window nil)))
 
 
@@ -102,6 +105,7 @@
     ;; The remainder of this function should go away when
     ;; transparent key bindings are per binding instead of
     ;; per mode.
+    #+NOTYET
     (multiple-value-bind (command t-bindings)
         (get-command #k"Return" :current)
       (declare (ignore command)) ;command is this one, so don't invoke it
@@ -290,16 +294,19 @@
   (let* ((start (value buffer comment-start))
          (begin (value buffer comment-begin))
          (end (value buffer comment-end)))
+    (declare (ignorable begin))
     (line-start mark)
     (cond ((and (not prefix) start (to-line-comment mark start))
            (fill-region buffer
                         (region mark (line-end buffer point))
+                        #+NOTYET
                         (gen-comment-prefix mark start begin)
                         column)
            (when end
              (line-start point)
              (do ()
                  ((mark>= mark point))
+               #+NOTYET
                (if (not (to-comment-end mark end)) (insert-string buffer mark end))
                (line-offset mark 1 0))))
           (t (fill-region (region mark (line-end buffer point)) prefix column)))))
@@ -346,6 +353,7 @@
 
 (defun %filling-set-next-line (current-window buffer point insertp prefix)
   (cond ((and (value buffer auto-fill-space-indent) (not prefix))
+         #+NOTYET
          (indent-new-comment-line-command current-window nil))
         (t (new-line-command current-window nil)
            (if prefix (insert-string buffer point prefix))))
@@ -362,8 +370,9 @@
 ;;; place the mark appropriately for filling the paragraph as a region.
 
 (defun %fill-paragraph-start (buffer mark prefix prefix-len)
+  (declare (ignorable prefix prefix-len))
   (paragraph-offset buffer mark -1)
-  (skip-prefix-if-here mark prefix prefix-len)
+  (skip-prefix-if-here buffer mark prefix prefix-len)
   (if (text-blank-line-p buffer mark)
       (line-offset mark 1 0)
       (line-start mark)))
@@ -441,7 +450,7 @@
         (nil)
       (line-end buffer fill-mark)
       (line-start (move-mark mark1 fill-mark))
-      (skip-prefix-if-here mark1 prefix prefix-len)
+      (skip-prefix-if-here buffer mark1 prefix prefix-len)
       (cond ((mark>= fill-mark end-mark)
              (if (mark= fill-mark end-mark)
                  (fill-region-clear-eol buffer fill-mark))
@@ -553,7 +562,7 @@
       (fill-region-find-next-line buffer fill-mark prefix prefix-len end-mark)
       (move-mark tmark fill-mark)
       (cond ((mark< fill-mark end-mark)
-             (skip-prefix-if-here tmark prefix prefix-len)
+             (skip-prefix-if-here buffer tmark prefix prefix-len)
              (fill-region-clear-bol buffer tmark)
              (let ((beginning-pos (mark-column buffer tmark)))
                (find-attribute buffer tmark :whitespace)
@@ -581,7 +590,7 @@
 (defun fill-region-find-next-line (buffer fill-mark prefix prefix-len end-mark)
   (line-offset fill-mark 1 0)
   (when (mark< fill-mark end-mark)
-    (skip-prefix-if-here fill-mark prefix prefix-len)
+    (skip-prefix-if-here buffer fill-mark prefix prefix-len)
     (if (blank-after-p buffer fill-mark)
         (fill-region-delete-blank-lines buffer fill-mark end-mark prefix prefix-len)
         (line-start fill-mark))))
@@ -599,7 +608,7 @@
         ((not linep)
          (move-mark tmark end-mark)
          (delete-region buffer (region mark tmark)))
-      (skip-prefix-if-here tmark prefix prefix-len)
+      (skip-prefix-if-here buffer tmark prefix prefix-len)
       (when (mark>= tmark end-mark)
         (move-mark tmark end-mark)
         (delete-region buffer (region mark tmark))

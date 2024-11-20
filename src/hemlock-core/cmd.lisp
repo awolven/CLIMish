@@ -288,6 +288,7 @@ BOOL CreateProcessW(
                                    (width 80) (height 32)
                                 (current-directory (cffi:null-pointer))
                                 (application-name (cffi:null-pointer)))
+  (declare (ignore width height))
   (let ((psec-attr (cffi:foreign-alloc '(:struct SECURITY_ATTRIBUTES))))
 
     (zero-struct psec-attr (load-time-value (cffi:foreign-type-size '(:struct SECURITY_ATTRIBUTES))))
@@ -314,7 +315,7 @@ BOOL CreateProcessW(
 
           (cffi:with-foreign-objects (#+NO(&ConsoleSize '(:struct COORD)) (&hPC 'HPCON))
 
-            (let ((console-size (logior width (ash height 16))))
+            (let (#+NIL(console-size (logior width (ash height 16))))
               #+NIL
               (setf (cffi:foreign-slot-value &ConsoleSize '(:struct COORD) 'X) width
                     (cffi:foreign-slot-value &ConsoleSize '(:struct COORD) 'Y) height)
@@ -323,7 +324,7 @@ BOOL CreateProcessW(
               (setf (cffi:mem-aref &hPC 'HANDLE 1) (cffi:null-pointer))
               (setf (cffi:mem-aref &hPC 'HANDLE 2) (cffi:null-pointer))
 
-              (let ((hr S_OK #+NOTYET(CreatePseudoConsole
+              (let (#+NIL(hr S_OK #+NOTYET(CreatePseudoConsole
                          console-size in-pipe-pseudo-console-side out-pipe-pseudo-console-side 0 &hPC)))
 
 		#+NOTNOW
@@ -483,7 +484,7 @@ BOOL CreateProcessW(
             (setf  hemlock::input-line-position -1))))))
 
 (defun start-pipe-maintenance-thread (process)
-  (let ((stdin (process-stdin process))
+  (let (#+NIL(stdin (process-stdin process))
         (stdout (process-stdout process)))
     (setf (process-reader-thread process)
           (bt:make-thread

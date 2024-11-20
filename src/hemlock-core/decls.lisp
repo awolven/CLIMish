@@ -56,6 +56,6 @@
                     t)
              ,name)))
 
-(declfun window-buffer (window))
+
 ;;(declfun change-to-buffer (buffer &optional window))     ;filecoms.lisp
 (declfun hemlock::to-line-comment (mark start)) ;defined in comments.lisp used in lispbuf.lisp

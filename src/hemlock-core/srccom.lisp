@@ -52,7 +52,7 @@
    buffer."))
 
 (defmethod compare-buffers-command (window p &optional buffer-a buffer-b dest-buffer)
-  (srccom-choose-comparison-functions)
+  (srccom-choose-comparison-functions (window-buffer window))
   (let ((current-buffer (window-buffer window)))
     (multiple-value-bind (buffer-a buffer-b dest-point
                           delete-buffer-a delete-buffer-b)
@@ -66,7 +66,7 @@
 
           (loop
             (multiple-value-bind (diff-a diff-b)
-                (srccom-find-difference mark-a mark-b)
+                (srccom-find-difference (or delete-buffer-a buffer-a) mark-a (or delete-buffer-b buffer-b) mark-b)
               (when (null diff-a) (return nil))
               (format log "**** Buffer ~A:~%" (buffer-name buffer-a))
               (insert-region current-buffer dest-point diff-a)
@@ -98,7 +98,7 @@
    is supplied, only compare the regions in the buffer."))
 
 (defmethod merge-buffers-command (window p &optional buffer-a buffer-b dest-buffer)
-  (srccom-choose-comparison-functions)
+  (srccom-choose-comparison-functions (window-buffer window))
     (let ((current-buffer (window-buffer window)))
   (multiple-value-bind (buffer-a buffer-b dest-point
                         delete-buffer-a delete-buffer-b)
@@ -114,7 +114,7 @@
           (clear-echo-area)
           (loop
             (multiple-value-bind (diff-a diff-b)
-                                 (srccom-find-difference mark-a mark-b)
+                                 (srccom-find-difference (or delete-buffer-a buffer-a) mark-a (or delete-buffer-b buffer-b) mark-b)
               (when (null diff-a)
                 (insert-region current-buffer dest-point (region temp-a (region-end region-a)))
                 (return nil))
@@ -155,7 +155,7 @@
                      (line-start
                       (move-mark
                        (window-display-start
-                        (car (buffer-windows (line-buffer (mark-line temp-a)))))
+                        (car (buffer-windows (or delete-buffer-a buffer-a))))
                        temp-a))
                      (reprompt window))
                 (:recursive-edit "Enter a recursive edit."
@@ -225,15 +225,15 @@
 
 ;;;; Functions that find the differences between two buffers.
 
-(defun srccom-find-difference (mark-a mark-b)
+(defun srccom-find-difference (buffer-a mark-a buffer-b mark-b)
   "Returns as multiple values two regions of text that are different in the
   lines following Mark-A and Mark-B.  If no difference is encountered, Nil
   is returned."
   (multiple-value-bind (diff-a diff-b)
-                       (srccom-different-lines mark-a mark-b)
+                       (srccom-different-lines buffer-a mark-a buffer-b mark-b)
     (when diff-a
       (multiple-value-bind (same-a same-b)
-                           (srccom-similar-lines diff-a diff-b)
+                           (srccom-similar-lines buffer-a diff-a buffer-b diff-b)
         (values (region diff-a same-a)
                 (region diff-b same-b))))))
 
@@ -242,10 +242,11 @@
 (defvar *srccom-line=* nil)
 (defvar *srccom-line-next* nil)
 
-(defun srccom-different-lines (mark-a mark-b)
+(defun srccom-different-lines (buffer-a mark-a buffer-b mark-b)
   "Returns as multiple values two marks pointing to the first different lines
   found after Mark-A and Mark-B.  Nil is returned if no different lines are
   found."
+  (declare (ignore buffer-a buffer-b))
   (do ((line-a (mark-line mark-a) (funcall *srccom-line-next* line-a))
        (mark-a (copy-mark mark-a))
        (line-b (mark-line mark-b) (funcall *srccom-line-next* line-b))
@@ -261,7 +262,7 @@
     (unless (funcall *srccom-line=* line-a line-b)
       (return (values mark-a mark-b)))))
 
-(defun srccom-similar-lines (mark-a mark-b)
+(defun srccom-similar-lines (buffer-a mark-a buffer-b mark-b)
   "Returns as multiple values two marks pointing to the first similar lines
   found after Mark-A and Mark-B."
   (do ((line-a (mark-line mark-a) (funcall *srccom-line-next* line-a))
@@ -269,15 +270,15 @@
        (line-b (mark-line mark-b) (funcall *srccom-line-next* line-b))
        (cmark-b (copy-mark mark-b))
        (temp)
-       (window-size (value buffer source-compare-number-of-lines)))
+       (window-size (value buffer-a source-compare-number-of-lines)))
       (())
     ;; If we hit the end of one buffer, then the difference extends to the end
     ;; of both buffers.
     (if (or (null line-a) (null line-b))
         (return
          (values
-          (buffer-end-mark (line-buffer (mark-line mark-a)))
-          (buffer-end-mark (line-buffer (mark-line mark-b))))))
+          (buffer-end-mark buffer-a)
+          (buffer-end-mark buffer-b))))
     (line-start cmark-a line-a)
     (line-start cmark-b line-b)
     ;; Three cases:
@@ -369,13 +370,13 @@
 ;;; of "Source Compare Ignore Case" and "Source Compare Ignore Indentation".
 ;;;
 (macrolet ((def-line= (name test &optional ignore-indentation)
-             `(defun ,name (line-a line-b)
+             `(defun ,name (buffer-a line-a buffer-b line-b)
                 (or (eq line-a line-b)          ; if they're both NIL
                     (and line-a
                          line-b
-                         (let* ((chars-a (line-string (line-buffer line-a) line-a))
+                         (let* ((chars-a (line-string buffer-a line-a))
                                 (len-a (length chars-a))
-                                (chars-b (line-string (line-buffer line-b) line-b))
+                                (chars-b (line-string buffer-b line-b))
                                 (len-b (length chars-b)))
                            (declare (simple-string chars-a chars-b))
                            (cond

@@ -131,13 +131,13 @@
 ;;; permanent marks into a buffer) and the contents of region1 (from the buffer)
 ;;; in region2 (a region without marks into any buffer).
 ;;;
-(defmacro make-twiddle-region-undo (region1 region2)
+(defmacro make-twiddle-region-undo (buffer region1 region2)
   `#'(lambda ()
-       (let* ((tregion (delete-and-save-region ,region1))
+       (let* ((tregion (delete-and-save-region ,buffer ,region1))
               (mark (region-end ,region1)))
          (setf (mark-kind (region-start ,region1)) :right-inserting)
          (setf (mark-kind mark) :left-inserting)
-         (ninsert-region mark ,region2)
+         (ninsert-region ,buffer mark ,region2)
          (setf ,region2 tregion))))
 
 ;;; MAKE-DELETE-REGION-UNDO sets up an undo method that deletes region with
@@ -147,9 +147,9 @@
 ;;; MAKE-INSERT-REGION-UNDO, so mark results in the location in a buffer where
 ;;; region will be inserted if this method is undone.
 ;;;
-(defmacro make-delete-region-undo (region mark)
+(defmacro make-delete-region-undo (buffer region mark)
   `#'(lambda ()
-       (let ((tregion (delete-and-save-region ,region)))
+       (let ((tregion (delete-and-save-region ,buffer ,region)))
          (delete-mark (region-start ,region))
          (setf ,mark (region-end ,region))
          (setf ,region tregion))))
@@ -159,11 +159,11 @@
 ;;; This is designed to work with MAKE-DELETE-REGION-UNDO, so region can later
 ;;; be deleted.
 ;;;
-(defmacro make-insert-region-undo (region mark)
+(defmacro make-insert-region-undo (buffer region mark)
   `#'(lambda ()
        (let ((tregion (region (copy-mark ,mark :right-inserting) ,mark)))
          (setf (mark-kind ,mark) :left-inserting)
-         (ninsert-region ,mark ,region)
+         (ninsert-region ,buffer ,mark ,region)
          (setf ,region tregion))))
 
 ) ;eval-when
@@ -202,26 +202,26 @@
   (case kind
     (:twiddle
      (save-for-undo name
-       (make-twiddle-region-undo region mark-or-region)
+       (make-twiddle-region-undo buffer region mark-or-region)
        #'(lambda ()
            (delete-mark (region-start region))
            (delete-mark (region-end region)))
-       (make-twiddle-region-undo region mark-or-region)))
+       (make-twiddle-region-undo buffer region mark-or-region)))
     (:insert
      (save-for-undo name
-       (make-insert-region-undo region mark-or-region)
+       (make-insert-region-undo buffer region mark-or-region)
        #'(lambda ()
            (let ((mark (region-start region)))
              (delete-mark mark-or-region)
              (when buffer
                (delete-mark mark)
                (delete-mark (region-end region)))))
-       (make-delete-region-undo region mark-or-region)))
+       (make-delete-region-undo buffer region mark-or-region)))
     (:delete
      (save-for-undo name
-       (make-delete-region-undo region mark-or-region)
+       (make-delete-region-undo buffer region mark-or-region)
        #'(lambda ()
            (delete-mark (region-start region))
            (delete-mark (region-end region))
            (if (markp mark-or-region) (delete-mark mark-or-region)))
-       (make-insert-region-undo region mark-or-region)))))
+       (make-insert-region-undo buffer region mark-or-region)))))

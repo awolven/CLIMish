@@ -296,7 +296,7 @@
   #'(lambda (command window p)
       (let ((buffer (window-buffer window)))
         (new-undo-invoke-hook buffer command p)
-        (funcall (command-function command) window p)
+        (funcall command window p)
         (setf (slot-value buffer 'last-was-undo-p)
               (slot-value buffer 'this-is-undo-p))))
   "This function is called by the command interpreter when it wants to invoke a

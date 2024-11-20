@@ -87,12 +87,12 @@
 ;;(defaccelerator "Universal Argument" #k"Ctrl-u")
 
 
-(defaccelerator "Help" #k"Ctrl-h")
-(defaccelerator "Help" #k"Shift-Ctrl-\-")
-(defaccelerator "Help" #k"F1")
+;;(defaccelerator "Help" #k"Ctrl-h")
+;;(defaccelerator "Help" #k"Shift-Ctrl-\-")
+;;(defaccelerator "Help" #k"F1")
 
-(defaccelerator "Describe Key" #k"Shift-Meta-/")
-(defaccelerator "Describe Key" #k"Shift-Meta-/")
+;;(defaccelerator "Describe Key" #k"Shift-Meta-/")
+;;(defaccelerator "Describe Key" #k"Shift-Meta-/")
 
 ;;(defaccelerator "Top Line to Here" #k"RightMouse")
 
@@ -102,7 +102,7 @@
 (defaccelerator "Generic Pointer Up" #k"MiddleMouse_Up")
 
 
-(defaccelerator "Generic Pointer Move" #k"MouseMove")
+;;(defaccelerator "Generic Pointer Move" #k"MouseMove")
 
 (defaccelerator "Point to Here" #k"LeftMouse")
 
@@ -175,8 +175,8 @@
 (defaccelerator "Dired Edit File" #k"Ctrl-m")
 (defaccelerator "Dired Up Directory" #k"Shift-6")
 (defaccelerator "Dired Quit" #k"q")
-(defaccelerator "Dired Help" #k"Shift-/")
-(defaccelerator "Dired Help" #k"F1")
+;;(defaccelerator "Dired Help" #k"Shift-/")
+;;(defaccelerator "Dired Help" #k"F1")
 
 (defaccelerator "Dired Copy File" #k"c")
 (defaccelerator "Dired Copy with Wildcard" #k"Shift-c")
@@ -196,3 +196,25 @@
 (defaccelerator "Yank From Lisp Listener History" #k"Meta-p")
 (defaccelerator "Yank Next From Lisp Listener History" #k"Meta-n")
 (defaccelerator "Interrupt Lisp" #k"Ctrl-c" #k"Ctrl-c")
+
+(setf (logical-key-event-p #k"c-s" :forward-search) t)
+(setf (logical-key-event-p #k"c-r" :backward-search) t)
+(setf (logical-key-event-p #k"c-r" :recursive-edit) t)
+(setf (logical-key-event-p #k"delete" :cancel) t)
+(setf (logical-key-event-p #k"backspace" :cancel) t)
+(setf (logical-key-event-p #k"c-g" :abort) t)
+(setf (logical-key-event-p #k"escape" :exit) t)
+(setf (logical-key-event-p #k"y" :yes) t)
+(setf (logical-key-event-p #k"Spacebar" :yes) t)
+(setf (logical-key-event-p #k"n" :no) t)
+(setf (logical-key-event-p #k"backspace" :no) t)
+(setf (logical-key-event-p #k"delete" :no) t)
+(setf (logical-key-event-p #k"Shift-1" :do-all) t)
+(setf (logical-key-event-p #k"." :do-once) t)
+(setf (logical-key-event-p #k"c-h" :help) t)
+(setf (logical-key-event-p #k"h" :help) t)
+(setf (logical-key-event-p #k"Shift-/" :help) t)
+(setf (logical-key-event-p #k"Shift-c-\-" :help) t)
+(setf (logical-key-event-p #k"Enter" :confirm) t)
+(setf (logical-key-event-p #k"c-q" :quote) t)
+(setf (logical-key-event-p #k"k" :keep) t)

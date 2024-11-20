@@ -325,7 +325,8 @@
 ;; Original author: Francois-Rene Rideau
 #-(or cmu scl)
 (defun show-option-help
-       (specification &key (stream *standard-output*) sort-names)
+    (specification &key (stream *standard-output*) sort-names)
+  (declare (ignorable sort-names))
   ;; TODO: be clever when trying to align stuff horizontally
   (loop :for spec :in specification :do
         (destructuring-bind (names &key negation documentation negation-documentation
@@ -334,6 +335,7 @@
           (unless (consp names)
             (setf names (list names)))
           (flet ((option-names (names)
+		   (declare (ignorable names))
                    #+NOTYET
                    (let ((n (mapcar 'command-line-arguments::option-name names)))
                      (if sort-names

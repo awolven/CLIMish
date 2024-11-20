@@ -37,14 +37,14 @@
   (when (value buffer highlight-open-parens)
     (if (and (value buffer highlight-active-region)
              (region-active-p (window-buffer window)))
-        (kill-open-paren-font-marks)
+        (kill-open-paren-font-marks buffer)
         (multiple-value-bind
             (start end)
             (funcall (value buffer open-paren-finder-function)
                      (buffer-point buffer))
           (if (and start end)
               (set-open-paren-font-marks (window-buffer window) start end)
-              (kill-open-paren-font-marks)))))))
+              (kill-open-paren-font-marks buffer)))))))
 ;;;
 
 
@@ -59,14 +59,14 @@
       (let ((line (mark-line start)))
         (setf *open-paren-font-marks*
               (region
-               (font-mark line (mark-charpos start)
+               (font-mark buffer line (mark-charpos start)
                           *open-paren-highlight-font*)
-               (font-mark line (mark-charpos end) 0))))))
+               (font-mark buffer line (mark-charpos end) 0))))))
 
-(defun kill-open-paren-font-marks ()
+(defun kill-open-paren-font-marks (buffer)
   (when *open-paren-font-marks*
-    (delete-font-mark (region-start *open-paren-font-marks*))
-    (delete-font-mark (region-end *open-paren-font-marks*))
+    (delete-font-mark buffer (region-start *open-paren-font-marks*))
+    (delete-font-mark buffer (region-end *open-paren-font-marks*))
     (setf *open-paren-font-marks* nil)))
 
 
@@ -94,16 +94,16 @@
              (cond ((not *active-region-font-marks*)
                     (set-active-region-font-marks buffer))
                    ((check-active-region-font-marks buffer))
-                   (t (kill-active-region-font-marks)
+                   (t (kill-active-region-font-marks buffer)
                       (set-active-region-font-marks buffer))))
             (*active-region-font-marks*
-             (kill-active-region-font-marks)))))))
+             (kill-active-region-font-marks buffer)))))))
 ;;;
 
 
 (defun set-active-region-font-marks (current-buffer)
   (flet ((stash-a-mark (m &optional (font *active-region-highlight-font*))
-           (push (font-mark (mark-line m) (mark-charpos m) font)
+           (push (font-mark current-buffer (mark-line m) (mark-charpos m) font)
                  *active-region-font-marks*)))
     (let* ((region (current-region current-buffer nil nil))
            (start (region-start region))
@@ -117,9 +117,9 @@
           (unless (start-line-p end) (stash-a-mark end 0))))))
   (setf *active-region-font-marks* (nreverse *active-region-font-marks*)))
 
-(defun kill-active-region-font-marks ()
+(defun kill-active-region-font-marks (buffer)
   (dolist (m *active-region-font-marks*)
-    (delete-font-mark m))
+    (delete-font-mark buffer m))
   (setf *active-region-font-marks* nil))
 
 ;;; CHECK-ACTIVE-REGION-FONT-MARKS returns t if the current region is the same
@@ -165,6 +165,7 @@
       (let ((first-active-mark (car *active-region-font-marks*))
             (last-active-mark (last *active-region-font-marks*)))
         (if (and (mark/= mark end)
+                 #+NIL
                  (eq current-buffer
                      (line-buffer (mark-line first-active-mark)))
                  (mark= first-active-mark mark))
@@ -178,7 +179,8 @@
                                (mark= mark end)
                                (start-line-p (car last-active-mark)))
                       (setf (cdr last-active-mark)
-                            (list (font-mark (line-previous (mark-line mark))
+                            (list (font-mark current-buffer
+                                             (line-previous (mark-line mark))
                                              0
                                              *active-region-highlight-font*)))
                       (return t))

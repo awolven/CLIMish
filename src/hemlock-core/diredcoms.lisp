@@ -376,7 +376,7 @@
                       buffer
                       point (dired-info-files (variable-value 'dired-information :buffer (window-buffer window)))))))
       (if (directoryp pathname)
-          (dired-command window nil (directory-namestring pathname))
+          (dired-command window nil (hemlock-ext::directory-namestring2 pathname))
           (change-to-buffer (find-file-buffer window pathname) window)))
     #+NIL(climish::rm-redraw-node-recursively window)))
 
@@ -402,7 +402,7 @@
                       buffer
                       point (dired-info-files (variable-value 'dired-information :buffer buffer))))))
       (if (directoryp pathname)
-          (dired-command window nil (directory-namestring pathname))
+          (dired-command window nil (hemlock-ext::directory-namestring2 pathname))
           (let* ((dired-buf (window-buffer window))
                  (buffer (view-file-command window nil pathname)))
             (push #'(lambda (buffer)
@@ -428,7 +428,7 @@
   (let* ((buffer (window-buffer window))
          (pathname (buffer-pathname buffer)))
     (if pathname
-        (dired-command window p (directory-namestring pathname))
+        (dired-command window p (hemlock-ext::directory-namestring2 pathname))
         (editor-error "No pathname associated with buffer."))))
 
 (defcommand dired-up-directory-command (window p)
@@ -554,7 +554,7 @@
             (setf (svref dired-files i) (make-dired-file (car p))))
           (values (delete-if #'directoryp pathnames) dired-files))))))
 
-
+#+NOTYET
 (defcommand dired-help-command (window p)
   (:pretty-name "Dired Help")
   (:documentation "How to use dired.")
@@ -563,6 +563,7 @@
   (:preparation (climish::hemlock-arguments climish::application-frame))
   (:generic-function-class climish::not-everywhere-command))
 
+#+NOTYET
 (defmethod dired-help-command (window p)
   (declare (ignore p))
   (describe-mode-command window nil :dired))
@@ -664,7 +665,7 @@
 
 
 (defun expunge-dired-files (current-window)
-  (multiple-value-bind (marked-files marked-dirs) (get-marked-dired-files)
+  (multiple-value-bind (marked-files marked-dirs) (get-marked-dired-files (window-buffer current-window))
     (let ((dired:*error-function* #'dired-error-function)
           (dired:*report-function* #'dired-report-function)
           (dired:*yesp-function* #'dired-yesp-function)
@@ -695,11 +696,11 @@
                           (clim:accept 'y-or-n
                                        :current-window current-window
                                        :prompt (list "~a is a directory. Delete it? "
-                                                     (directory-namestring dir))
+                                                     (hemlock-ext::directory-namestring2 dir))
                                        :default t
                                        :must-exist t
                                        :default-string "Y"))
-                  (dired:delete-file (directory-namestring dir) :clobber t
+                  (dired:delete-file (hemlock-ext::directory-namestring2 dir) :clobber t
                                      :recursive t)
                   (setf we-did-something t))
                 (message "~A has been modified, it remains unchanged.")))))
@@ -860,7 +861,7 @@
               (clim:accept 'y-or-n
                            :current-window window
                :prompt (list "~A is a directory. Delete it? "
-                             (directory-namestring spec))
+                             (hemlock-ext::directory-namestring2 spec))
                :default t :must-exist t :default-string "Y")))
     (dired:delete-file spec :recursive t
                             :clobber (or directoryp
@@ -934,7 +935,7 @@
 
 (defun maintain-dired-consistency (current-window)
   (dolist (info *pathnames-to-dired-buffers*)
-    (let* ((directory (directory-namestring (car info)))
+    (let* ((directory (hemlock-ext::directory-namestring2 (car info)))
            (buffer (cdr info))
            (dir-info (variable-value 'dired-information :buffer buffer))
            (write-date (file-write-date directory)))
@@ -1040,7 +1041,7 @@
 
 (defmethod view-return-command (window p)
   (declare (ignore p))
-  (unless (call-view-return-fun)
+  (unless (call-view-return-fun (window-buffer window))
     (editor-error "No View return method for this buffer.")))
 
 (defcommand view-quit-command (window p)
@@ -1055,7 +1056,7 @@
 (defmethod view-quit-command (window p)
   (declare (ignore p))
   (let* ((buf (window-buffer window))
-         (funp (call-view-return-fun)))
+         (funp (call-view-return-fun (window-buffer window))))
     (delete-buffer-if-possible buf buf)
     (unless funp (editor-error "No View return method for this buffer."))))
 
@@ -1109,6 +1110,7 @@
     (setf (buffer-minor-mode buf "View" (window-buffer window)) nil)
     (warn-about-visit-file-buffers buf)))
 
+#+NOTYET
 (defcommand view-help-command (window p)
   (:pretty-name "View Help")
   (:documentation "Shows \"View\" mode help message.")
@@ -1117,6 +1119,7 @@
   (:preparation (climish::hemlock-arguments climish::application-frame))
   (:generic-function-class climish::not-everywhere-command))
 
+#+NOTYET
 (defmethod view-help-command (window p) 
   (declare (ignore p))
   (describe-mode-command nil "View"))

@@ -614,7 +614,7 @@
         (when
             (and (buffer-modified b)
                  pn
-                 (or (not (value buffer save-all-files-confirm))
+                 (or (not (value b save-all-files-confirm))
                      (clim:accept 'y-or-n
                                   :current-window window
                                   :prompt (list
@@ -1578,13 +1578,14 @@
 
 (defmethod go-to-one-window-command (window p)
   (declare (ignore p))
-  (let ((win (make-instance 'climish::text-editor-window
-                            :display-start (window-display-start window)
-                          :ask-user t
-                          :x (value buffer default-initial-window-x)
-                          :y (value buffer default-initial-window-y)
-                          :width (value buffer default-initial-window-width)
-                          :height (value buffer default-initial-window-height))))
+  (let* ((buffer (window-buffer window))
+         (win (make-instance 'climish::text-editor-window
+                             :display-start (window-display-start window)
+                             :ask-user t
+                             :x (value buffer default-initial-window-x)
+                             :y (value buffer default-initial-window-y)
+                             :width (value buffer default-initial-window-width)
+                             :height (value buffer default-initial-window-height))))
     (climish::focus-window win)
     (dolist (w *window-list*)
       (unless (or (eq w win)

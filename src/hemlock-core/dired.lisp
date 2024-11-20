@@ -110,7 +110,7 @@
   (cond
    ((not directoryp)
     (let* ((ses-name1 (namestring spec1))
-           (exists1p (file-kind spec1))
+           (exists1p (hemlock::file-kind spec1))
            (ses-name2 (namestring spec2))
            (pname1 (pathname ses-name1))
            (pname2 (pathname ses-name2))
@@ -286,6 +286,7 @@
           (t (do-the-copy ses-name1 ses-name2 secs1)))))
 
 (defun do-the-copy (ses-name1 ses-name2 secs1)
+  (declare (ignorable secs1))
   (with-open-file (input ses-name1 :element-type '(unsigned-byte 8) :direction :input)
     (with-open-file (output ses-name2 :element-type '(unsigned-byte 8) :direction :output
                             :if-exists :supersede)
@@ -311,7 +312,7 @@
   (cond
    ((not directoryp)
     (let* ((ses-name1 (namestring spec1))
-           (exists1p (file-kind ses-name1))
+           (exists1p (hemlock::file-kind ses-name1))
            (ses-name2 (namestring spec2))
            (pname1 (pathname ses-name1))
            (pname2 (pathname ses-name2))
@@ -565,7 +566,7 @@
 (defun make-directory (name)
   "Creates directory name.  If name exists, then an error is signaled."
   (let ((ses-name (namestring name)))
-    (when (file-kind ses-name)
+    (when (hemlock::file-kind ses-name)
       (funcall *error-function* "Name already exists -- ~S" ses-name))
     (enter-directory ses-name))
   t)
@@ -619,7 +620,8 @@
                ses-name1 ses-name2 (unix:get-unix-error-msg err)))))
 #-(or cmu scl)
 (defun sub-rename-file (ses-name1 ses-name2)
-  (rename ses-name1 ses-name2))
+  #+SBCL
+  (sb-unix:unix-rename ses-name1 ses-name2))
 
 #+(or cmu scl)
 (defun directory-existsp (ses-name)
@@ -627,6 +629,10 @@
 #-(or cmu scl)
 (defun directory-existsp (ses-name)
   (directory-exists-p ses-name))
+
+(defun directory-exists-p (ses-name)
+  (and (probe-file ses-name)
+       (eq (clui::file-kind ses-name) :directory)))
 
 #+(or cmu scl)
 (defun enter-directory (ses-name)
@@ -649,7 +655,8 @@
                       length-1)
                    (subseq ses-name 0 (1- (length ses-name)))
                    ses-name)))
-    (mkdir name #o755)))
+    #+SBCL
+    (sb-posix:mkdir name #o755)))
 
 #+(or cmu scl)
 (defun delete-directory (ses-name)
@@ -664,7 +671,8 @@
 #-(or cmu scl)
 (defun delete-directory (ses-name)
   (declare (simple-string ses-name))
-  (rmdir (subseq ses-name 0 (1- (length ses-name)))))
+  #+SBCL
+  (sb-posix:rmdir (subseq ses-name 0 (1- (length ses-name)))))
 
 
 

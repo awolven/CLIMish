@@ -104,13 +104,13 @@
 ;;; bucket, simply move it to the front.  The way we move an element to the
 ;;; front requires a full bucket to be at least three elements long.
 ;;;
-(defun record-completion (string)
+(defun record-completion (current-buffer string)
   (declare (simple-string string))
   (let ((string-length (length string)))
     (declare (fixnum string-length))
     (when (> string-length 3)
       (let ((bucket (completion-bucket-for string string-length))
-            (limit (value buffer completion-bucket-size)))
+            (limit (value current-buffer completion-bucket-size)))
         (do ((list bucket (cdr list))
              (last nil list)
              (length 1 (1+ length)))
@@ -189,6 +189,7 @@
 ;;; tense things up a bit.  Otherwise, if Last-Command-Type says we were
 ;;; just doing a word, then we record that word in the database.
 ;;;
+#+NOTYET
 (defhcommand completion-self-insert-command (window p)
   (:pretty-name "Completion Self Insert")
   (:documentation "Insert the last character typed, showing possible completions.  With prefix
@@ -196,6 +197,7 @@
   (:help-string "Implements \"Completion Self Insert\". Calling this function is not
    meaningful."))
 
+#+NOTYET
 (defmethod completion-self-insert-command (window p)
   (let ((char (hemlock-ext:key-event-char *last-key-event-typed*)))
     (unless char (editor-error "Can't insert that character."))
@@ -220,7 +222,8 @@
            (setf (last-command-type) :completion-self-insert))
           (t
            (when (eq (last-command-type) :completion-self-insert)
-             (record-completion (subseq *completion-prefix*
+             (record-completion (window-buffer window)
+                                (subseq *completion-prefix*
                                         0 *completion-prefix-length*)))))))
 
 ;;; SET-COMPLETION-PREFIX grabs any completion-wordchars immediately before
@@ -479,6 +482,7 @@
       (loop
         (unless (find-attribute buffer word-start :completion-wordchar) (return))
         (record-completion
+         (window-buffer window)
          (region-to-string buffer (region word-start
                                    (or (find-attribute buffer
                                         (move-mark word-end word-start)
@@ -626,6 +630,8 @@
 
 (defun complete-symbol (window p &optional show-matches-p)
   (declare (ignore p))
+  (declare (ignorable window show-matches-p))
+  #+NOTYET
   (find-symbol-completion window show-matches-p (symbol-string-at-point (window-buffer window))))
 
 (defun editor-find-symbol-completion (current-window show-matches-p prefix)
@@ -644,6 +650,8 @@
        package-prefix matches))))
 
 (defun editor-complete-symbol (current-window &optional show-matches-p)
+  (declare (ignorable current-window show-matches-p))
+  #+NOTYET
   (editor-find-symbol-completion current-window show-matches-p (symbol-string-at-point)))
 
 
@@ -680,6 +688,8 @@
 ;;;
 
 (defun make-completelist-entry (str)
+  (declare (ignorable str))
+  #+NOTYET           
   (internal-make-fuzzylist-entry str nil nil "????????"))
 
 ;;; This is the completelist buffer if it exists.
@@ -709,7 +719,7 @@
         (delete-buffer-if-possible *completelist-buffer* (window-buffer window))))
 
 (defun completelist-entry-from-mark (buffer mark)
-  (array-element-from-mark buffer (buffer-point buffer) *completelist-entries*))
+  (array-element-from-mark buffer mark *completelist-entries*))
 
 (defhcommand completelist-find-definition-command (window p)
   (:pretty-name "Completelist Find Definition")
@@ -721,6 +731,7 @@
   (let ((buffer (window-buffer window)))
     (let ((entry (completelist-entry-from-mark buffer (buffer-point buffer))))
       (when entry
+        #+NOTYET
         (change-to-definition entry)))))
 
 (defhcommand completelist-pick-command (window p)
@@ -735,6 +746,7 @@
       (when entry
         (completelist-quit-command window nil)
         (delete-window-command window nil)
+        #+NOTYET
         (%insert-completion buffer (fuzz-completed-string entry))))))
 
 (defun refresh-completelist (buf entries)
@@ -765,17 +777,21 @@
     (change-to-buffer buf current-window)))
 
 (defun completelist-write-line (entry s)
+  (declare (ignorable entry s))
+  #+NOTYET
   (format s "~A ~40T~A~%"
           (fuzz-completed-string entry)
           ;; (fuzz-score entry)
           ;; (fuzz-chunks entry)
           (fuzz-classification-string entry)))
 
+#+NOTYET
 (defhcommand completelist-help-command (window p)
   (:pretty-name "Completelist Help")
   (:documentation "Show this help.")
   (:help-string "Show this help."))
 
+#+NOTYET
 (defmethod completelist-help-command (window p)
   (declare (ignore p))
   (describe-mode-command nil "Completelist"))

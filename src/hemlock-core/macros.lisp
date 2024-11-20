@@ -42,6 +42,7 @@
   (let ((f (gensym))
         (b (gensym)))
     `(let ((,b ,buffer))
+       (declare (ignorable ,b))
        (dolist (,f ,(if (symbolp place) `(%value ,b ',place) place))
          (funcall ,f ,@args)))))
 
@@ -461,6 +462,7 @@
                       (,window-sym ,current-window)
                       (,bind (prompt-for-key-event* ,window-sym ,n-prompt ,n-change))
                       (,bind-char ,bind))
+                 (declare (ignorable ,n-prompt ,n-change ,window-sym ,bind ,bind-char))
                  (tagbody
                     ,again
                     (return-from
@@ -838,3 +840,11 @@
            (unless (simple-string-p str) (setq str (funcall str xpos)))
            (multiple-value-setq (dy xpos) (truncate (+ xpos (strlen str)) ,width-sym))
            (setq ypos (+ ypos dy)))))))
+
+;;; Now-Tick tells us when now is and isn't.
+;;;
+(defvar now-tick 0 "Current tick.")
+
+(defmacro tick ()
+  "Increments the ``now'' tick."
+  `(incf now-tick))

@@ -188,7 +188,7 @@
                                :prompt "Group Search: "
                                :help "String to search for in active file group"
                                :default *last-search-string*)))
-      (get-search-pattern string :forward)
+      (get-search-pattern buffer string :forward)
       (do-active-group
         window
         (do ((won (find-pattern buffer (buffer-point buffer) *last-search-pattern*)
@@ -207,7 +207,7 @@
              (return-from group-search-command))
             (:recursive-edit "Enter a recursive edit."
                              (do-recursive-edit)
-                             (get-search-pattern string :forward)))))
+                             (get-search-pattern buffer string :forward)))))
       (message "All files in group ~S searched." *active-file-group-name*))))
 
 (defhcommand group-replace-command (window p)

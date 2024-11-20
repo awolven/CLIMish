@@ -108,9 +108,7 @@
   "Return the buffer which is displayed in Window."
   (window-%buffer window))
 
-(defmethod window-buffer (some-random-window)
-  (declare (ignore some-random-window))
-  nil)
+
 
 (defmethod (setf window-buffer) (new-buffer (window window))
   "Change the buffer a window is mapped to."
@@ -178,92 +176,7 @@
 
 
 
-;;;; Modelines-field structure support.
 
-(defun print-modeline-field (obj stream ignore)
-  (declare (ignore ignore))
-  (write-string "#<Hemlock Modeline-field " stream)
-  (prin1 (modeline-field-%name obj) stream)
-  (write-string ">" stream))
-
-(defun print-modeline-field-info (obj stream ignore)
-  (declare (ignore ignore))
-  (write-string "#<Hemlock Modeline-field-info " stream)
-  (prin1 (modeline-field-%name (ml-field-info-field obj)) stream)
-  (write-string ">" stream))
-
-
-(defvar *modeline-field-names* (make-hash-table))
-
-(defun make-modeline-field (&key name width function)
-  "Returns a modeline-field object."
-  (unless (or (eq width nil) (and (integerp width) (plusp width)))
-    (error "Width must be nil or a positive integer."))
-  (when (gethash name *modeline-field-names*)
-    ;; this used to be a cerror, but I found that too annoying.
-    (warn "Modeline field ~S already exists."
-          (gethash name *modeline-field-names*)))
-  (setf (gethash name *modeline-field-names*)
-        (%make-modeline-field name function width)))
-
-(defun modeline-field (name)
-  "Returns the modeline-field object named name.  If none exists, return nil."
-  (gethash name *modeline-field-names*))
-
-
-(declaim (inline modeline-field-name modeline-field-width
-                 modeline-field-function))
-
-(defun modeline-field-name (ml-field)
-  "Returns the name of a modeline field object."
-  (modeline-field-%name ml-field))
-
-(defun (setf modeline-field-name) (name ml-field)
-  "Sets a modeline-field's name.  If one already exists with that name, an
-   error is signaled."
-  (check-type ml-field modeline-field)
-  (when (gethash name *modeline-field-names*)
-    (error "Modeline field ~S already exists."
-           (gethash name *modeline-field-names*)))
-  (remhash (modeline-field-%name ml-field) *modeline-field-names*)
-  (setf (modeline-field-%name ml-field) name)
-  (setf (gethash name *modeline-field-names*) ml-field))
-
-(defun modeline-field-width (ml-field)
-  "Returns the width of a modeline field."
-  (modeline-field-%width ml-field))
-
-(declaim (special *buffer-list*))
-
-(defun (setf modeline-field-width) (width ml-field)
-  "Sets a modeline-field's width and updates all the fields for all windows
-   in any buffer whose fields list contains the field."
-  (check-type ml-field modeline-field)
-  (unless (or (eq width nil) (and (integerp width) (plusp width)))
-    (error "Width must be nil or a positive integer."))
-  (unless (eql width (modeline-field-%width ml-field))
-    (setf (modeline-field-%width ml-field) width)
-    (dolist (b *buffer-list*)
-      (when (buffer-modeline-field-p b ml-field)
-        (dolist (w (buffer-windows b))
-          (update-modeline-fields b w)))))
-  width)
-
-(defun modeline-field-function (ml-field)
-  "Returns the function of a modeline field object.  It returns a string."
-  (modeline-field-%function ml-field))
-
-(defun (setf modeline-field-function) (function ml-field)
-  "Sets a modeline-field's function and updates this field for all windows in
-   any buffer whose fields list contains the field."
-  (check-type ml-field modeline-field)
-  (check-type function (or symbol function))
-  (setf (modeline-field-%function ml-field) function)
-  (dolist (b *buffer-list*)
-    (when (buffer-modeline-field-p b ml-field)
-      (dolist (w (buffer-windows b))
-        (update-modeline-field b w ml-field))))
-  function)
 
 
 

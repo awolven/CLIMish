@@ -52,6 +52,7 @@
     (climish::ring-initialize head)
     head))
 
+#+REDUNDANT
 (defgeneric ring-push (object ring)
   (:documentation "Push an object into a ring, deleting an element if necessary."))
 
@@ -108,6 +109,7 @@
 ;;;
 ;;;    Increment first modulo the maximum size.
 ;;;
+#+REDUNDANT
 (defgeneric ring-pop (ring)
   (:documentation "Pop an object from a ring and return it."))
 
@@ -131,6 +133,7 @@
 ;;;
 ;;;    Return the current and maximum size.
 ;;;
+#+REDUNDANT
 (defgeneric ring-length (ring)
   (:documentation "Return as values the current and maximum size of a ring."))
 
@@ -143,6 +146,7 @@
 ;;;
 ;;;    Do modulo arithmetic to find the correct element.
 ;;;
+#+REDUNDANT
 (defgeneric ring-ref (ring index)
   (:documentation "Return the index'th element of a ring.  This can be set with Setf."))
 
@@ -166,6 +170,7 @@
 ;;;
 ;;;    Setf form for ring-ref, set a ring element.
 ;;;
+#+REDUNDANT
 (defgeneric (setf ring-ref) (value ring index)
   (:documentation "Set an element in a ring."))
 
@@ -207,6 +212,7 @@
     (setf (kill-ring-element-value element) old-value))
   (values))
 
+#+REDUNDANT
 (defgeneric rotate-ring (ring offset)
   (:documentation
    "Rotate a ring forward, i.e. second -> first, with positive offset,

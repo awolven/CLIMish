@@ -1,7 +1,6 @@
 (in-package :climish)
 
-;; Used for passing information from ACCEPT through the input editor to here
-(defvar *presentation-type-for-yanking* nil)
+
 
 (defvar *accept-help* nil)
 
@@ -61,6 +60,7 @@
 
 (defun invoke-with-input-editing (stream continuation class input-sensitizer
                                   &optional initial-contents)
+  (declare (ignorable initial-contents class input-sensitizer))
   (cond ((not (stream-supports-input-editing stream))
          (funcall continuation stream))
         ((input-editing-stream-p stream)
@@ -72,6 +72,7 @@
 
 
          (let ((original-stream stream))
+	   (declare (ignorable original-stream))
 	   ;;(focus-window hi::*echo-area-window*)
 	   
 	   (funcall continuation stream)
@@ -205,6 +206,7 @@
 			      prompt (prompt-mode ':normal)
 			      (display-default prompt)
 			    &allow-other-keys)
+  (declare (ignorable default-type))
   (hi::clear-echo-area)
   (cond ((eq prompt t)
 	 (write-string "Enter " stream)
@@ -227,6 +229,7 @@
 ;;; If the input from stream, starting at location, is a request to use the default
 ;;; then insert the default and return true
 (defun check-for-default (stream location default default-type view)
+  (declare (ignorable default-type view default))
   (setf (stream-scan-pointer stream) location)
   (loop
     (let ((char (read-event stream)))
@@ -279,7 +282,7 @@
 		   help
 		   parse-string-tables
 		 &allow-other-keys)
-  
+  (declare (ignorable default-string help must-exist parse-string-tables))
   ;; Set up the input editing environment
   (let ((the-object nil)
 	(the-type nil)
@@ -528,21 +531,23 @@
 
 (defun file-verification-function (frame string)
   (declare (ignorable frame))
-  (let ((pn (hi::pathname-or-lose string)))
-    (if pn
-        (let ((merge
-		(cond ((not hi::*parse-default*) nil)
-                     ((hi::directoryp pn)
-                      (merge-pathnames pn hi::*parse-default*))
-                     (t
-                      (merge-pathnames pn
-                                       (or (directory-namestring
-                                            hi::*parse-default*)
-                                           ""))))))
-          (cond ((probe-file pn) (list pn))
-                ((and merge (probe-file merge)) (list merge))
-                ((not hi::*parse-value-must-exist*) (list (or merge pn)))
-                (t nil))))))
+  (ignore-errors
+    (let ((pn (hi::pathname-or-lose string)))
+      (if pn
+          (let ((merge
+		  (cond ((not hi::*parse-default*) nil)
+			((hi::directoryp pn)
+			 (merge-pathnames pn hi::*parse-default*))
+			(t
+			 (merge-pathnames pn
+					  (or (directory-namestring
+                                               hi::*parse-default*)
+                                              ""))))))
+
+	    (cond ((probe-file pn) (list pn))
+		  ((and merge (probe-file merge)) (list merge))
+		  ((not hi::*parse-value-must-exist*) (list (or merge pn)))
+		  (t nil)))))))
 
 (defun keyword-verification-function (frame string)
   (declare (ignorable frame))
@@ -597,6 +602,7 @@
 			      ((:default-string hi::*parse-default-string*))
 			      ((:prompt hi::*parse-prompt*) "Buffer: ")
 			      ((:help hi::*parse-help*) "Type a buffer name."))
+  (declare (ignorable current-window))
   "Prompts for a buffer name and returns the corresponding buffer.  If
    :must-exist is nil, then return the input string.  This refuses to accept
    the empty string as input when no default is supplied.  :default-string
@@ -616,7 +622,7 @@ buffer when must-exist is non-nil -- ~S."
 		 hi::*parse-default-string*)
 		(t nil)))
 	(hi::*parse-verification-function* #'buffer-verification-function))
-    (accept-something frame current-window)))
+    (accept-something frame)))
 
 (defun accept-file (frame &key
 			    (current-window (or (focused-window frame) hi::*echo-area-window*))
@@ -625,11 +631,12 @@ buffer when must-exist is non-nil -- ~S."
 			    ((:default-string hi::*parse-default-string*))
 			    ((:prompt hi::*parse-prompt*) "Filename: ")
 			    ((:help hi::*parse-help*) "Type a file name."))
+  (declare (ignorable current-window))
   "Prompts for a filename."
   (let ((hi::*parse-verification-function* #'file-verification-function)
         (hi::*parse-default* (if default (namestring default)))
         (hi::*parse-type* :file))
-    (accept-something frame current-window)))
+    (accept-something frame)))
 
 (defun accept-keyword (frame
 		       &key 
@@ -640,11 +647,12 @@ buffer when must-exist is non-nil -- ~S."
 			 ((:default-string hi::*parse-default-string*))
 			 ((:prompt hi::*parse-prompt*) "Keyword: ")
 			 ((:help hi::*parse-help*) "Type a keyword."))
+  (declare (ignorable current-window))
   "Prompts for a keyword using the String Tables."
   (let ((hi::*parse-verification-function*
 	  #'keyword-verification-function)
         (hi::*parse-type* :keyword))
-    (accept-something frame current-window)))
+    (accept-something frame)))
 
 (defun accept-hemlock-variable (frame
 				&key
@@ -656,10 +664,10 @@ buffer when must-exist is non-nil -- ~S."
 				  ((:help hi::*parse-help*)
 				   "Type the name of a variable."))
   "Prompts for a variable defined in the current scheme of things."
-  (let ((hi::*parse-string-tables* (hi::current-variable-tables))
+  (let ((hi::*parse-string-tables* (hi::current-variable-tables (window-buffer current-window)))
         (hi::*parse-verification-function* #'keyword-verification-function)
         (hi::*parse-type* :keyword))
-    (accept-something frame current-window)))
+    (accept-something frame)))
 
 (defun accept-integer (frame &key (current-window (or (focused-window frame) hi::*echo-area-window*))
 			       ((:must-exist hi::*parse-value-must-exist*) t)
@@ -667,6 +675,7 @@ buffer when must-exist is non-nil -- ~S."
 			       ((:default-string hi::*parse-default-string*))
 			       ((:prompt hi::*parse-prompt*) "Integer: ")
 			       ((:help hi::*parse-help*) "Type an integer."))
+  (declare (ignorable current-window))
   "Prompt for an integer.  If :must-exist is Nil, then we return as a string
   whatever was input if it is not a valid integer."
   (let ((hi::*parse-verification-function*
@@ -676,7 +685,7 @@ buffer when must-exist is non-nil -- ~S."
                    (if number (list number))
                    (list (or number string))))))
         (hi::*parse-default* (if default (write-to-string default :base 10))))
-    (accept-something frame current-window)))
+    (accept-something frame)))
 
 (defun accept-lisp-expression (frame
 			       &key (current-window (or (focused-window frame) hi::*echo-area-window*))
@@ -686,6 +695,7 @@ buffer when must-exist is non-nil -- ~S."
 				 ((:prompt hi::*parse-prompt*) "Expression: ")
 				 ((:help hi::*parse-help*)
 				  "Type a Lisp expression."))
+  (declare (ignorable current-window))
   "Prompts for a Lisp expression."
   (let ((hi::*parse-verification-function*
 	  #'(lambda (frame string)
@@ -699,7 +709,7 @@ buffer when must-exist is non-nil -- ~S."
                    (if (eq expr hi::hemlock-eof)
                        (list string) (values (list expr) t))))))
         (hi::*parse-default* (if defaultp (prin1-to-string default))))
-    (accept-something frame current-window)))
+    (accept-something frame)))
 
 (defun accept-vec3 (frame
 		    &key (current-window (or (focused-window frame) hi::*echo-area-window*))
@@ -709,6 +719,7 @@ buffer when must-exist is non-nil -- ~S."
 		      ((:prompt hi::*parse-prompt*) "Expression: ")
 		      ((:help hi::*parse-help*)
 		       "Type a Lisp expression."))
+  (declare (ignorable current-window))
   "Prompts for a Lisp expression."
   (let ((hi::*parse-verification-function*
 	  #'(lambda (frame string)
@@ -722,7 +733,7 @@ buffer when must-exist is non-nil -- ~S."
 		    (values (list thing) t)
 		    (values string nil)))))
         (hi::*parse-default* (if defaultp (prin1-to-string default))))
-    (accept-something frame current-window)))
+    (accept-something frame)))
 
 (defun accept-string (frame
 		      &key (current-window (or (focused-window frame) hi::*echo-area-window*))
@@ -734,13 +745,14 @@ buffer when must-exist is non-nil -- ~S."
   "Prompts for a string.  If :trim is t, then leading and trailing whitespace
    is removed from input, otherwise it is interpreted as a Char-Bag argument
    to String-Trim."
+  (declare (ignorable current-window))
   (let ((hi::*parse-verification-function*
 	  #'(lambda (frame string)
 	      (declare (ignore frame))
 	      (list (string-trim (if (eq trim t)
 				     '(#\space #\tab) trim)
 				 string)))))
-    (accept-something frame current-window)))
+    (accept-something frame)))
 
 (defun accept-url (frame
 		   &key (current-window (or (focused-window frame) hi::*echo-area-window*))
@@ -753,13 +765,14 @@ buffer when must-exist is non-nil -- ~S."
    is removed from input, otherwise it is interpreted as a Char-Bag argument
    to String-Trim.  Since URL syntax is hard to validate, any input is
    accepted as if by PROMPT-FOR-STRING.  The prompt is different, however."
+  (declare (ignorable current-window))
   (let ((hi::*parse-verification-function*
 	  #'(lambda (frame string)
 	      (declare (ignore frame))
 	      (list (string-trim (if (eq trim t)
 				     '(#\space #\tab) trim)
 				 string)))))
-    (accept-something frame current-window)))
+    (accept-something frame)))
 
 (defun accept-yes-or-no (frame 
 			 &key (current-window (or (focused-window frame) hi::*echo-area-window*))
@@ -769,6 +782,7 @@ buffer when must-exist is non-nil -- ~S."
 			   ((:prompt hi::*parse-prompt*) "Yes or No? ")
 			   ((:help hi::*parse-help*) "Type Yes or No."))
   "Prompts for Yes or No."
+  (declare (ignorable current-window))
   (let* ((hi::*parse-string-tables* (list hi::*yes-or-no-string-table*))
          (hi::*parse-default* (if defaultp (if default "Yes" "No")))
          (hi::*parse-verification-function*
@@ -783,7 +797,7 @@ buffer when must-exist is non-nil -- ~S."
 		       (if won (values (list value) t))
 		       (list (if won (values value t) string)))))))
          (hi::*parse-type* :keyword))
-    (accept-something frame current-window)))
+    (accept-something frame)))
 
 (defun accept-y-or-n (frame
 		      &key (current-window (or (focused-window frame) hi::*echo-area-window*))

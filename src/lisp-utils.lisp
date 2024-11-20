@@ -1,5 +1,7 @@
 (in-package :climish)
 
+(defvar *keyword-package* (find-package :keyword))
+
 (eval-when (:compile-toplevel :load-toplevel :execute)
 
   (defvar *gensymbol* 0)

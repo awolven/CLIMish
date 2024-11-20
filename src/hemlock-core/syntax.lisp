@@ -428,7 +428,7 @@
 ;;;
 ;;;    Nuke a mode character attribute.
 ;;;
-(defun unshadow-attribute (attribute character mode)
+(defun unshadow-attribute (current-buffer attribute character mode)
   "Make the value of Attribte for Character no longer shadowed in Mode."
   (let ((desc (gethash attribute *character-attributes*))
         (obj (gethash mode *mode-names*)))
@@ -445,7 +445,7 @@
       (unless char
         (error "Character Attribute ~S is not defined for character ~S ~
                in Mode ~S." attribute character mode))
-      (when (member obj (buffer-mode-objects *current-buffer*))
+      (when (member obj (buffer-mode-objects current-buffer))
         (let ((vals (list char)))
           (swap-one-attribute attribute value vals hooks)))
       (setf (cdr current) (delete char (the list (cdr current))))))
@@ -539,7 +539,7 @@
                     chars 0 ,(or start '(strlen chars)) ,char-set ,mask))))
 ;;;
 (defmacro rev-cache-find-attribute (buffer start result char-set mask)
-  `(with-buffer-globals (,buffer)
+  `(with-slots (left-open-pos right-open-pos open-chars line-cache-length) ,buffer
      (let ((gap (- right-open-pos left-open-pos)))
        (declare (fixnum gap))
        (cond

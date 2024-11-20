@@ -5,6 +5,12 @@
 
 ;; When T, the input editor should handle help and completion.  Otherwise,
 ;; something like COMPLETE-INPUT will do it for us.
+(defun-inline input-context-type (context-entry)
+  (first context-entry))
+
+(defun-inline input-context-tag (context-entry)
+  (second context-entry))
+
 (defvar *ie-help-enabled* t)
 
 (defvar *completion-gestures* '(:complete))
@@ -29,13 +35,16 @@
         (append *completion-gestures* *help-gestures*
                 *possibilities-gestures* *apropos-possibilities-gestures*))
 
+#+NOTYET
 (define-presentation-type completer (&key stream function possibility-printer
                                           prefix location))
 
+#+NOTYET
 (define-presentation-method presentation-typep (object (type completer))
   (declare (ignore object))
   nil)
 
+#+NOTYET
 (define-presentation-method presentation-subtypep ((subtype completer) supertype)
   (declare (ignore supertype))
   t)
@@ -49,6 +58,7 @@
 
 ;; Note that the usual completion character, Tab, may get filtered out
 ;; by xm-silica::discard-accelerator-event-p and thus never be seen by the completer.
+#+NOTYET
 (defun complete-input (stream function
                        &key partial-completers allow-any-input possibility-printer
                             (help-displays-possibilities t))
@@ -128,7 +138,7 @@
                         ((activation-gesture-p ch)
                          (setq completion-mode (if allow-any-input nil ':complete) 
                                unread t return t))))
-                 ((eq ch *end-of-file-marker*)
+                 ((eq ch +end-of-file-marker+)
                   (setq completion-mode (if allow-any-input nil ':complete) 
                         return t))
                  (t                                ;mouse click?
@@ -149,7 +159,7 @@
                (rescan-if-necessary stream))
              (signal 'empty-completion-error
                      :format-string "Attempting to complete the null string")
-             (when (eq ch *end-of-file-marker*)
+             (when (eq ch +end-of-file-marker+)
                (error 'empty-completion-error
                        :format-string "Attempting to complete the null string")))
 
@@ -218,13 +228,14 @@
                  (replace-input stream stuff-so-far :buffer-start location))
                (return-from complete-input
                  (values answer-object t (evacuate-temporary-string stuff-so-far))))
-             (when (eq ch *end-of-file-marker*)
+             (when (eq ch +end-of-file-marker+)
                (error "Eof when encountered when trying to complete")))
 
            ;; Not returning yet, but update the input editor's buffer anyway
            (unless (stream-rescanning-p stream)
              (replace-input stream stuff-so-far :buffer-start location)))))))))))
 
+#+NOTYET
 ;; DISPLAY-POSSIBILITIES
 (defun display-completion-possibilities (stream function stuff-so-far
                                          &key possibility-printer 

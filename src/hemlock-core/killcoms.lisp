@@ -24,7 +24,7 @@
   "This is a list of command types that permit the current region to be active
    for the immediately following command.")
 
-(declaim (inline activate-region deactivate-region region-active-p))
+(declaim (inline activate-region #+NO deactivate-region region-active-p))
 
 (defun activate-region (buffer)
   "Make the current region active."

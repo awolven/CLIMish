@@ -77,7 +77,8 @@
 (defmethod initialize-instance ((self text-editor-window-mixin) &rest initargs)
   (declare (ignorable initargs))
   (prog1 (call-next-method)
-    (hi::setup-modeline-image (hi::window-buffer self) self)))
+    (when (hi::window-buffer self)
+      (hi::setup-modeline-image (hi::window-buffer self) self))))
 
 (defobject text-editor-window (text-editor-window-mixin))
 (defobject lisp-listener-window (text-editor-window-mixin))

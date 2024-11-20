@@ -27,10 +27,6 @@
 
 (in-package :climish)
 
-
-
-(defvar *keyword-package* (find-package :keyword))
-
 (defclass presentation-type-class (standard-class) ())
 
 (defmethod validate-superclass ((class presentation-type-class)
@@ -611,6 +607,9 @@
       (do-lambda-list lambda-list))
     (let* ((x `(let ,(mapcar #'(lambda (binding) `(,(car binding) ',(cdr binding)))
                              (append bindings more-bindings))
+		 (declare (ignorable ,@(mapcar #'(lambda (binding) `,(car binding))
+					       (append bindings more-bindings))))
+					       
                  ,form))
            (result (handler-case (eval x)
                      (error (anerror)
@@ -1732,7 +1731,7 @@
         ;;--- We will have to do something for that (like give them gensym names?  Ick!)
 
         ;; Expand into a defmethod
-        `(defmethod ,(car info) ,@qualifiers ,specialized-lambda-list
+	`(defmethod ,(car info) ,@qualifiers ,specialized-lambda-list
            ,@(and documentation (list documentation))
            ,@declarations
            (block ,presentation-function-name
@@ -1782,7 +1781,7 @@
                            (and (null (first massage-forms))                ;no parameters
                                 (null (second massage-forms)))))        ;no options
                      superclasses)
-        `((define-presentation-method-without-massaging
+	`((define-presentation-method-without-massaging
                 map-over-presentation-type-supertypes
                 (,parameters-var ,options-var (,type-var ,name) ,function-var)
             ,parameters-var ,options-var        ;might not be used
@@ -1843,7 +1842,7 @@
                     (generate-type-massagers class (list superclass)
                                              parameters-var options-var t environment)
                   `(,@(when (presentation-type-parameters superclass environment)
-                        `((defmethod inherited-presentation-type-parameters-method
+			`((defmethod inherited-presentation-type-parameters-method
                               ((,to-type-name-var
                                 (eql ',(class-presentation-type-name superclass)))
                                (,from-type-name-var (eql ',name))
@@ -1855,7 +1854,7 @@
                                     ,@(mapcar #'first bindings)))
                               ,(second (assoc superclass alist))))))
                       ,@(when (presentation-type-options superclass environment)
-                          `((defmethod inherited-presentation-type-options-method
+                           `((defmethod inherited-presentation-type-options-method
                                 ((,to-type-name-var
                                   (eql ',(class-presentation-type-name superclass)))
                                  (,from-type-name-var (eql ',name))
@@ -2258,6 +2257,7 @@
     (values (gethash name *presentation-type-history-table*))))
 
 ;; Some histories are maintained for each instance of an application frame
+#+NOTYET
 (defun presentation-type-history-for-frame (type frame)
   (when (frame-maintain-presentation-histories frame)
     (let* ((type-name (presentation-type-name type))

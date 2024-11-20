@@ -662,10 +662,10 @@
 ;;;
 
 (defun print-pretty-key-event (key-event &optional (stream *standard-output*)
-                                         long-names-p)
+                                           long-names-p)
   "This prints key-event to stream.  Long-names-p indicates whether modifier
    names should appear using the long name or short name."
-  (clui::print-pretty-input-event-id key-event stream long-names-p)
+  (climish::print-pretty-input-event-id key-event stream long-names-p)
   #+NIL
   (do ((map (if long-names-p
                 (cdr *modifiers-to-internal-masks*)
@@ -675,6 +675,7 @@
     (when (not (zerop (logand (cdar map) (key-event-bits key-event))))
       (write-string (caar map) stream)
       (write-char #\- stream)))
+  #+NOTYET
   (let* ((name (keysym-preferred-name (key-event-keysym key-event)))
          (spacep (position #\space (the simple-string name))))
     (when spacep (write-char #\< stream))
@@ -724,5 +725,6 @@
 
 ;;;;;;;;;;;
 
+#+NIL
 (defun skip-whitespace (&optional (stream *standard-input*))
   (peek-char t stream))

@@ -1,7 +1,5 @@
 (in-package :climish)
 
-(defvar *application-frame*)
-
 (defcommand insert-character-command (window character p)
   (:pretty-name "Insert Character")
   (:documentation "This command is the value for the default command.")

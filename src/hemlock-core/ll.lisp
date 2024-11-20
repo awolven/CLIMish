@@ -14,6 +14,7 @@
 
 (in-package :hemlock)
 
+(defvar *last-lisp-listener-history-index* nil)
 (defvar *lisp-listener-history* (make-array 100 :fill-pointer 0 :adjustable t))
 
 (defun add-to-lisp-listener-history (string)
@@ -99,7 +100,7 @@
                               (format stream "Return to the top level."))
                     (values nil t))))))))))
 
-(defvar *last-lisp-listener-history-index* nil)
+
 
 (defcommand yank-from-lisp-listener-history (window p)
   (:pretty-name "Yank From Lisp Listener History")
@@ -256,7 +257,7 @@
       (bt:interrupt-thread thread #'break))))
 
 #+SBCL
-(sb-ext::without-package-locks
+(sb-ext:without-package-locks
 
   (fmakunbound 'sb-debug::debug-prompt)
   
@@ -264,10 +265,11 @@
     (let ((buffer (hemlock::hemlock-character-io-stream-buffer stream)))
       (drop-prompt-mark buffer)))
   
-  sb-debug::(defmethod debug-prompt (stream)
-	      (sb-thread::get-foreground)
-	      (format stream
-		      "~%~W~:[~;[~W~]] "
-		      (frame-number *current-frame*)
-		      (> *debug-command-level* 1)
-		      *debug-command-level*)))
+  (defmethod sb-debug::debug-prompt (stream)
+    (sb-thread::get-foreground)
+    (format stream
+	    "~%~W~:[~;[~W~]] "
+	    (sb-di::frame-number sb-debug::*current-frame*)
+	    (> sb-debug::*debug-command-level* 1)
+	    sb-debug::*debug-command-level*)))
+

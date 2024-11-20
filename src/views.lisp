@@ -90,7 +90,9 @@
 (defmethod window-display ((self view-mixin))
   (clui:window-display (application-frame self)))
 
-(defmethod hi::window-buffer (self)
+;; pulled from hemlock-core/window.lisp
+(defmethod hi::window-buffer (some-random-window)
+  (declare (ignore some-random-window))
   nil)
 
 (defmethod untransform-coordinate ((vec vec3) (self view-mixin))
@@ -638,7 +640,7 @@
     (values (vx vec3) (vy vec3) (vz vec3))))
     
 (defmethod clui:set-window-position ((self view-mixin) x y)
-  (translate-node self (vec3 (- x (the x)) (- y (the y)) 0))
+  (setf (the origin) (vec3 (- x (the x)) (- y (the y)) 0))
   (values))
 
 (defmethod clui:set-window-position ((self group-owner-view-mixin) x y)

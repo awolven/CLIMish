@@ -15,6 +15,11 @@
 
 ;;;; Marks.
 
+;;(defmethod (setf mark-line) :around (value mark)
+  ;;(unless value
+    ;;(sb-debug:print-backtrace :stream *terminal-io* :count 4))
+  ;;(call-next-method))
+
 (defclass mark ()
   ((line :initarg :line
          :accessor mark-line
@@ -423,6 +428,7 @@
                  #+scl #+scl :out-buffer lisp::*empty-string*
                  :mark mark))
 
+#+NIL
 (defmethod print-object ((object random-typeout-stream) stream)
   (format stream "#<Hemlock Random-Typeout-Stream ~S>"
           (ignore-errors
@@ -668,56 +674,6 @@
   (declare (ignore object depth))
   (format stream "#<Hemlock Window Group>"))
 
-;;; Device-hunks are used to claim a piece of the screen and for ordering
-;;; pieces of the screen.  Window motion primitives and splitting/merging
-;;; primitives use hunks.  Hunks are somewhat of an interface between the
-;;; portable and non-portable parts of screen management, between what the
-;;; user sees on the screen and how Hemlock internals deal with window
-;;; sequencing and creation.  Note: the echo area hunk is not hooked into
-;;; the ring of other hunks via the next and previous fields.
-;;;
-(defclass device-hunk ()
-  ((window
-    :initarg :window
-    :initform nil
-    :accessor device-hunk-window
-    :documentation "Window displayed in this hunk.")
-   (position
-    :initarg :position
-    :initform nil
-    :accessor device-hunk-position
-    :documentation "Bottom Y position of hunk.")
-   (height
-    :initarg :height
-    :initform nil
-    :accessor device-hunk-height
-    :documentation "Height of hunk in pixels or lines.")
-   (next
-    :initarg :next
-    :initform nil
-    :accessor device-hunk-next
-    :documentation "Next hunks.")
-   (previous
-    :initarg :previous
-    :initform nil
-    :accessor device-hunk-previous
-    :documentation "Previous hunks")
-   (device
-    :initarg :device
-    :initform nil
-    :accessor device-hunk-device
-    :documentation "Display device hunk is on."))
-  (:documentation
-   "This structure is used internally by Hemlock's screen management system."))
-
-(defmethod print-object ((object device-hunk) stream)
-  (print-unreadable-object (object stream :type t :identity t)
-    (format stream "~D+~D~@[, ~S~]"
-            (device-hunk-position object)
-            (device-hunk-height object)
-            (let* ((window (device-hunk-window object))
-                   (buffer (if window (window-buffer window))))
-              (if buffer (buffer-name buffer))))))
 
 
 ;;;; Some defsetfs:

@@ -8,7 +8,7 @@
 
 (defmethod stream-supports-input-editing ((stream t)) nil)
 
-(defconstant *end-of-file-marker* :eof)
+(defconstant +end-of-file-marker+ :eof)
 (deftype end-of-file-marker ()
   '(member :eof))
 
@@ -39,6 +39,7 @@
     (trivial-gray-streams:fundamental-character-input-stream)
   ())
 
+#+NIL
 (define-stream-protocol basic-extended-input-protocol
   stream-input-buffer
   stream-pointers
@@ -77,6 +78,7 @@
 (defun read-event (stream &key (timeout nil))
   (stream-read-event stream :timeout timeout))
 
+#+NOTNOW
 (defmethod stream-unread-event ((stream input-protocol-mixin) event)
   (queue-unget (input-event-queue stream) event))
 
@@ -98,7 +100,7 @@
 (defmethod stream-read-char-no-hang ((stream input-protocol-mixin))
   (let ((event nil))
     (loop
-      (setq event (stream-read-event (encapsulating-stream stream) 0))
+      (setq event (stream-read-event (encapsulating-stream stream) :timeout 0))
       (if (characterp event)
 	  (return-from stream-read-char-no-hang event)
 	  (when (typep event 'clui::character-event-mixin)
@@ -110,6 +112,7 @@
 	     (clui::input-event-character event))
       (stream-unread-event (encapsulating-stream stream) event))))
 
+#+NO
 (defmethod stream-listen ((stream input-protocol-mixin))
   (map-over-queue #'(lambda (thing)
 		      (if (characterp thing)
@@ -127,11 +130,11 @@
       ;;--- Reconcile various error cases.  When CH is NIL then that probably means
       ;; that the caller supplied error-p nil, and we may have to return the eof-val.
       ;; Of course, we aren't dealing with EOF on our window streams at all.
-      (unless (eq ch *end-of-file-marker*)
+      (unless (eq ch +end-of-file-marker+)
         (loop
           ;; Process the character
           (cond ((or (eql ch #\Newline)
-                     (eq ch *end-of-file-marker*))
+                     (eq ch +end-of-file-marker+))
                  (return-from stream-read-line
                    (evacuate-temporary-string result)))
                 (t
@@ -141,6 +144,7 @@
                      (hi::bell))))
           (setq ch (stream-read-char stream)))))))		  
 
+#+NOTNOW
 (defmethod stream-clear-input ((stream input-protocol-mixin))
   (queue-flush (input-event-queue stream)))
 
@@ -169,12 +173,13 @@
 
 ;;; Reading and writing of tokens
 
-(defparameter *quotation-character* #\")
+
 
 ;; READ-TOKEN reads characters until it encounters an activation gesture,
 ;; a delimiter character, or something else (like a mouse click).
 (defun read-token (stream &key #+NOTYET #+NOTYET input-wait-handler pointer-button-press-handler
-                               click-only timeout)
+			    click-only timeout)
+  (declare (ignorable timeout))
   (with-temporary-string (string :length 50 :adjustable t)
     (let* ((event nil)
            (event-type nil)

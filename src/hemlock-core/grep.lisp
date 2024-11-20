@@ -4,18 +4,22 @@
 
 
 
+#+NOTYET
 (defhcommand grep-command
     (window p &optional command directory)
   (:pretty-name "Grep")
   (:documentation "")
   (:help-string ""))
 
+#+NOTYET
 (defmethod grep-command
     (window p &optional (command (hi::prompt-for-string window
                                                         :prompt "Run grep (like this): "
                                                         :default "grep -nH -e "))
                 (directory (default-directory)))
+  (declare (ignorable window p command directory))
   #+scl (setf directory (ext:unix-namestring directory nil))
+  #+NOTYET
   (setf (buffer-major-mode (shell-command-command window p command directory) (window-buffer window))
         "Grep"))
 

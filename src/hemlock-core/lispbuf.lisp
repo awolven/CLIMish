@@ -540,8 +540,7 @@
                                 (sleep 0.1))
                 (move-mark (buffer-point buffer) saved)
                 (pop-buffer-mark buffer)
-                (update-window-image window)
-                (adhoc::adhoc-redefinition-hook))))
+                (update-window-image window))))
         (editor-error "No current buffer"))))
 
 #+NIL
@@ -566,6 +565,7 @@
 (defun editor-compile-region (current-window buffer region &optional quiet)
   (unless quiet (message "Compiling region ..."))
   (let ((pathname (buffer-pathname buffer)))
+    (declare (ignorable pathname))
     (in-lisp buffer
      (with-input-from-region (stream buffer region)
        (with-pop-up-display (*error-output* :height 19 :current-window current-window)
@@ -752,8 +752,7 @@
                                       (sleep 0.1))
                       (move-mark (buffer-point buffer) saved)
                       (pop-buffer-mark buffer)
-                      (update-window-image window)
-                      (adhoc::adhoc-redefinition-hook)))))
+                      (update-window-image window)))))
       (flet ((do-compile ()
                (with-visual-feedback ()
                  (bt:make-thread
@@ -776,7 +775,7 @@
       (cond ((buffer-modified buf)
              (when (or (not (value buf compile-buffer-file-confirm))
                        (clim:accept 'y-or-n
-                        window
+                        :current-window window
                         :default t :default-string "Y"
                         :prompt (list "Save and compile file ~A? "
                                       (namestring pn))))
@@ -786,7 +785,7 @@
             ((older-or-non-existent-fasl-p pn p)
              (when (or (not (value buf compile-buffer-file-confirm))
                        (clim:accept 'y-or-n
-                        window
+                        :current-window window
                         :default t :default-string "Y"
                         :prompt (list "Compile file ~A? " (namestring pn))))
                (do-compile)

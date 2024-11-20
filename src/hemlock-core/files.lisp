@@ -26,6 +26,7 @@
   "Inserts the contents of the file named by Pathname at the Mark."
   (with-mark ((mark mark :left-inserting))
     (let* ((first-line (mark-line mark)))
+      (declare (ignorable first-line))
       (with-buffer-globals (buffer)
         (modifying-buffer buffer)
         (with-open-file (input pathname :direction :input :element-type 'character)

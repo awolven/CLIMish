@@ -195,13 +195,7 @@
   (with-buffer-globals (buffer)
     (.modifying-line. line mark)))
 
-;;; Now-Tick tells us when now is and isn't.
-;;;
-(defvar now-tick 0 "Current tick.")
 
-(defmacro tick ()
-  "Increments the ``now'' tick."
-  `(incf now-tick))
 
 
 ;;; Yeah, the following is kind of obscure, but at least it doesn't

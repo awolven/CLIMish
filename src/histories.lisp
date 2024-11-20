@@ -84,9 +84,10 @@
 
 ;; Get the element from HISTORY indexed by INDEX.
 (defmethod history-element ((history basic-history) index &optional fixup-p)
+  (declare (ignorable fixup-p))
   (let ((delta 0))
     (with-slots (elements current-length temporary-element) history
-      (without-scheduling
+      (#+SBCL sb-assem:without-scheduling #+SBCL () #-SBCL without-scheduling
         (when temporary-element
           (when (or (zerop index) (and fixup-p (minusp index)))
             (return-from history-element (values temporary-element 0)))

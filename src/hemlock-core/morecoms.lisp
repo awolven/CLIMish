@@ -121,7 +121,7 @@
                 (undo-region (copy-region ,buffer region)))
            (check-region-query-size ,current-window region)
            (filter-region ,buffer ,function-sym region)
-           (make-region-undo buffer :twiddle ,name-sym region undo-region))))))
+           (make-region-undo ,buffer :twiddle ,name-sym region undo-region))))))
 
 (defhcommand uppercase-region-command (window p)
   (:pretty-name "Uppercase Region")
@@ -230,6 +230,7 @@
   The command, key and place to make the binding are prompted for.")
   (:help-string "Prompt for stuff to do a bind-key."))
 
+#+DISABLE
 (defmethod bind-key-command (window p)
   (declare (ignore p))
   (multiple-value-call #'climish::define-gesture
@@ -382,6 +383,9 @@
         (let ((*recursive-edit-count* (1+ *recursive-edit-count*)))
           (update-modeline-field *echo-area-buffer* *echo-area-window*
                                  (modeline-field :edit-level))
+          #-fixme
+          (break)
+          #+FIXME
           (recursive-edit))
       (update-modeline-field *echo-area-buffer* *echo-area-window*
                              (modeline-field :edit-level))
@@ -651,6 +655,8 @@
     (funcall *generic-pointer-move-fun*)))
 
 
+#+NIL
+;; moved to context-menu.lisp
 (climish::define-everywhere-command point-to-here-command (window p)
   (:pretty-name "Point to Here")
   (:documentation
@@ -667,12 +673,6 @@
    "Move the point to the position of the mouse."))
 
 (in-package :climish)
-
-(defun-inline input-context-type (context-entry)
-  (first context-entry))
-
-(defun-inline input-context-tag (context-entry)
-  (second context-entry))
 
 (defun output-record-parent (presentation)
   ;; stub
@@ -754,6 +754,7 @@
                 ))))))))
 
 (defun point-to-here-move-action (window)
+  (declare (ignorable window))
   #+NIL
   (when (typep window 'climish::text-editor-view-mixin)
     (let ((last-event (climish:window-last-event (clim:application-frame window))))
@@ -779,6 +780,7 @@
               ))))))
 
 (defun point-to-here-up-action (window)
+  (declare (ignorable window))
   #+NIL
   (when (typep window 'climish::text-editor-view-mixin)
     (let ((last-event (climish:window-last-event (clim:application-frame window))))
@@ -1052,16 +1054,15 @@
         (t
          (reverse-find-attribute buffer mark :page-delimiter #'zerop)
          (prog1
-          (dotimes (i (- n) mark)
-            (unless (previous-character buffer mark) (return nil))
-            (loop
-              (unless (reverse-find-attribute buffer mark :page-delimiter)
-                (return-from page-offset nil))
-              (mark-before buffer mark)
-              (when (= (mark-charpos mark) 0) (return))))
-          (let ((buffer (line-buffer (mark-line mark))))
-            (unless (or (not buffer) (mark= mark (buffer-start-mark buffer)))
-              (mark-after buffer mark)))))))
+             (dotimes (i (- n) mark)
+               (unless (previous-character buffer mark) (return nil))
+               (loop
+                 (unless (reverse-find-attribute buffer mark :page-delimiter)
+                   (return-from page-offset nil))
+                 (mark-before buffer mark)
+                 (when (= (mark-charpos mark) 0) (return))))
+           (unless (mark= mark (buffer-start-mark buffer))
+             (mark-after buffer mark))))))
 
 
 

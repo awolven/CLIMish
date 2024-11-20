@@ -89,6 +89,8 @@
 ;;;    This transform is called when none is defined for a command.
 ;;;
 (defun default-kbdmac-transform (command key)
+  (declare (ignore command key))
+  #+NIL
   (case key
     (:invoke
      (let ((fun (command-function command))
@@ -115,19 +117,24 @@
   (insert-character buffer (buffer-point buffer) character))
 
 (defun key-vector-to-string (key-vector)
+  (declare (ignorable key-vector))
+  #+NIL
   (let ((string (make-array (length key-vector) :element-type 'character)))
     (dotimes (i (length key-vector) string)
       (setf (aref string i) (hemlock-ext:key-event-char (aref key-vector i))))))
 
 (defun self-insert-kbdmac-transform (buffer command key)
+  (declare (ignorable buffer command))
   (case key
     (:start
      (setf (fill-pointer *kbdmac-text*) 0))
     (:invoke
      (let ((p (or (prefix-argument) 1)))
+       #+NOTYET
        (funcall (command-function command) p)
        (dotimes (i p)
          (vector-push-extend *last-key-event-typed* *kbdmac-text*))))
+    #+NOTYET
     (:finish
      (if (> (length *kbdmac-text*) 1)
          (kbdmac-emit `(insert-string-at-point
@@ -146,8 +153,10 @@
 ;;; no semantics at macro-time.
 ;;;
 (defun do-nothing-kbdmac-transform (command key)
+  (declare (ignore command))
   (case key
     (:invoke
+     #+NOTYET
      (funcall (command-function command) (prefix-argument)))))
 ;;;
 (define-kbdmac-transform "Argument Digit" #'do-nothing-kbdmac-transform)
@@ -163,14 +172,16 @@
   "The number of occurrences we have counted of a given command.")
 
 (defun multiplicative-kbdmac-transform (command key)
-  (case key
+  (declare (ignorable command))  (case key
     (:start
      (setq *kbdmac-count* 0))
     (:invoke
      (let ((p (or (prefix-argument) 1)))
+       #+NOTYET
        (funcall (command-function command) p)
        (incf *kbdmac-count* p)))
     (:finish
+     #+NOTYET
      (kbdmac-emit `(,(command-function command) ,*kbdmac-count*)))))
 ;;;
 (define-kbdmac-transform "Forward Character" #'multiplicative-kbdmac-transform)
@@ -201,8 +212,10 @@
 ;;;    These commands neither read input nor look at random silly variables.
 ;;;
 (defun vanilla-kbdmac-transform (command key)
+  (declare (ignorable command))
   (case key
     (:invoke
+     #+NOTYET
      (let ((fun (command-function command))
            (p (prefix-argument)))
        (funcall fun p)
@@ -246,6 +259,9 @@
               (setq last-command res))))
     (declare (special *invoke-hook*))
     (setf (last-command-type) nil)
+    #-NIL
+    (break)
+    #+NIL
     (recursive-edit nil)))
 
 (defun clear-command-type ()
@@ -300,7 +316,7 @@
         #'(lambda (p)
             (let* ((stream (or *kbdmac-stream* (make-kbdmac-stream)))
                    (*kbdmac-stream* nil)
-                   (*editor-input* stream)
+                   #+NOTNOW(*editor-input* stream)
                    (*in-a-keyboard-macro* t)
                    (*kbdmac-done* nil)
                    (*kbdmac-dont-ask* nil))
@@ -329,7 +345,7 @@
   (declare (ignore p))
   (when *defining-a-keyboard-macro*
     (editor-error "Already defining a keyboard macro."))
-  (define-keyboard-macro))
+  (define-keyboard-macro (window-buffer window)))
 
 #+NOTYET
 (defhvar "Define Keyboard Macro Key Confirm"
@@ -355,14 +371,17 @@
       (editor-error "Already defining a keyboard macro."))
     (multiple-value-bind (key kind where)
         (get-keyboard-macro-key window)
+      (declare (ignorable kind where))
       (when key
         (setf (buffer-minor-mode buffer "Def" buffer) t)
         (let ((name (format nil "Keyboard Macro ~S" (gensym))))
           (make-command name "This is a user-defined keyboard macro."
-                        (define-keyboard-macro))
+                        (define-keyboard-macro (window-buffer window)))
+          ;; put defaccelerator here.
+          #+NOTYET
           (bind-key name key kind where)
           (message "~A bound to ~A."
-                   (with-output-to-string (s) (hemlock-ext:print-pretty-key key s))
+                   (with-output-to-string (s) (climish::print-pretty-input-event-id key s))
                    name))))))
 
 ;;; GET-KEYBOARD-MACRO-KEY gets a key from the user and confirms clobbering it
@@ -378,14 +397,15 @@
     (multiple-value-bind (kind where)
                          (prompt-for-place current-window "Kind of binding: "
                                            "The kind of binding to make.")
-      (let* ((cmd (get-command key kind where)))
+      (let* ((cmd #+NOTYET(get-command key kind where)))
         (cond ((not cmd) (values key kind where))
+              #+NOTYET
               ((commandp cmd)
                (if (clim:accept 'y-or-n
                                 :current-window current-window
                     :prompt `("~A is bound to ~A.  Rebind it? "
                               ,(with-output-to-string (s)
-                                 (hemlock-ext:print-pretty-key key s))
+                                 (climish::print-pretty-input-event-id key s))
                               ,(command-name cmd))
                     :default nil)
                    (values key kind where)
@@ -396,7 +416,7 @@
                     :prompt `("~A is a prefix for more than one command.  ~
                                Clobber it? "
                               ,(with-output-to-string (s)
-                                 (hemlock-ext:print-pretty-key key s)))
+                                 (climish::print-pretty-input-event-id key s)))
                     :default nil)
                    (values key kind where)
                    nil)))))))
@@ -408,13 +428,14 @@
   (setf (buffer-minor-mode buffer "Def" buffer) t)
   (unwind-protect
     (let* ((in *kbdmac-transcript*)
-           (*input-transcript* in)
+           #+NOTNOW(*input-transcript* in)
            (*defining-a-keyboard-macro* t))
       (setf (fill-pointer in) 0)
       (setf (fill-pointer *kbdmac-input*) 0)
       (setq *current-kbdmac* ())
       (catch 'punt-kbdmac
         (kbdmac-command-loop))
+      #+NOTYET
       (setf (command-function (getstring "Last Keyboard Macro" *command-names*))
             (make-kbdmac)))
     (setf (buffer-minor-mode buffer "Def" buffer) nil)))
@@ -460,7 +481,10 @@
                             :prompt "Macro name: "
                             :help "String name of command to make from keyboard macro.")))
   (make-command
-    name "This is a named keyboard macro."
+   name "This is a named keyboard macro."
+   #-notyet
+   nil
+   #+NOTYET
    (command-function (getstring "Last Keyboard Macro" *command-names*))))
 
 (defhcommand keyboard-macro-query-command (window p)

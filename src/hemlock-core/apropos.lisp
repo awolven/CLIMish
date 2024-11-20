@@ -51,6 +51,7 @@
   (when *apropos-buffer* (delete-buffer-if-possible *apropos-buffer* (window-buffer window))))
 
 (defun apropos-entry-from-mark (mark)
+  (declare (ignorable mark))
   )
 
 (defhcommand apropos-find-definition-command (window p)
@@ -62,6 +63,7 @@
   (declare (ignore p))
   (let ((entry (apropos-entry-from-mark (buffer-point (window-buffer window)))))
     (when entry
+      #+NOTYET
       (change-to-definition entry))))
 
 (defhcommand apropos-describe-command (window p)
@@ -73,6 +75,7 @@
   (declare (ignore p))
   (let ((entry (apropos-entry-from-mark (buffer-point (window-buffer window)))))
     (when entry
+      #+NOTYET
       (change-to-definition entry))))
 
 (defun refresh-apropos (buf entries)
@@ -113,11 +116,13 @@
 (defun first-line-of-string (str)
   (with-input-from-string (s str) (read-line s nil "")))
 
+#+NOTYET
 (defhcommand apropos-help-command (window p)
   (:pretty-name "Apropos Help")
   (:documentation "Show this help.")
   (:help-string "Show this help."))
 
+#+NOTYET
 (defmethod apropos-help-command (window p)
   (declare (ignore p))
   (describe-mode-command window nil "Apropos"))
@@ -135,11 +140,13 @@
   (declare (ignore p))
   (slave-apropos str))
 
+#+NOTYET
 (defhcommand slave-apropos-command (window p)
   (:pretty-name "Slave Apropos")
   (:documentation "")
   (:help-string ""))
 
+#+NOTYET
 (defmethod slave-apropos-command (window p)
   (declare (ignore p))
   (let ((default (hemlock::symbol-string-at-point)))
@@ -156,9 +163,13 @@
                   :default default))))
 
 (defun slave-apropos (str)
+  (declare (ignorable str))
+  #+NOTYET
   (hemlock::eval-in-slave `(%apropos ',str)))
 
 (defun %apropos (str)
+  (declare (ignorable str))
+  #+NOTYET
   (let ((data
          (mapcar (lambda (sym)
                    (cons (make-slave-symbol sym)
@@ -167,6 +178,8 @@
     (hemlock::eval-in-master `(%apropos-results ',data ',str))))
 
 (defun %apropos-results (current-window data str)
+  (declare (ignorable current-window data str))
+  #+NOTYET
   (let ((entries (mapcar #'parse-apropos-entry data)))
     (cond
      ((null data)

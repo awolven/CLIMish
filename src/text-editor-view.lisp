@@ -261,137 +261,136 @@
   ;; hence checking for non-null dis-lines and cdr dis-lines and such
 
   (with-buffer-globals ((window-buffer window))
-    (multiple-value-bind (a b)
-	(unless (or (mark< mark (hi::window-display-start window))
-		    (mark> mark (hi::window-display-end window)))
+    (unless (or (mark< mark (hi::window-display-start window))
+		(mark> mark (hi::window-display-end window)))
   
-	  (let* ((dis-lines (hi::window-first-line window))
-		 (the-sentinel (slot-value window 'hi::the-sentinel))
-		 (line (hi::mark-line mark))
-		 (charpos (hi::mark-charpos mark))
-		 (offset 0)
-		 (total 0)
-		 (i 0))
+      (let* ((dis-lines (hi::window-first-line window))
+	     (the-sentinel (slot-value window 'hi::the-sentinel))
+	     (line (hi::mark-line mark))
+	     (charpos (hi::mark-charpos mark))
+	     (offset 0)
+	     (total 0)
+	     (i 0))
 
-	    (unless dis-lines
-	      (return-from find-dis-line (values nil 0))) ;; window image is corrupt
+	(unless dis-lines
+	  (return-from find-dis-line (values nil 0))) ;; window image is corrupt
     
-	    (when (eql dis-lines hi::the-sentinel) ;; there are no lines, pathological case
-	      (return-from find-dis-line (values nil 0)))
+	(when (eql dis-lines hi::the-sentinel) ;; there are no lines, pathological case
+	  (return-from find-dis-line (values nil 0)))
 
-	    (when (eql (cdr dis-lines) hi::the-sentinel) ;; there are no lines, normal case
-	      (return-from find-dis-line (values nil 0)))
+	(when (eql (cdr dis-lines) hi::the-sentinel) ;; there are no lines, normal case
+	  (return-from find-dis-line (values nil 0)))
 
-	    ;; find first dis-line with line as it's dis-line-line
-	    (tagbody
-	     check
-	       (when (or (null (cdr dis-lines)) ;; invalid window image
-			 (eq (hi::dis-line-line (cadr dis-lines)) line) ;; end case
-			 (eql (cdr dis-lines) the-sentinel)) ;; hard stop
-		 (go exit))
+	;; find first dis-line with line as it's dis-line-line
+	(tagbody
+	 check
+	   (when (or (null (cdr dis-lines)) ;; invalid window image
+		     (eq (hi::dis-line-line (cadr dis-lines)) line) ;; end case
+		     (eql (cdr dis-lines) the-sentinel)) ;; hard stop
+	     (go exit))
 
-	       (setq dis-lines (cdr dis-lines))
+	   (setq dis-lines (cdr dis-lines))
        
-	       (go check)
+	   (go check)
        
-	     exit)
+	 exit)
 
-	    ;; compute the offset into the line taking into account character print representation length
-	    (let ((line-string (line-string (window-buffer window) line)))
-	      (setq charpos (min charpos (length line-string)))
-	      (macrolet ((%fcwa (str start end)
-			   `(hi::%sp-find-character-with-attribute
-			     ,str ,start ,end hi::*losing-character-mask* hi::losing-char)))
-		(loop
-		  with xpos = 0
-		  with start = 0
-		  with losing = nil
-		  with last-losing = 0
-		  with count = -1
-		  when (>= count 1000)
-		    do (return)
-		  when (>= start charpos)
-		    do (return)
-		  do (setq losing (%fcwa line-string start charpos))
-		     (if losing
-			 (progn (incf count)
-				(setq start (1+ losing))
-				(incf xpos (- losing last-losing))
-				(setq last-losing losing)
-				(let ((str (hi::get-rep (char line-string losing))))
-				  (when (functionp str)
-				    (setq str (funcall str (mod xpos (hi::window-width window)))))
-				  (let ((len (hi::strlen str)))
-				    (incf xpos (1- len))
-				    (incf total (1- len))
-				    )))
-			 (return)))))
+	;; compute the offset into the line taking into account character print representation length
+	(let ((line-string (line-string (window-buffer window) line)))
+	  (setq charpos (min charpos (length line-string)))
+	  (macrolet ((%fcwa (str start end)
+		       `(hi::%sp-find-character-with-attribute
+			 ,str ,start ,end hi::*losing-character-mask* hi::losing-char)))
+	    (loop
+	      with xpos = 0
+	      with start = 0
+	      with losing = nil
+	      with last-losing = 0
+	      with count = -1
+	      when (>= count 1000)
+		do (return)
+	      when (>= start charpos)
+		do (return)
+	      do (setq losing (%fcwa line-string start charpos))
+		 (if losing
+		     (progn (incf count)
+			    (setq start (1+ losing))
+			    (incf xpos (- losing last-losing))
+			    (setq last-losing losing)
+			    (let ((str (hi::get-rep (char line-string losing))))
+			      (when (functionp str)
+				(setq str (funcall str (mod xpos (hi::window-width window)))))
+			      (let ((len (hi::strlen str)))
+				(incf xpos (1- len))
+				(incf total (1- len))
+				)))
+		     (return)))))
 
-	    (incf charpos total)
+	(incf charpos total)
 
-	    (setq offset charpos)
+	(setq offset charpos)
 
-	    (labels ((return-charpos ()
-		       (return-from find-dis-line (values (cdr dis-lines) (+ offset i)))))
+	(labels ((return-charpos ()
+		   (return-from find-dis-line (values (cdr dis-lines) (+ offset i)))))
 
-	      (if (wrapped-line? window (cdr dis-lines))
+	  (if (wrapped-line? window (cdr dis-lines))
 	    
-		  (progn
-		    (loop with count = -1
-			  while (cdr dis-lines)
+	      (progn
+		(loop with count = -1
+		      while (cdr dis-lines)
 
-			  when (> (incf count) 1000)
-			    ;; runaway bug or runaway wrapped line
-			    do (return-charpos)
+		      when (> (incf count) 1000)
+			;; runaway bug or runaway wrapped line
+			do (return-charpos)
 	  
-			  when (null (cdr dis-lines))
-			    ;; window image is bogus
-			    do (return-from find-dis-line (values dis-lines (+ offset i)))
+		      when (null (cdr dis-lines))
+			;; window image is bogus
+			do (return-from find-dis-line (values dis-lines (+ offset i)))
 
-			  when (< (+ offset i) (hi::dis-line-length (cadr dis-lines)))
-			    do (cond ((and (wrapped-line? window (cdr dis-lines))
-					   (= (+ offset i) (1- (hi::window-width window))))
-				      ;; special case for when cursor would
-				      ;; be displayed on #\! line-wrap char
-				      (setq dis-lines (cdr dis-lines))
+		      when (< (+ offset i) (hi::dis-line-length (cadr dis-lines)))
+			do (cond ((and (wrapped-line? window (cdr dis-lines))
+				       (= (+ offset i) (1- (hi::window-width window))))
+				  ;; special case for when cursor would
+				  ;; be displayed on #\! line-wrap char
+				  (setq dis-lines (cdr dis-lines))
 
-				      (when (or (null (cdr dis-lines))
-						(eql (cdr dis-lines) hi::the-sentinel)) ;; this is unexpected
-					(return-from find-dis-line (values dis-lines offset)))
+				  (when (or (null (cdr dis-lines))
+					    (eql (cdr dis-lines) hi::the-sentinel)) ;; this is unexpected
+				    (return-from find-dis-line (values dis-lines offset)))
 			 
-				      (setq offset 0)
-				      (setq i 0)))
+				  (setq offset 0)
+				  (setq i 0)))
 		       
-			       (return-charpos)
+			   (return-charpos)
 
-			  when (and (not (wrapped-line? window (cdr dis-lines)))
-				    (= (+ offset i) (hi::window-width window)))
-			    ;; special case where end of line is exactly up to window width
-			    ;; we want the cursor to display on the next line
-			    ;; not out in space off the window
-			    do (setq dis-lines (cdr dis-lines))
+		      when (and (not (wrapped-line? window (cdr dis-lines)))
+				(= (+ offset i) (hi::window-width window)))
+			;; special case where end of line is exactly up to window width
+			;; we want the cursor to display on the next line
+			;; not out in space off the window
+			do (setq dis-lines (cdr dis-lines))
 
-			       (when (or (null (cdr dis-lines))
-					 (eql (cdr dis-lines) hi::the-sentinel)) ;; this is unexpected
-				 (return-from find-dis-line (values dis-lines offset)))
+			   (when (or (null (cdr dis-lines))
+				     (eql (cdr dis-lines) hi::the-sentinel)) ;; this is unexpected
+			     (return-from find-dis-line (values dis-lines offset)))
 			 
-			       (setq offset 0)
-			       (setq i 0)
-			       (return-charpos)
+			   (setq offset 0)
+			   (setq i 0)
+			   (return-charpos)
 
-			  when (wrapped-line? window (cdr dis-lines))
-			    do (setq dis-lines (cdr dis-lines))
-			       (incf i)
-			       (decf offset (hi::window-width window))
+		      when (wrapped-line? window (cdr dis-lines))
+			do (setq dis-lines (cdr dis-lines))
+			   (incf i)
+			   (decf offset (hi::window-width window))
 
-			  when (null (cdr dis-lines))
-			    do (return-from find-dis-line (values dis-lines (+ offset i)))
+		      when (null (cdr dis-lines))
+			do (return-from find-dis-line (values dis-lines (+ offset i)))
 	     
-			  when (eql (cdr dis-lines) hi::the-sentinel)
+		      when (eql (cdr dis-lines) hi::the-sentinel)
 		       		   
-			    do (return-charpos)))
+			do (return-charpos)))
 
-		  (return-charpos))))))))
+	      (return-charpos)))))))
 
 (defun draw-active-region-closure-generator (window scene)
   #'(lambda ()
@@ -534,17 +533,21 @@
    (mod key 17))
    )
 
-
 (defmethod rm-erase-node ((text buffer-view-text))
-  ;;(when (send text iconified?)
-    (delete-group (send text scene) (send text group) nil));;)
+  (delete-group (send text scene) (send text group) t))
 
 (defmethod rm-draw-node ((text buffer-view-text))
+  (rm-redraw-text-node-1 text))
+
+(defun redraw-buffer (self)
+  (rm-redraw-text-node-1 (the buffer-view text)))
+
+(defun rm-redraw-text-node-1 (text)
   (let ((window (send text window)))
     (let ((buffer (window-buffer window)))
       (when buffer 
 	(unless (string= "Random Typeout" (buffer-name buffer))
-	  (unless (send text iconified?)
+	  (let ((iconified? (send text iconified?)))
 	    (let*((xp (send text superior x))
 		  (yp (send text superior y))
 		  (scene (send text scene))
@@ -555,45 +558,49 @@
 		  (font-data (font-data font))
 		  (space-width (slot-value font-data '3b-bmfont-common::space-size))
 		  (gm (send text global-matrix)))
-	      (update-window-image window)	
-	      (krma:rm-dispatch-to-render-thread (scene draw-data)
-		(krma::delete-groups-1 draw-data (list group) nil)
-		(when (slot-boundp window 'hi::the-sentinel)
-		  (let ((last-line (car (hi::window-last-line window)))
-			(last-line-seen? nil))
-		    (do ((dis-lines (hi::window-first-line window) (cdr dis-lines)))
-			((or last-line-seen?
-			     (null dis-lines)
-			     (eq dis-lines (slot-value window 'hi::the-sentinel))))
-		      (let* ((dl (car dis-lines))
-			     (chars (hi::dis-line-chars dl))
-			     (length (hi::dis-line-length dl))
-			     (position (hi::dis-line-position dl))
-			     (last 0)
-			     (text-color-key 0))
-			(setq last-line-seen? (eq dl last-line))
-			(flet ((buffer-view-add-string (x y font text-color-key string start end)
-				 (unless x (setq x 0))
-				 (unless y (setq y 0))
-				 (unless end (setq end length))
-				 (unless start (setq start 0))
-				 (when (< start end)
-				   (let* ((color (lookup-text-color (or text-color-key 0)))
-					  (xval (float (+ (* x space-width) xp)))
-					  (yval (float (+ (* y 1.2 font-size) -2 yp))))
-				     (krma::draw-data-add-text-primitive
-				      draw-data group nil font color
-				      xval yval (subseq string start end)
-				      0 elevation)))))
-			  (do ((change (hi::dis-line-font-changes dl) (hi::font-change-next change)))
-			      ((null change)
-			       (buffer-view-add-string last position font text-color-key chars last length))
-			    (let ((x (hi::font-change-x change)))
-			      (buffer-view-add-string last position font text-color-key chars last x)
-			      (setq last x
-				    text-color-key (hi::font-change-font change)))))))))
-		(krma::group-set-transform-1 draw-data group gm)
-		(values)))))))))
+	      (update-window-image window)
+	      (when group
+		(krma:rm-dispatch-to-render-thread (scene draw-data)
+		  (krma::delete-groups-1 draw-data (list group) nil)
+		  (unless iconified?
+		    (when (slot-boundp window 'hi::the-sentinel)
+		      (let ((last-line (car (hi::window-last-line window)))
+			    (last-line-seen? nil))
+			(do ((dis-lines (hi::window-first-line window) (cdr dis-lines)))
+			    ((or last-line-seen?
+				 (null dis-lines)
+				 (eq dis-lines (slot-value window 'hi::the-sentinel))))
+			  (let* ((dl (car dis-lines))
+				 (chars (hi::dis-line-chars dl))
+				 (length (hi::dis-line-length dl))
+				 (position (hi::dis-line-position dl))
+				 (last 0)
+				 (text-color-key 0))
+			    (setq last-line-seen? (eq dl last-line))
+			    (flet ((buffer-view-add-string (x y font text-color-key string start end)
+				     (unless x (setq x 0))
+				     (unless y (setq y 0))
+				     (unless end (setq end length))
+				     (unless start (setq start 0))
+				     (when (< start end)
+				       (let* ((color (lookup-text-color (or text-color-key 0)))
+					      (xval (float (+ (* x space-width) xp)))
+					      (yval (float (+ (* y 1.2 font-size) -2 yp))))
+					 (krma::draw-data-add-text-primitive
+					  draw-data group nil font color
+					  xval yval (subseq string start end)
+					  0 elevation)))))
+			      (do ((change (hi::dis-line-font-changes dl) (hi::font-change-next change)))
+				  ((null change)
+				   (buffer-view-add-string last position font text-color-key chars last length))
+				(let ((x (hi::font-change-x change)))
+				  (buffer-view-add-string last position font text-color-key chars last x)
+				  (setq last x
+					text-color-key (hi::font-change-font change))))))))))
+		  (krma::group-set-transform-1 draw-data group gm)
+		  (values))))))))))
+
+
 
 (defmethod handle-character-input ((window text-editor-view-mixin) char p)
   (let* ((buffer (hi::window-buffer window))
@@ -609,9 +616,7 @@
 (defun hi::view-buffer (view)
   (hi::window-buffer view))
 
-(defun redraw-buffer (self)
-  (unless (the iconified?)
-    (rm-redraw-node (the buffer-view text))))
+
 
 (defmethod clim:handle-event :before ((self text-editor-view-mixin) (event clim:pointer-button-press-event))
 

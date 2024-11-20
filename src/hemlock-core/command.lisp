@@ -79,7 +79,9 @@
   (:help-string
    "Reads a key-event from *editor-input* and inserts it at the point."))
 
+#+NOTYET
 (defmethod quoted-insert-command (window p)
+  (declare (ignorable window p))
   (let* ((window window)
          (buffer (window-buffer window))
          (char (hemlock-ext:key-event-char (get-key-event *editor-input* t))))
@@ -564,24 +566,27 @@
 
 (defmethod universal-argument-command (window p)
   (declare (ignore p))
+  (declare (ignorable window))
   (clear-echo-area)
   (write-string "C-U " *echo-area-stream*)
   (finish-output *echo-area-stream*)
+  #+NOTYET
   (let* ((key-event (get-key-event *editor-input*))
-         (char (hemlock-ext:key-event-char key-event)))
+         (char (hemlock-ext:key-event-char key-event))
+         (buffer (window-buffer window)))
     (if char
         (case char
           (#\-
            (write-char #\- *echo-area-stream*)
            (finish-output *echo-area-stream*)
-           (universal-argument-loop (get-key-event *editor-input*) -1))
+           (universal-argument-loop buffer (get-key-event *editor-input*) -1))
           (#\+
            (write-char #\+ *echo-area-stream*)
            (finish-output *echo-area-stream*)
-           (universal-argument-loop (get-key-event *editor-input*) -1))
+           (universal-argument-loop buffer (get-key-event *editor-input*) -1))
           (t
-           (universal-argument-loop key-event 1)))
-        (universal-argument-loop key-event 1))))
+           (universal-argument-loop buffer key-event 1)))
+        (universal-argument-loop buffer key-event 1))))
 
 #+DISABLE
 (defhcommand negative-argument-command (window p)
@@ -596,7 +601,7 @@
   (clear-echo-area)
   (write-string "C-U -" *echo-area-stream*)
   (finish-output *echo-area-stream*)
-  (universal-argument-loop (get-key-event *editor-input*) -1))
+  (universal-argument-loop (window-buffer window) (get-key-event *editor-input*) -1))
 
 #+DISABLE
 (defhcommand argument-digit-command (window p)
@@ -612,9 +617,12 @@
   (clear-echo-area)
   (write-string "C-U " *echo-area-stream*)
   (finish-output *echo-area-stream*)
-  (universal-argument-loop *last-key-event-typed* 1))
+  (universal-argument-loop (window-buffer window) *last-key-event-typed* 1))
 
-(defun universal-argument-loop (key-event sign &optional (multiplier 1))
+
+(defun universal-argument-loop (buffer key-event sign &optional (multiplier 1))
+  (declare (ignorable buffer key-event sign multiplier))
+  #+NOTYET
   (flet ((prefix (sign multiplier read-some-digit-p result)
            ;; read-some-digit-p and (zerop result) are not
            ;; equivalent if the user invokes this and types 0.

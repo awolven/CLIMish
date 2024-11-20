@@ -31,7 +31,8 @@
    (:file "src/event-queue")
    (:file "src/standard-types")
 
-   
+
+   (:file "src/hemlock-core/macros")
    (:file "src/hemlock-core/lispdep")
    (:file "src/hemlock-core/hemlock-ext")
    (:file "src/hemlock-core/decls")
@@ -40,28 +41,35 @@
    
    (:file "src/hemlock-core/key-event")
    (:file "src/hemlock-core/rompsite")
-   (:file "src/hemlock-core/macros")
+   
    (:file "src/hemlock-core/line")
    (:file "src/classes")
+   (:file "src/hemlock-core/syntax")
    (:file "src/hemlock-core/ring")
-   (:file "src/hemlock-core/htext1")
-   (:file "src/hemlock-core/buffer")
+
+   
    (:file "src/hemlock-core/table")
    (:file "src/hemlock-core/vars")
+   (:file "src/hemlock-core/buffer")
+   (:file "src/hemlock-core/window")
+   
    (:file "src/hemlock-core/interp")
-   (:file "src/hemlock-core/syntax")
+
+   (:file "src/hemlock-core/htext1")
    (:file "src/hemlock-core/htext2")
    (:file "src/hemlock-core/htext3")
    (:file "src/hemlock-core/htext4")
    (:file "src/hemlock-core/files")
    (:file "src/hemlock-core/search1")
    (:file "src/hemlock-core/search2")
-   
+
+   (:file "src/hemlock-core/cursor")
+
    (:file "src/hemlock-core/linimage")
    (:file "src/hemlock-core/winimage")
-   (:file "src/hemlock-core/window")
-   (:file "src/hemlock-core/cursor")
-   (:file "src/hemlock-core/exp-syntax")
+
+   
+   
    
    (:file "src/hemlock-core/font")
    (:file "src/hemlock-core/streams")
@@ -87,11 +95,13 @@
    (:file "src/views")
    (:file "src/popup-stream")
    (:file "src/text-editor-view")
+   (:file "src/hemlock-core/exp-syntax")
    (:file "src/text-editor-window")
    (:file "src/echo-area-window")
    (:file "src/context-menu")
-   (:file "src/debugger")
+
    (:file "src/commands")
+   
    (:file "src/hemlock-core/command")
    (:file "src/hemlock-core/kbdmac")
    (:file "src/hemlock-core/undo")
@@ -103,12 +113,14 @@
    (:file "src/hemlock-core/morecoms")
    (:file "src/hemlock-core/doccoms")
    (:file "src/hemlock-core/srccom")
-   (:file "src/hemlock-core/group")
+
    (:file "src/hemlock-core/fill")
    (:file "src/hemlock-core/text")
 
    (:file "src/hemlock-core/echocoms")
    (:file "src/hemlock-core/searchcoms")
+
+   (:file "src/hemlock-core/group")
    
    (:file "src/hemlock-core/lispmode")
    (:file "src/hemlock-core/eval-server")
@@ -123,6 +135,7 @@
    (:file "src/hemlock-core/diredcoms")
 
    (:file "src/hemlock-core/ll")
+   (:file "src/debugger")
    (:file "src/hemlock-core/cmd")
    
    (:file "src/gui-application")

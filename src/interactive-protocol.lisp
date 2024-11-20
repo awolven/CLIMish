@@ -79,6 +79,7 @@
 
 (defmethod initialize-position ((istream standard-input-editing-stream))
   (with-slots (stream start-x-position start-y-position) istream
+    #+NOTYET
     (multiple-value-bind (x y)
         ;; in this specific implementation it's ok for
         ;; us to know that our encapsulated stream will

@@ -32,7 +32,7 @@
       
       (setf (debugger-window-command-loop-thread window)
 	    (let* ((main-window (krma::main-window clim::*default-frame-manager*)))
-	      (bt:make-thread #'(lambda () (toplevel-command-loop main-window))
+	      (bt:make-thread #'(lambda () (start-command-loop main-window))
 			      :name "debug command loop")))
       (unwind-protect (my-debugger window buffer condition hook-value)
 	(destroy-window window)))))

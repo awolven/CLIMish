@@ -17,6 +17,7 @@
 
 ;;;; Help.
 
+#+NOTYET
 (defhcommand help-command (current-window p)
   (:pretty-name "Help")
   (:documentation
@@ -27,6 +28,7 @@
    "Prompt for a single character command to dispatch to another helping
   function."))
 
+#+NOTYET
 (defmethod help-command (current-window p)
   (declare (ignore p))
   (command-case (:prompt "Doc (Help for Help): "
@@ -54,6 +56,7 @@
          (editor-describe-command current-window nil))
       ((#.#k"q" :no) "Quits, You don't really want help." (clear-echo-area))))
 
+#+NOTYET
 (defhcommand where-is-command (window p)
   (:pretty-name "Where Is")
   (:documentation
@@ -62,6 +65,7 @@
    available in.")
   (:help-string "List places where a command is bound."))
 
+#+NOTYET
 (defmethod where-is-command (window p)
   (declare (ignore p))
   (multiple-value-bind (nam cmd)
@@ -83,11 +87,13 @@
 
 ;;;; Apropos.
 
+#+NOTYET
 (defhcommand apropos-command (window p)
   (:pretty-name "Apropos")
   (:documentation "List things whose names contain a keyword.")
   (:help-string "List things whose names contain a keyword."))
 
+#+NOTYET
 (defmethod apropos-command (window p)
   (declare (ignore p))
   (let* ((str (clim:accept 'string
@@ -105,6 +111,7 @@
         (apropos-command-output window str coms vars attr)
         (message "No command, attribute or variable name contains ~S." str))))
 
+#+NOTYET
 (defun apropos-command-output (current-window str coms vars attr)
   (declare (list coms vars attr))
   (with-pop-up-display (s :current-window current-window)
@@ -169,6 +176,7 @@
 
 ;;;; Describe command, key, pointer.
 
+#+NOTYET
 (defhcommand describe-command-command (window p)
   (:pretty-name "Describe Command")
   (:documentation "Describe a command.
@@ -176,6 +184,7 @@
   (:help-string
    "Print out the command documentation for a command which is prompted for."))
 
+#+NOTYET
 (defmethod describe-command-command (window p)
   (declare (ignore p))
   (multiple-value-bind (nam com)
@@ -198,6 +207,7 @@
                (print-command-bindings bindings s)
                (terpri s)))))))
 
+#+NOTYET
 (defhcommand describe-key-command (window p)
   (:pretty-name "Describe Key")
   (:documentation "Prompt for a sequence of characters.  When the first character is typed that
@@ -208,6 +218,7 @@
   (:help-string "Print out the command documentation for a key
   which is prompted for."))
 
+#+NOTYET
 (defmethod describe-key-command (window p)
   (declare (ignore p))
   (let (#+echo-area-is-separate-window
@@ -240,6 +251,7 @@
       #+echo-area-is-separate-window
       (setf (current-window) old-window))))
 
+#+NOTYET
 (defhcommand describe-pointer-command (window p)
   (:pretty-name "Describe Pointer")
   (:documentation
@@ -249,6 +261,7 @@
    "Describe commands with any key binding that contains a \"mouse\" character
    (modified or not).  Does not describe the command \"Illegal\"."))
 
+#+NOTYET
 (defmethod describe-pointer-command (window p)
   (declare (ignore p))
   (let ((illegal-command (getstring "Illegal" *command-names*)))
@@ -264,6 +277,7 @@
           (print-command-bindings (command-bindings window cmd) s)
           (terpri s) (terpri s))))))
 
+#+NOTYET
 (defun get-mouse-commands (current-window)
   (let ((result nil))
     (do-strings (name cmd *command-names* result)
@@ -290,6 +304,8 @@
                              ("Key" . :key)
                              ("Attribute" . :attribute)))))
 
+
+#+NOTYET
 (defhcommand generic-describe-command (window p)
   (:pretty-name "Generic Describe")
   (:documentation "Describe some Hemlock thing.
@@ -298,6 +314,7 @@
   character attributes.")
   (:help-string "Prompt for some Hemlock thing to describe."))
 
+#+NOTYET
 (defmethod generic-describe-command (window p)
   (declare (ignore p))
   (multiple-value-bind (ignore kwd)
@@ -317,7 +334,7 @@
        (multiple-value-bind (name attr)
            (clim:accept 'hemlock-keyword
                         :current-window window
-                        (list *character-attribute-names*)
+                        #+NOTYET(list *character-attribute-names*)
                         :help "Name of character attribute to describe."
                         :prompt "Attribute: ")
          (print-full-doc window name (character-attribute-documentation attr)))))))
@@ -396,11 +413,13 @@
 
 (defvar *describe-mode-ignore* (list "Illegal" "Do Nothing"))
 
+#+NOTYET
 (defhcommand describe-mode-command (window p &optional name)
   (:pretty-name "Describe Mode")
   (:documentation "Describe a mode showing special bindings for that mode.")
   (:help-string "Describe a mode showing special bindings for that mode."))
 
+#+NOTYET
 (defmethod describe-mode-command (window p &optional name)
   (declare (ignore p))
   (let* ((name (or name
@@ -437,7 +456,10 @@
               (print-short-doc (command-documentation cmd) s))))
         (message "~A is a ~A mode." name type))))
 
+
 (defun key-to-string (key)
+  (declare (ignorable key))
+  #+NOTYET
   (with-output-to-string (s)
     (hemlock-ext:print-pretty-key key s)))
 
@@ -493,6 +515,8 @@
 ;;; PRINT-SOME-KEYS prints the list of keys onto Stream.
 ;;;
 (defun print-some-keys (keys stream)
+  (declare (ignorable keys stream))
+  #+NOTYET
   (do ((key keys (cdr key)))
       ((null (cdr key))
        (hemlock-ext:print-pretty-key (car key) stream))

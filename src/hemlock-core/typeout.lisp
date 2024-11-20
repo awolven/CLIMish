@@ -26,6 +26,7 @@
 
 (defun invoke-with-pop-up-display (current-window cont buffer-name height)
   (declare (ignore height))
+  (declare (ignorable current-window buffer-name))
   (let ((*standard-output* (climish::make-popup-window)))
     (funcall cont *standard-output*))
   

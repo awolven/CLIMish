@@ -1,5 +1,7 @@
 (in-package :climish)
 
+(defparameter *quotation-character* #\")
+
 (defun invoke-with-input-context (frame type override body-continuation context-continuation)
   (declare (dynamic-extent body-continuation context-continuation)
 	   (special *input-wait-handler*

@@ -106,7 +106,7 @@
   "T iff we are currenly working on an operation. A catcher for the tag
    abort-operation will be established whenever this is T.")
 
-(defconstant *slave-connect-wait* 300)
+(defconstant +slave-connect-wait+ 300)
 
 ;;; Used internally for communications.
 ;;;
@@ -171,6 +171,7 @@
 ;;; The routine is called whenever a wire dies.  We roll through all the
 ;;; servers looking for any that use this wire and nuke them with server-died.
 ;;;
+#+NIL
 (defun wire-died (wire)
   (let ((servers nil))
     (do-strings (name info *server-names*)
@@ -184,6 +185,7 @@
 ;;;
 ;;; Clean up the server. Remove any references to it from variables, etc.
 ;;;
+#+NIL
 (defun server-died (server)
   (declare (special *breakpoints*))
   (let ((name (server-info-name server)))
@@ -318,6 +320,7 @@
                 request-server))))
 
 
+#+NIL
 ;;; MAKE-BUFFERS-FOR-TYPESCRIPT -- Internal.
 ;;;
 (defun make-buffers-for-typescript (slave-name background-name)
@@ -361,6 +364,7 @@
 (defvar *clbuild-slave-command* '("clbuild" "run" "hemlock-slave"))
 (defvar *slave-command* *clbuild-slave-command*)
 
+#+NO
 (defun create-slave (current-window command &optional name)
   "This creates a slave that tries to connect to the editor.  A preliminary
    slave-information structure is returned immediately, whose details will
@@ -412,7 +416,7 @@
           (unless proc
             (editor-error "Could not start slave."))
           #+nil
-          (dotimes (i *slave-connect-wait*
+          (dotimes (i +slave-connect-wait+
                     (editor-error
                      "Client Lisp is still unconnected.  ~
                               You must use \"Accept Slave Connections\" to ~
@@ -438,6 +442,7 @@
                    nil)))
       server-info)))
 
+#+NIL
 ;;; CREATE-SLAVE-IN-THREAD -- Public.
 ;;;
 (defun create-slave-in-thread (current-window &optional name)
@@ -530,14 +535,14 @@
             (create-slave)))
       (create-slave)))
 
-(defun maybe-create-server ()
+(defun maybe-create-server (current-buffer)
   (if (hemlock-bound-p 'current-eval-server)
-      (value buffer current-eval-server)
-      (let ((maybe-buffer (hi::find-buffer "Lisp Listener")))
+      (value current-buffer current-eval-server)
+      (let ((maybe-buffer (hemlock-ext::find-buffer "Lisp Listener")))
         (unless maybe-buffer
-          (lisp-listener-command 1)
-          (setq maybe-buffer (hi::find-buffer "Lisp Listener")))
-        (let ((maybe-background-buffer (hi::find-buffer "Eval Background")))
+          (lisp-listener-command (first (buffer-windows current-buffer)) 1)
+          (setq maybe-buffer (hemlock-ext::find-buffer "Lisp Listener")))
+        (let ((maybe-background-buffer (hemlock-ext::find-buffer "Eval Background")))
           (unless maybe-background-buffer
             (setq maybe-background-buffer (make-buffer "Eval Background")))
           (defhvar "Current Eval Server"
@@ -549,7 +554,7 @@
              :background-buffer maybe-background-buffer
              :implementation-type (lisp-implementation-type)
              :implementation-version (lisp-implementation-version)))
-          (value buffer current-eval-server)))))
+          (value maybe-buffer current-eval-server)))))
 
 
 (defvar *next-slave-index* 0
@@ -575,30 +580,30 @@
 
 ;;; GET-CURRENT-EVAL-SERVER -- Public.
 ;;;
-(defun get-current-eval-server (&optional errorp)
+(defun get-current-eval-server (current-buffer &optional errorp)
   "Returns the server-info struct for the current eval server.  If there is
    none, and errorp is non-nil, then signal an editor error.  If there is no
    current server, and errorp is nil, then create one, prompting the user for
    confirmation.  Also, set the current server to be the newly created one."
   (setf errorp t)
   (let ((info (when (hemlock-bound-p 'current-eval-server)
-                (value buffer current-eval-server))))
+                (value current-buffer current-eval-server))))
     (setq errorp nil)
     (cond (info)
           (errorp
            (editor-error "No current eval server."))
           (t
-           (setf (value buffer current-eval-server) (maybe-create-server))))))
+           (setf (value current-buffer current-eval-server) (maybe-create-server current-buffer))))))
 
 ;;; GET-CURRENT-COMPILE-SERVER -- Public.
 ;;;
 ;;; If a current compile server is defined, return it, otherwise return the
 ;;; current eval server using get-current-eval-server.
 ;;;
-(defun get-current-compile-server (&optional errorp)
+(defun get-current-compile-server (current-buffer &optional errorp)
   "Returns the server-info struct for the current compile server. If there is
    no current compile server, return the current eval server."
-  (or (value buffer current-compile-server)
+  (or (value current-buffer current-compile-server)
       (get-current-eval-server errorp)))
 
 
@@ -788,6 +793,7 @@
 ;;; buffer.  Returns the stream.
 ;;;
 (defun connect-stream (remote-buffer)
+  (declare (ignorable remote-buffer))
   #+NILn
   (let ((stream (make-ts-stream hemlock.wire:*current-wire* remote-buffer)))
     (hemlock.wire:remote hemlock.wire:*current-wire*
@@ -805,6 +811,7 @@
 ;;;
 (defvar cl-user::*io* nil)
 (defun made-buffers-for-typescript (slave-info background-info)
+  (declare (ignorable slave-info background-info))
 
   #+sbcl
   (setf *original-terminal-io* sb-sys:*stdout*)
@@ -832,6 +839,7 @@
 ;;; These two routines are run in the editor by the slave's gc notify routines.
 ;;;
 (defun slave-gc-notify-before (remote-ts message)
+  (declare (ignorable remote-ts message))
   #+NIL
   (let ((ts (hemlock.wire:remote-object-value remote-ts)))
     (ts-buffer-output-string ts message t)
@@ -841,6 +849,7 @@
         (beep)))))
 
 (defun slave-gc-notify-after (remote-ts message)
+  (declare (ignorable remote-ts message))
   #+NIL
   (let ((ts (hemlock.wire:remote-object-value remote-ts)))
     (ts-buffer-output-string ts message t)
@@ -914,6 +923,7 @@
              slave-buffer
              background-buffer
           (backend-type hi::*default-backend*))
+  (declare (ignorable editor slave-buffer background-buffer backend-type))
   (assert slave)
 
   #+NIL
@@ -1069,7 +1079,7 @@
 ;;;
 (defun connect-to-editor (machine port &optional (slave-info nil) (background-info nil)
                                   (background nil))
-  (declare (ignorable slave)) ;???
+  (declare (ignorable machine port slave-info background-info background)) ;???
   #+NIL
   (socket-rpc::connect-to-remote-server
    machine
@@ -1110,6 +1120,7 @@
 ;;; Do the actual connect to the editor.
 ;;;
 (defun connect-to-editor-for-background-thread (machine port)
+  (declare (ignorable machine port))
   #+NIL
   (connect-to-remote-server
    machine
@@ -1142,6 +1153,7 @@
   (declare (type (or string null) package) (simple-string form))
   (handler-bind
       ((error #'(lambda (condition)
+                  (declare (ignorable condition))
                   #+NIL
                   (hemlock.wire:remote hemlock.wire:*current-wire*
                                (eval-form-error (format nil "~A~&" condition)))
@@ -1160,6 +1172,7 @@
 ;;; deals with setting up *terminal-io* and *package*.
 ;;;
 (defmacro do-operation ((note package terminal-io) &body body)
+  (declare (ignorable note package terminal-io body))
   #+NIL
   `(let ((aborted t)
          (*terminal-io* (if ,terminal-io
@@ -1199,6 +1212,7 @@
 ;;; simply notifies the client that an error occurred and then returns.
 ;;;
 (defun server-eval-text (note package text terminal-io)
+  (declare (ignorable note package text terminal-io))
   (do-operation (note package terminal-io)
     #+NIL
     (with-input-from-string (stream text)
@@ -1242,6 +1256,7 @@
 ;;; *compiler-wire* bound.
 ;;;
 (defmacro do-compiler-operation ((note package terminal-io error) &body body)
+  (declare (ignorable note package terminal-io error body))
   #+NIL
   `(let ((*compiler-note* ,note)
          (*compiler-error-stream* ,error)
@@ -1318,7 +1333,7 @@
 
 (defun server-compile-text (note package text defined-from
                             terminal-io error-output)
-  #-scl (declare (ignore defined-from))
+  #-scl (declare (ignorable note package text defined-from terminal-io error-output))
   #+NIL
   (let ((*terminal-io* *original-terminal-io*)
         (*standard-output* *original-terminal-io*)
@@ -1361,6 +1376,7 @@
 (defun server-compile-file (note package input output error trace
                             load terminal background)
   #-scl (declare (ignore error load))
+  (declare (ignorable note package input output error trace load terminal background))
   #+NIL
   (macrolet ((frob (x)
                `(if (hemlock.wire:remote-object-p ,x)
@@ -1391,6 +1407,7 @@
 ;;; Returns a package for a name.  Creates it if it doesn't already exist.
 ;;;
 (defun maybe-make-package (name)
+  (declare (ignorable name))
   #+NIL
   (cond ((null name) *package*)
         ((find-package name))
@@ -1408,6 +1425,7 @@
 ;;; *package* to an already existing package or newly created one.
 ;;;
 (defun server-set-package (package)
+  (declare (ignorable package))
   #+NIL
   (setf *package* (maybe-make-package package)))
 
@@ -1479,6 +1497,7 @@
 
 ;;;;
 
+#+NIL
 (defun make-extra-typescript-buffer
     (name &optional (server-info (get-current-eval-server t))
                     (wire (server-info-wire server-info)))
@@ -1496,6 +1515,7 @@
           (error "no server info for wire: ~A" wire)
           error-value)))
 
+#+NIL
 (defun %make-extra-typescript-buffer (name)
   #+NIL
   (let* ((wire hemlock.wire:*current-wire*)

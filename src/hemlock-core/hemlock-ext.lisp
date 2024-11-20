@@ -376,21 +376,29 @@
                  (values retval
                          nil))))))))
 
+(defun directory-namestring2 (pathname)
+  (let ((device (pathname-device pathname))
+        (directory (pathname-directory pathname)))
+    (make-pathname :device device :directory directory)))
+
 ;;; COMPLETE-FILE-DIRECTORY-ARG -- Internal.
 ;;;
 #-(or cmu scl)
 (defun complete-file-directory (pathname defaults)
-  (let* ((namestring
-          (namestring
-           (merge-pathnames (file-namestring pathname) (probe-file (directory-namestring pathname))))))
-    
-    (delete-if-not (lambda (candidate)
-                     (search namestring candidate))
-                   (append
-                    (when (probe-file namestring)
-                      (list namestring))
-                    (mapcar #'namestring
-                            (directory (concatenate 'string (namestring (directory-namestring pathname)) "*.*")))))))
+  (declare (ignore defaults))
+  (let ((dir (probe-file (directory-namestring2 pathname))))
+    (when dir
+      (let ((namestring
+              (namestring
+               (merge-pathnames (file-namestring pathname) dir))))
+        
+        (delete-if-not (lambda (candidate)
+                         (search namestring candidate))
+                       (append
+                        (when (probe-file namestring)
+                          (list namestring))
+                        (mapcar #'namestring
+                                (directory (concatenate 'string (namestring dir) "*.*")))))))))
 
 ;;; Ambiguous-Files  --  Public
 ;;;

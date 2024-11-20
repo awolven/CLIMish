@@ -224,6 +224,7 @@
 
 (defmethod backend-init-raw-io ((backend (eql :mini)) display)
   (declare (ignore display))
+  #+NOTYET
   (backend-init-raw-io :tty display))
 
 (defun init-raw-io (backend-type display)
@@ -629,6 +630,8 @@
   (setf (gethash (string string) *tty-translations*) keysym))
 
 (defun translate-tty-event (data)
+  (declare (ignorable data))
+  #+NOTYET
   (let* ((string (coerce data 'string))
          (sym (gethash string *tty-translations*)))
     (if sym

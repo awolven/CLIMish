@@ -297,6 +297,8 @@
 (defun make-command (name documentation function)
   "Create a new Hemlock command with Name and Documentation which is
    implemented by calling the function-value of the symbol Function"
+  (declare (ignorable name documentation function))
+  #+NOTYET
   (let ((entry (getstring name *command-names*)))
     (cond
      (entry
@@ -408,6 +410,8 @@
 (defvar *current-translation* (make-array 10 :fill-pointer 0 :adjustable t))
 
 (defvar *invoke-hook* #'(lambda (command window p)
+                          (declare (ignorable command window p))
+                          #+NOTYET
                           (funcall (command-function command) window p))
   "This function is called by the command interpreter when it wants to invoke a
   command.  The arguments are the command to invoke and the prefix argument.

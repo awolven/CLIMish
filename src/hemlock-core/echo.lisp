@@ -323,19 +323,19 @@
                                  ((:help *parse-help*)
                                   "Type the name of a variable."))
   "Prompts for a variable defined in the current scheme of things."
-  (let ((*parse-string-tables* (current-variable-tables))
+  (let ((*parse-string-tables* (current-variable-tables (window-buffer current-window)))
         (*parse-verification-function* #'(lambda (string)
                                            (keyword-verification-function (window-buffer current-window) string)))
         (*parse-type* :keyword))
     (parse-for-something current-window)))
 
-(defun current-variable-tables ()
+(defun current-variable-tables (buffer)
   "Returns a list of all the variable tables currently established globally,
    by the current buffer, and by any modes for the current buffer."
-  (do ((tables (list (buffer-variables *current-buffer*)
+  (do ((tables (list (buffer-variables buffer)
                      *global-variable-names*)
                (cons (mode-object-variables (car mode)) tables))
-       (mode (buffer-mode-objects *current-buffer*) (cdr mode)))
+       (mode (buffer-mode-objects buffer) (cdr mode)))
       ((null mode) tables)))
 
 (defun keyword-verification-function (buffer string)
@@ -568,6 +568,7 @@
                      (setf key-event (get-key-event *editor-input* t)))
                     ((logical-key-event-p key-event :confirm)
                      (cond ((and default (zerop (length key)))
+                            #+NOTYET
                             (let ((res (get-command default :current)))
                               (unless (commandp res) (go FLAME))
                               (return (values default res))))
@@ -580,9 +581,10 @@
                      (go TOP)))
               (vector-push-extend key-event key)
               (when must-exist
+                #+NOTYET
                 (let ((res (get-command key :current)))
                   (cond ((commandp res)
-                         (hemlock-ext:print-pretty-key-event key-event
+                         (climish::print-pretty-input-event-id key-event
                                                              *echo-area-stream*
                                                              t)
                          (write-char #\space *echo-area-stream*)
@@ -591,7 +593,7 @@
                         ((not (eq res :prefix))
                          (vector-pop key)
                          (go FLAME)))))
-              (hemlock-ext:print-pretty-key key-event *echo-area-stream* t)
+              (climish::print-pretty-input-event-id key-event *echo-area-stream* t)
               (write-char #\space *echo-area-stream*)
               (force-output *echo-area-stream*)
               (go TOP)
@@ -729,7 +731,7 @@
                 (logical-key-event-key-events char)
                 (cdr key-events)))
               ((null key-events))
-            (hemlock-ext:print-pretty-key (car key-events) s)
+            (climish::print-pretty-input-event-id (car key-events) s)
             (unless (null (cdr key-events))
               (write-string ", " s))))
       (unless (null (cdr chars))

@@ -104,6 +104,7 @@
       (hemlock-ext::complete-file typein
                                  :defaults (directory-namestring *parse-default*)
                                  :ignore-types (value *echo-area-buffer* ignore-file-types))
+    (declare (ignorable win))
     (when result
       (delete-region *echo-area-buffer* *parse-input-region*)
       (insert-string *echo-area-buffer* (region-start *parse-input-region*)
@@ -329,7 +330,7 @@
 
 (defmethod echo-area-kill-previous-word-command (window p)
   (with-mark ((tem (buffer-point *echo-area-buffer*)))
-    (unless (word-offset tem (- (or p 1))) (editor-error))
+    (unless (word-offset *echo-area-buffer* tem (- (or p 1))) (editor-error))
     (when (mark< tem *parse-starting-mark*) (editor-error))
     (kill-previous-word-command window p)))
 
