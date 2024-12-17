@@ -593,7 +593,8 @@
                     (let ((dl (car (window-last-line window))))
                       (move-to-position (window-display-end window) (dis-line-end dl) (dis-line-line dl)))
 
-                    (when (eq window (climish:focused-window (clim:application-frame window)))
+                    (when (eq window (climish::focused-view
+                                      (climish:focused-window (clim:application-frame window))))
                       ;; maybe also, when the focused-window is set we could also move buffer-point
                       ;; to the window-point.
                       ;;(unless (mark-line (buffer-point (window-buffer window)))

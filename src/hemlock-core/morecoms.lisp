@@ -394,7 +394,10 @@
       (setf (current-window) win)
       (unless (eq (window-buffer win) buf)
         (setf (window-buffer win) buf))
-      (setf (current-buffer (window-buffer (climish:focused-window (clim:application-frame *echo-area-window*)))) buf)
+      (setf (current-buffer (window-buffer
+                             (climish::focused-view
+                              (climish:focused-window (clim:application-frame *echo-area-window*)))))
+            buf)
       )))
 
 #+DISABLE

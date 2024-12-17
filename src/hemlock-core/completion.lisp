@@ -681,11 +681,19 @@
       (complete-for-mode-command window p))
   (climish::redraw-buffer window))
 
+(defmethod indent-or-complete-command ((view climish::widget-mixin) p)
+  (let* ((window (adhoc:send view climish::window))
+         (siblings (adhoc:send window climish::widgets))
+         (pos (position view siblings))
+         (len (length siblings))
+         (next (when pos (if (= pos (1- len)) (car siblings) (nth (1+ pos) siblings)))))
+    (when next
+      (setf (adhoc:send window climish::focused-view) next))))
+
 ;;; Mode
 
 (defvar *completelist-entries* nil)
 (defvar *completelist-entries-end*)
-;;;
 
 (defun make-completelist-entry (str)
   (declare (ignorable str))

@@ -1,6 +1,8 @@
 (adhoc:defpackage :climish
   (:use :cl :clim :clui :krma :3dm
-	:hemlock-interface :adhoc-scene-graph)
+   :hemlock-interface :adhoc-scene-graph)
+
+  (:shadow #:locally)
 
   (:import-from :3dm.d
 		#:vec2

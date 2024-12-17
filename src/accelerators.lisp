@@ -66,8 +66,8 @@
 (defaccelerator "Extract List" #k"Ctrl-Meta-x")
 (defaccelerator "Indent Form" #k"Ctrl-Meta-q")
 
-(defaccelerator "Indent Or Complete" #k"tab")
-(defaccelerator "Indent" #k"tab")
+(defaccelerator "Indent Or Complete" #k"Tab")
+(defaccelerator "Indent" #k"Tab")
 
 (defaccelerator "Complete Field" #k"Tab")
 

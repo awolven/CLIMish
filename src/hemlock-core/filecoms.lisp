@@ -711,10 +711,7 @@
     (unless new-buf
       (error "Cannot delete only buffer ~S." buffer))
     (dolist (w (buffer-windows buffer))
-      (setf (window-buffer w) new-buf))
-    #+NIL
-    (when (eq buffer current-buffer)
-      (setf (current-buffer (window-buffer (climish::focused-window (krma::main-window clim:*default-frame-manager*)))) new-buf)))
+      (setf (window-buffer w) new-buf)))
   (delete-buffer buffer current-buffer))
 
 
@@ -808,7 +805,10 @@
             (setf *buffer-history-ptr*
                   (or (cdr *buffer-history*) *buffer-history*))
             (setf b (car *buffer-history*)))
-          (setf (current-buffer (window-buffer (climish::focused-window (krma::main-window clim:*default-frame-manager*)))) b)
+          (setf (current-buffer (window-buffer (climish::focused-view
+                                                (climish::focused-window
+                                                 (krma::main-window clim:*default-frame-manager*)))))
+                b)
           (setf (window-buffer window) b) ;; setf window buffer happens in render thread
           (setf (last-command-type) :previous-buffer))
         (select-previous-buffer-command window nil))
@@ -916,7 +916,10 @@
               (editor-error "You must select a different buffer."))
             (dolist (w (buffer-windows buffer))
               (setf (window-buffer w) new))
-            (setf (current-buffer (window-buffer (climish:focused-window (clim:application-frame *echo-area-window*)))) new)))
+            (setf (current-buffer (window-buffer
+                                   (climish::focused-view
+                                    (climish:focused-window (clim:application-frame *echo-area-window*)))))
+                  new)))
           (dolist (w (buffer-windows buffer))
             (clui:destroy-window w)))
       (delete-buffer buffer *echo-area-window*)

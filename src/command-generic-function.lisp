@@ -33,10 +33,11 @@
   (:metaclass funcallable-standard-class))
 
 (defmethod hemlock::lisp-mode-p (frame)
-  (let ((focused-window (focused-window frame)))
-    (and (not (eq focused-window frame))
-         (typep focused-window 'text-editor-window-mixin)
-         (let ((buffer (hi::window-buffer focused-window)))
+  (let* ((focused-window (focused-window frame))
+	 (focused-view (focused-view focused-window)))
+    (and (not (eq focused-view frame))
+         (typep focused-view 'text-editor-window-mixin)
+         (let ((buffer (hi::window-buffer focused-view)))
            (and buffer (eq (hi::buffer-major-mode buffer) :lisp))))))
 
 (defvar *command-name->command-table*
@@ -119,15 +120,13 @@
      (:applicability (hemlock::lisp-mode-p climish::application-frame))
      (:resolution (values))
      (:generic-function-class lisp-mode-command)
-     ,@initargs))    
+     ,@initargs))
 
 (defmethod invoke-command (command application-frame)
-  ;;(when (typep command 'everywhere-command)
-    (compute-applicable-commands application-frame);;)
-  (unless (typep command 'everywhere-command)
-    (push command (command-stack application-frame)))
   ;; the command stack is for computing applicability to commands
   ;; some commands are only available "inside" other commands.
+  (push command (command-stack application-frame))
+  (compute-applicable-commands application-frame)
   (unwind-protect
        (let ((results
 	       (multiple-value-list
@@ -136,9 +135,15 @@
 	 (prog1 (values-list results)
 	   (funcall (slot-value command 'resolution) application-frame results)))
     
-    ;; recompute applicable commands for new context
-    (unless (typep command 'everywhere-command)
-      (pop (command-stack application-frame)))))
+    (pop (command-stack application-frame))))
+
+(defmethod invoke-command ((command everywhere-command) application-frame)
+  (let ((results
+	  (multiple-value-list
+	   (apply command
+		  (funcall (slot-value command 'preparation) application-frame)))))
+    (prog1 (values-list results)
+      (funcall (slot-value command 'resolution) application-frame results))))
 
 (defun compute-applicable-commands (application-frame)
   (prog1 (setf (applicable-commands application-frame)
@@ -151,14 +156,17 @@
 
 
 (defun hemlock-arguments (application-frame)
-  (list (focused-window application-frame) nil))
+  (let* ((focused-window (focused-window application-frame))
+	 (focused-view (focused-view focused-window)))
+    (list focused-view nil)))
 
 (defun toplevel-context-p (application-frame)
   (null (command-stack application-frame)))
 
 (defun hemlock-applicability (application-frame)
-  (declare (ignorable application-frame))
-  (typep (focused-window application-frame) 'text-editor-view-mixin))
+  (let* ((focused-window (focused-window application-frame))
+	 (focused-view (focused-view focused-window)))
+    (typep focused-view 'text-editor-view-mixin)))
 
 (defvar *accelerator-table*
   (make-hash-table :test #'eq))

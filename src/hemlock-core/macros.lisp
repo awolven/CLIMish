@@ -680,7 +680,8 @@
        (hemlock::simple-backtrace *standard-output*)
        (invoke-debugger condition))
       ((and *stack-trace-on-error* (not message-only-p))
-       (let ((cw (climish:focused-window (clim:application-frame *echo-area-window*))))
+       (let ((cw (climish::focused-view
+                  (climish:focused-window (clim:application-frame *echo-area-window*)))))
          (with-pop-up-display (s :height 100 :current-window cw)
            (format s "An error of type ~A has been caught and ignored:~%  ~A~%~%"
                    (type-of condition)

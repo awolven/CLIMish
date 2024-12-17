@@ -5,7 +5,8 @@
   (:documentation "This command is the value for the default command.")
   (:help-string "This command is the value for the default command.")
   (:preparation (list
-		 (or (focused-window application-frame) *echo-area-window*)
+		 
+		 (focused-view (or (focused-window application-frame) *echo-area-window*))
 
 		 ;; potential race condition:
 		 ;; character-event has 1/100th of a second to show up in queue
@@ -65,6 +66,9 @@
    (hovered-3d :initform () :accessor hovered-3d)
    (ll-package :initform :krma :accessor lisp-listener-package)))
 
+(defmethod focused-view ((frame application-frame-mixin))
+  (focused-window frame))
+
 (defmethod clim:handle-event ((window application-frame-mixin) (event clui::input-event-mixin))
   ;; this forwarding logic is done in a primary method because
   ;; if it were done in an :around method, any :before or :after events
@@ -89,7 +93,8 @@
 	    ;; application frame itself and not any of it's homemade views
 	    ;; this ensures the context can be computed correctly for
 	    ;; command applicability
-	    (setf (focused-window window) window))
+	    (setf (focused-window window) window)
+	    (compute-applicable-commands window))
 	
 	  (call-next-method)))))
 
@@ -142,13 +147,15 @@
       (lparallel.queue:push-queue event (input-event-queue window)))))
 
 (defmethod clim:handle-event :after ((window application-frame-mixin) (event clim:pointer-button-press-event))
+
   (let ((select-box-2d (krma::krma-select-box-2d window))
 	(select-box-3d (krma::krma-select-box-3d window)))
     (setf (clui::clicked-items event) (append (all-hovered-2d select-box-2d 0 0)
 					      (all-hovered-3d select-box-3d 0 0)))
     
     ;; make sure the event-queue sees this event
-    (lparallel.queue:push-queue event (input-event-queue window))))
+    (lparallel.queue:push-queue event (input-event-queue window)))
+  (values))
 
 (defmethod clim:handle-event :after ((self application-frame-mixin) (event clim:pointer-button-release-event))
   (let ((resize-window (window-to-resize self)))
@@ -477,9 +484,11 @@
 		(pop table-chain))
 
 	      (pop (command-stack application-frame))
-	      (compute-applicable-commands application-frame)
-	      (when (typep (focused-window application-frame) 'text-editor-view-mixin)
-		(deactivate-region (window-buffer (focused-window application-frame))))
+	      ;;(compute-applicable-commands application-frame)
+	      (let* ((focused-window (focused-window application-frame))
+		     (focused-view (focused-view focused-window)))
+		(when (typep focused-view 'text-editor-view-mixin)
+		  (deactivate-region (window-buffer focused-view))))
 	      (setf (dragging-select-box? application-frame) nil)
 	      
 	      (unless table-chain

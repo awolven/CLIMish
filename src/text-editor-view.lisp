@@ -99,28 +99,29 @@
   
   view)
 
-(defun draw-cursor-closure-generator (window scene)
+(defun draw-cursor-closure-generator (frame scene)
   #'(lambda ()
       (let ((time (get-internal-real-time)))
 	(when (evenp (floor time (* 0.425 internal-time-units-per-second)))
-	  (let ((self (focused-window window)))
-	    (when (not (eq self window))
-	      (unless (the iconified?)
-		(when (typep self 'text-editor-view-mixin)
-		  (multiple-value-bind (ox oy) (global-window-position (the buffer-view text))
-		    (multiple-value-bind (x y) (mark-to-cursorpos (hi::window-point self) self)
-		      (when x
-			(let* ((font (the font))
-			       (font-size (font-size font))
-			       (font-data (font-data font))
-			       (space-width (slot-value font-data '3b-bmfont-common::space-size))
-			       (xval (+ (* x space-width) ox))
-			       (yval (+ (* y 1.2 font-size) oy)))
-			  (scene-draw-filled-2d-rectangle-list
-			   scene :cursor #xffff0077
-			   (list xval yval (+ xval space-width) (+ yval (* 1.2 font-size)))
-			   0 (+ (the base-z)
-				(1+ (the buffer-view text elevation))))))))))))))))
+	  (let ((window (focused-window frame)))
+	    (when (not (eq window frame))
+	      (unless (send window iconified?)
+		(let ((self (focused-view window)))
+		  (when (typep self 'text-editor-view-mixin)
+		    (multiple-value-bind (ox oy) (global-window-position (the buffer-view text))
+		      (multiple-value-bind (x y) (mark-to-cursorpos (hi::window-point self) self)
+			(when x
+			  (let* ((font (the font))
+				 (font-size (font-size font))
+				 (font-data (font-data font))
+				 (space-width (slot-value font-data '3b-bmfont-common::space-size))
+				 (xval (+ (* x space-width) ox))
+				 (yval (+ (* y 1.2 font-size) oy)))
+			    (scene-draw-filled-2d-rectangle-list
+			     scene :cursor #xffff0077
+			     (list xval yval (+ xval space-width) (+ yval (* 1.2 font-size)))
+			     0 (+ (send window base-z)
+				  (1+ (the buffer-view text elevation)))))))))))))))))
 
 
 (defun cursorpos-to-mark (x y window)
@@ -392,90 +393,91 @@
 
 	      (return-charpos)))))))
 
-(defun draw-active-region-closure-generator (window scene)
+(defun draw-active-region-closure-generator (frame scene)
   #'(lambda ()
       (block draw-region
-	(let ((self (focused-window window)))
-	  (when (and (not (eq self window))
-		     (the visible?)
-		     (not (the iconified?))
-		     (typep self 'text-editor-view-mixin))
-	    (let ((buffer (window-buffer self)))
-	      (when (hemlock::buffer-active-region-p buffer)
-		(with-buffer-globals (buffer)
-		  (with-slots (hi::the-sentinel) self
-		    (let* ((font (the font))
-			   (font-size (font-size font))
-			   (font-data (font-data font))
-			   (space-width (slot-value font-data '3b-bmfont-common::space-size)))
-		      (multiple-value-bind (ox oy) (global-window-position (the buffer-view text))
-			(let* ((active-region (current-region buffer nil nil)))
-			  (when active-region
-			    (let ((m0 (hi::region-start active-region))
-				  (m1 (hi::region-end active-region)))
-			  (when (and (hi::mark-line m0)
-				     (hi::mark-line m1))
-			    (unless (hi::mark= m0 m1)
-			      (flet ((before-start? (mark start)
-				       (let* ((line (hi::mark-line mark))
-					      (number (hi::line-number line))
-					      (charpos (hi::mark-charpos mark))
-					      (offset (hi::mark-charpos start))
-					      (start-number (hi::line-number (hi::mark-line start))))
-					 (or (< number start-number)
-					     (and (= number start-number) (< charpos offset)))))
-				     (after-end? (mark end)
-				       (let* ((line (hi::mark-line mark))
-					      (number (hi::line-number line))
-					      (charpos (hi::mark-charpos mark))
-					      (offset (hi::mark-charpos end))
-					      (end-number (hi::line-number (hi::mark-line end))))
-					 (or (> number end-number)
-					     (and (= number end-number) (> charpos offset))))))
+	(let ((window (focused-window frame)))
+	  (when (and (not (eq window frame))
+		     (send window visible?)
+		     (not (send window iconified?)))
+	    (let ((self (focused-view window)))
+	      (when (typep self 'text-editor-view-mixin)
+		(let ((buffer (window-buffer self)))
+		  (when (hemlock::buffer-active-region-p buffer)
+		    (with-buffer-globals (buffer)
+		      (with-slots (hi::the-sentinel) self
+			(let* ((font (the font))
+			       (font-size (font-size font))
+			       (font-data (font-data font))
+			       (space-width (slot-value font-data '3b-bmfont-common::space-size)))
+			  (multiple-value-bind (ox oy) (global-window-position (the buffer-view text))
+			    (let* ((active-region (current-region buffer nil nil)))
+			      (when active-region
+				(let ((m0 (hi::region-start active-region))
+				      (m1 (hi::region-end active-region)))
+				  (when (and (hi::mark-line m0)
+					     (hi::mark-line m1))
+				    (unless (hi::mark= m0 m1)
+				      (flet ((before-start? (mark start)
+					       (let* ((line (hi::mark-line mark))
+						      (number (hi::line-number line))
+						      (charpos (hi::mark-charpos mark))
+						      (offset (hi::mark-charpos start))
+						      (start-number (hi::line-number (hi::mark-line start))))
+						 (or (< number start-number)
+						     (and (= number start-number) (< charpos offset)))))
+					     (after-end? (mark end)
+					       (let* ((line (hi::mark-line mark))
+						      (number (hi::line-number line))
+						      (charpos (hi::mark-charpos mark))
+						      (offset (hi::mark-charpos end))
+						      (end-number (hi::line-number (hi::mark-line end))))
+						 (or (> number end-number)
+						     (and (= number end-number) (> charpos offset))))))
 
-				(let ((start-mark (hi::window-display-start self))
-				      (end-mark (hi::window-display-end self)))
+					(let ((start-mark (hi::window-display-start self))
+					      (end-mark (hi::window-display-end self)))
 
-				  (when (or (before-start? m1 start-mark)
-					    (after-end? m0 end-mark))
-				    (return-from draw-region (values)))
+					  (when (or (before-start? m1 start-mark)
+						    (after-end? m0 end-mark))
+					    (return-from draw-region (values)))
 
-				  (when (before-start? m0 start-mark)
-				    (setq m0 (copy-mark start-mark :temporary)))
+					  (when (before-start? m0 start-mark)
+					    (setq m0 (copy-mark start-mark :temporary)))
 
-				  (when (after-end? m1 end-mark)
-				    (setq m1 (copy-mark end-mark :temporary)))
+					  (when (after-end? m1 end-mark)
+					    (setq m1 (copy-mark end-mark :temporary)))
 				
-				  (multiple-value-bind (dis-line-m0 offset-m0) (find-dis-line self m0)
-				    (multiple-value-bind (dis-line-m1 offset-m1) (find-dis-line self m1)
-				      ;; bug: this won't draw first line if first line is first line of window.
-				      (when dis-line-m0
-					(let ((ypos (hi::dis-line-position (car dis-line-m0))))
+					  (multiple-value-bind (dis-line-m0 offset-m0) (find-dis-line self m0)
+					    (multiple-value-bind (dis-line-m1 offset-m1) (find-dis-line self m1)
+					      ;; bug: this won't draw first line if first line is first line of window.
+					      (when dis-line-m0
+						(let ((ypos (hi::dis-line-position (car dis-line-m0))))
 
-					  (flet ((draw (y x0 x1)
-						   (scene-draw-filled-2d-rectangle-list
-						    scene :cursor #xff770033
-						    (list (+ (* x0 space-width) ox) (+ (* y 1.2 font-size) oy)
-							  (+ (* x1 space-width) ox) (+ (* (1+ y) 1.2 font-size) oy))
-						    0 (+ (the base-z) (1+ (the buffer-view text elevation))))))
+						  (flet ((draw (y x0 x1)
+							   (scene-draw-filled-2d-rectangle-list
+							    scene :cursor #xff770033
+							    (list (+ (* x0 space-width) ox) (+ (* y 1.2 font-size) oy)
+								  (+ (* x1 space-width) ox) (+ (* (1+ y) 1.2 font-size) oy))
+							    0 (+ (send window base-z) (1+ (the buffer-view text elevation))))))
 
-					    (when (eql dis-line-m0 dis-line-m1)
-					      ;; it's just a partial line, draw and return
-					      (draw ypos offset-m0 offset-m1)
-					      (return-from draw-region (values)))
+						    (when (eql dis-line-m0 dis-line-m1)
+						      ;; it's just a partial line, draw and return
+						      (draw ypos offset-m0 offset-m1)
+						      (return-from draw-region (values)))
 
-					    ;; draw the first line
-					    (draw ypos offset-m0 (hi::dis-line-length (car dis-line-m0)))
+						    ;; draw the first line
+						    (draw ypos offset-m0 (hi::dis-line-length (car dis-line-m0)))
 					       
-					    ;; draw the middle lines (if any)
-					    (do ((dl (cdr dis-line-m0) (cdr dl)))
-						((or (eql dl hi::the-sentinel)
-						     (eql dl dis-line-m1)))
-					      (draw (incf ypos) 0 (hi::dis-line-length (car dl))))
+						    ;; draw the middle lines (if any)
+						    (do ((dl (cdr dis-line-m0) (cdr dl)))
+							((or (eql dl hi::the-sentinel)
+							     (eql dl dis-line-m1)))
+						      (draw (incf ypos) 0 (hi::dis-line-length (car dl))))
 
-					    (draw (incf ypos) 0 offset-m1))
+						    (draw (incf ypos) 0 offset-m1))
 					  
-					  ))))))))))))))))))))))
+						  ))))))))))))))))))))))))
   
 
 (defmethod initialize-instance :around ((self text-editor-view-mixin) &rest initargs)
@@ -537,14 +539,12 @@
   (delete-group (send text scene) (send text group) t))
 
 (defmethod rm-draw-node ((text buffer-view-text))
-  (rm-redraw-text-node-1 text))
+  ;; todo: try to get rid of this
+  (redraw-buffer (send text superior superior)))
 
-(defun redraw-buffer (self)
-  (rm-redraw-text-node-1 (the buffer-view text)))
-
-(defun rm-redraw-text-node-1 (text)
-  (let ((window (send text window)))
-    (let ((buffer (window-buffer window)))
+(defun redraw-buffer (text-editor-view)
+  (let ((buffer (window-buffer text-editor-view))
+	(text (send text-editor-view buffer-view text)))
       (when buffer 
 	(unless (string= "Random Typeout" (buffer-name buffer))
 	  (let ((iconified? (send text iconified?)))
@@ -553,23 +553,23 @@
 		  (scene (send text scene))
 		  (group (send text group))
 		  (elevation (float (send text elevation)))
-		  (font (send window font))
+		  (font (send text-editor-view font))
 		  (font-size (font-size font))
 		  (font-data (font-data font))
 		  (space-width (slot-value font-data '3b-bmfont-common::space-size))
 		  (gm (send text global-matrix)))
-	      (update-window-image window)
+	      (update-window-image text-editor-view)
 	      (when group
 		(krma:rm-dispatch-to-render-thread (scene draw-data)
 		  (krma::delete-groups-1 draw-data (list group) nil)
 		  (unless iconified?
-		    (when (slot-boundp window 'hi::the-sentinel)
-		      (let ((last-line (car (hi::window-last-line window)))
+		    (when (slot-boundp text-editor-view 'hi::the-sentinel)
+		      (let ((last-line (car (hi::window-last-line text-editor-view)))
 			    (last-line-seen? nil))
-			(do ((dis-lines (hi::window-first-line window) (cdr dis-lines)))
+			(do ((dis-lines (hi::window-first-line text-editor-view) (cdr dis-lines)))
 			    ((or last-line-seen?
 				 (null dis-lines)
-				 (eq dis-lines (slot-value window 'hi::the-sentinel))))
+				 (eq dis-lines (slot-value text-editor-view 'hi::the-sentinel))))
 			  (let* ((dl (car dis-lines))
 				 (chars (hi::dis-line-chars dl))
 				 (length (hi::dis-line-length dl))
@@ -598,7 +598,7 @@
 				  (setq last x
 					text-color-key (hi::font-change-font change))))))))))
 		  (krma::group-set-transform-1 draw-data group gm)
-		  (values))))))))))
+		  (values)))))))))
 
 
 

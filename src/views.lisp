@@ -68,7 +68,13 @@
   :inputs
   ((parent (the superior))
    (window :defaulting)
-   (style :visual :defaulting))
+   (style :visual :defaulting *style*)
+   (font :visual (the style current-font))
+   (color :visual (the style window-bg-color))
+   (iconified? :visual nil)
+   (focused? :visual nil)
+   (focused-view nil)
+   (base-view nil))
 
   :attributes
   ((elevation (if (the superior)
@@ -79,7 +85,8 @@
   ((client-rect :type 'client-rect
 		:eager t)))
 
-
+(defmethod focused-view ((view view-mixin))
+  (send view focused-view))
 
 (defmethod application-frame ((view view-mixin))
   (application-frame (send view root parent)))
@@ -118,26 +125,26 @@
   ((color :visual (the style border-color))
    (border-size :visual 1)
    (base-elevation :visual 13)
-
+ 
    (x :visual
       (ecase (the index)
-	((:west :north :south) (+ (the window x) (- (/ (the border-size) 2))))
-	((:east) (+ (the window x) (the window width) (- (/ (the border-size) 2))))))
+	((:west :north :south) (+ (the superior x) (- (/ (the border-size) 2))))
+	((:east) (+ (the superior x) (the superior width) (- (/ (the border-size) 2))))))
    (y :visual
       (ecase (the index)
-	((:west :east :north) (+ (the window y) (- (/ (the border-size) 2))))
-	((:south) (+ (the window y) (the window height) (- (/ (the border-size) 2))))))
+	((:west :east :north) (+ (the superior y) (- (/ (the border-size) 2))))
+	((:south) (+ (the superior y) (the superior height) (- (/ (the border-size) 2))))))
    (width :visual
 	  (ecase (the index)
-	    ((:north :south) (+ (the border-size) (the window width)))
+	    ((:north :south) (+ (the border-size) (the superior width)))
 	    ((:east :west) (the border-size))))
    (height :visual
 	   (ecase (the index)
 	     ((:north :south) (the border-size))
-	     ((:east :west) (+ (the border-size) (the window height))))))
+	     ((:east :west) (+ (the border-size) (the superior height))))))
   
   :attributes
-  ((iconified? (the window iconified?))
+  ((iconified? (the superior iconified?))
    (index (first (the indices)))
    (elevation (ecase (the index)
 		((:north :south) (+ (the base-elevation) 1))
@@ -401,11 +408,11 @@
   :inputs
   ((parent (main-window clim:*default-frame-manager*))
    (scene (krma:default-scene))
-   (style :visual *style*)
-   (color :visual (the style window-bg-color))
-   (font :visual (the style current-font))
-   (iconified? :visual nil)
-   (focused? :visual nil)
+   ;;(style :visual *style*)
+   ;;(color :visual (the style window-bg-color))
+   ;;(font :visual (the style current-font))
+   ;;(iconified? :visual nil)
+   ;;(focused? :visual nil)
    (resizable? :visual t)
    (menu-bar? :visual nil)
    (scrollbar-x? :visual nil)
@@ -418,6 +425,7 @@
    (alpha :visual 0.7)
    
    (window self)
+   (base-view self)
    
    (title :visual "krma")
 
@@ -446,7 +454,9 @@
       (mat4 1 0 0 x
 	    0 1 0 y
 	    0 0 1 z
-	    0 0 0 1))))
+	    0 0 0 1)))
+
+   (focused-view :modifiable self))
 
   :components
   ((client-rect :type 'client-rect
@@ -484,6 +494,8 @@
    (vertical-scrollbar :type (if (the scrollbar-y?) 'scrollbar 'null-object)
 		       :eager t
 		       axis :vertical)))
+
+
 
 (defmethod resize-window ((window homemade-window-mixin) new-x new-y new-width new-height)
   (clui:set-window-size window new-width new-height)
@@ -680,7 +692,6 @@
 	      (loop for part in siblings
 		    maximize (the-part z-index)))))
 
-    #+NIL
     (setf (the z-index) (1+ highest-z-index))
 
     #+NIL

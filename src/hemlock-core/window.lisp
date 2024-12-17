@@ -148,8 +148,9 @@
       ;; Make sure the window gets updated, and set the buffer.
       (setf (window-tick window) -3)
       (setf (window-%buffer window) new-buffer)
-      (adhoc-scene-graph::rm-redraw-node (adhoc:send window climish::title-bar))
-      (adhoc-scene-graph::rm-redraw-node (adhoc:send window climish::modeline))
+      (when (typep window 'climish::text-editor-window-mixin)
+        (adhoc-scene-graph::rm-redraw-node (adhoc:send window climish::title-bar))
+        (adhoc-scene-graph::rm-redraw-node (adhoc:send window climish::modeline)))
       (climish::redraw-buffer window)
       )))
 

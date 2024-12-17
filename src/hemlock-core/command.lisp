@@ -527,8 +527,23 @@
   (:documentation "Prompts for and executes an extended command.  The prefix argument is
   passed to the command."))
 
-(defmethod extended-command-command (window p)  
-  (let* ((frame (climish::application-frame window))
+(defmethod extended-command-command ((frame climish::application-frame-mixin) p)
+  (let* ((name (clim:accept 'hemlock::command-name
+                            :stream frame
+                            :current-window frame
+                            :view hi::*echo-area-window*
+                            :prompt "Extended Command: "
+                            :help "Name of a Hemlock command")))
+    (let ((cmd (getstring name *command-names*)))
+      (clear-echo-area)
+      (message (command-name cmd))
+      (when cmd
+        (climish::invoke-command cmd frame)))))
+  
+
+(defmethod extended-command-command ((view climish::view-mixin) p)
+  (let* ((window (adhoc::send view climish::window))
+         (frame (climish::application-frame window))
          (name (clim:accept 'hemlock::command-name
                             :stream frame
                             :current-window window

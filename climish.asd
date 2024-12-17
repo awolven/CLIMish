@@ -97,6 +97,7 @@
    (:file "src/text-editor-view")
    (:file "src/hemlock-core/exp-syntax")
    (:file "src/text-editor-window")
+   (:file "src/text-editor-widget")
    (:file "src/echo-area-window")
    (:file "src/context-menu")
 

@@ -57,9 +57,10 @@
   (:documentation "Push an object into a ring, deleting an element if necessary."))
 
 (defmethod ring-push ((region region) (ring kill-ring-head))
-  (let ((window (climish::focused-window (krma::main-window clim:*default-frame-manager*))))
+  (let* ((window (climish::focused-window (krma::main-window clim:*default-frame-manager*)))
+         (view (climish::focused-view window)))
     (when window
-      (let* ((string (region-to-string (window-buffer window) region))
+      (let* ((string (region-to-string (window-buffer view) region))
              (new (make-instance 'kill-ring-element))
              (prev (climish::prev ring)))
     

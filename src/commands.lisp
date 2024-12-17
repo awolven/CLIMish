@@ -24,34 +24,37 @@
    the prefix is negative)."))
 
 (defmethod next-line-command (window p)
-  (when (typep window 'climish::text-editor-view-mixin)
-    (let* ((buffer (window-buffer window))
-	   (point (buffer-point buffer)))
-      (let* ((target (set-target-column buffer point)))
-	(unless (line-offset buffer point (or p 1))
-	  (cond ((not p)
-		 (when (same-line-p point (buffer-end-mark buffer))
-		   (line-end buffer point))
-		 ;;
-		 ;; The insert-character was probably intentional back when
-		 ;; Hemlock was written, but it inserts bogus newlines at
-		 ;; the end of the file, and that's a bad idea.
-		 ;;
-		 ;; (insert-character point #\newline)
-		 (editor-error "No next line."))
-		((minusp p)
-		 (buffer-start point buffer)
-		 (editor-error "No previous line."))
-		(t
-		 (buffer-end point buffer)
-		 (when p (editor-error "No next line.")))))
-	(unless (move-to-column buffer point target) (line-end buffer point))
-	(setf (last-command-type) :line-motion))
-      (if (not (displayed-p point window))
-	  (progn
-	    (hi::center-window-on-mark window point)
-	    (climish:redraw-buffer window))
-	  (update-window-image window)))))
+  (declare (ignore window p))
+  (values))
+
+(defmethod next-line-command ((window climish::text-editor-view-mixin) p)
+  (let* ((buffer (window-buffer window))
+	 (point (buffer-point buffer)))
+    (let* ((target (set-target-column buffer point)))
+      (unless (line-offset buffer point (or p 1))
+	(cond ((not p)
+	       (when (same-line-p point (buffer-end-mark buffer))
+		 (line-end buffer point))
+	       ;;
+	       ;; The insert-character was probably intentional back when
+	       ;; Hemlock was written, but it inserts bogus newlines at
+	       ;; the end of the file, and that's a bad idea.
+	       ;;
+	       ;; (insert-character point #\newline)
+	       (editor-error "No next line."))
+	      ((minusp p)
+	       (buffer-start point buffer)
+	       (editor-error "No previous line."))
+	      (t
+	       (buffer-end point buffer)
+	       (when p (editor-error "No next line.")))))
+      (unless (move-to-column buffer point target) (line-end buffer point))
+      (setf (last-command-type) :line-motion))
+    (if (not (displayed-p point window))
+	(progn
+	  (hi::center-window-on-mark window point)
+	  (climish:redraw-buffer window))
+	(update-window-image window))))
 
 
 (defhcommand previous-line-command (window p)
@@ -68,25 +71,29 @@
   (:pretty-name "Enter")
   (:documentation "")
   (:help-string "")
-  (:preparation (let* ((window (or (climish::focused-window clim:application-frame)
-					    *echo-area-window*))
-		       (buffer (and (typep window 'climish::text-editor-view-mixin)
-				    (window-buffer window)))
+  (:preparation (let* ((focused-window (or (climish::focused-window clim:application-frame)
+					   *echo-area-window*))
+		       (view (climish::focused-view focused-window))
+		       (buffer (and (typep view 'climish::text-editor-view-mixin)
+				    (window-buffer view)))
 		       (major-mode (and buffer (buffer-major-mode buffer)))
 		       (universal-argument
 			 (climish::universal-argument clim:application-frame)))
-		  (list window buffer major-mode universal-argument))))
+		  (list view buffer major-mode universal-argument))))
 
-(defmethod enter-command (window buffer major-mode p)
+(defmethod enter-command (view buffer major-mode p)
   (if (buffer-active-region-p buffer)
       (ring-push (hi::current-region buffer) hemlock::*kill-ring*)
       (if (buffer-minor-mode buffer :interactive-character-stream)
-	  (enter-command window buffer :interactive-character-stream nil)
-	  (climish::handle-character-input window #\Newline (or p 1)))))
+	  (enter-command view buffer :interactive-character-stream nil)
+	  (climish::handle-character-input view #\Newline (or p 1)))))
+
+(defmethod enter-command (view (buffer null) major-mode p)
+  (values))
 
 
 
-(defmethod enter-command (window buffer (major-mode (eql :lisp)) p)
+(defmethod enter-command (view buffer (major-mode (eql :lisp)) p)
   ;; indent-new-line
   (let* ((point (buffer-point buffer)))
     (let ((prefix (hi::value buffer fill-prefix)))
@@ -136,22 +143,22 @@
 			     input-line (copy-seq string))))
 		   (buffer-end point buffer))
 		 (f-o stream))))
-	    (t (climish::handle-character-input window #\Newline (or p 1))))
+	    (t (climish::handle-character-input view #\Newline (or p 1))))
       (if prefix
           (insert-string buffer point prefix)
           (funcall (hi::value buffer indent-function) buffer point)))
-    (climish::redraw-buffer window)))
+    (climish::redraw-buffer view)))
 
-(defmethod enter-command ((window climish::echo-area-window) buffer major-mode p)
+(defmethod enter-command ((view climish::echo-area-window) buffer major-mode p)
   (declare (ignore p))
   (climish::echo-area-enter-command (clim:application-frame *echo-area-window*)))
 
-(defmethod enter-command ((window climish::application-frame-mixin) buffer major-mode p)
+(defmethod enter-command ((view climish::application-frame-mixin) buffer major-mode p)
   (declare (ignore buffer major-mode p))
   ;; do nothing currently
   (values))
 
-(defmethod enter-command (window buffer (major-mode (eql :interactive-character-stream)) p)
+(defmethod enter-command (view buffer (major-mode (eql :interactive-character-stream)) p)
   (declare (ignore p))
   (let* ((stream (value buffer buffer-stream))
 	 (point (buffer-point buffer)))
@@ -171,9 +178,9 @@
     (buffer-end point buffer))
     (f-o stream)))
 
-(defmethod enter-command (window buffer (major-mode (eql :dired)) p)
+(defmethod enter-command (view buffer (major-mode (eql :dired)) p)
   (declare (ignore buffer))
-  (dired-edit-file-command window p))
+  (dired-edit-file-command view p))
 
 (defhcommand beginning-of-line-command (window p)
   (:pretty-name "Beginning of Line")
@@ -253,6 +260,9 @@
   (:help-string "Deletes p characters to the right of the point."))
 
 (defmethod delete-next-character-command (view p)
+  (values))
+
+(defmethod delete-next-character-command ((view climish::text-editor-view-mixin) p)
   (let* ((buffer (window-buffer view))
 	 (point (buffer-point buffer)))
     (cond ((kill-characters buffer point (or p 1)))
@@ -365,14 +375,17 @@
   (:pretty-name "Mousewheel Scroll")
   (:documentation "Use mousewheel to scroll.")
   (:help-string "Use mousewheel to scroll.")
-  (:applicability (let* ((focused (climish:focused-window clim:application-frame)))
-		    (and focused (typep focused 'climish::text-editor-view-mixin)
-			 (not (eql focused *echo-area-window*)))))
-  (:preparation (let* ((focused (climish:focused-window clim:application-frame)))
-			   (list focused (climish::universal-argument clim:application-frame)))))
-			   
+  (:applicability (let* ((focused-window (climish:focused-window clim:application-frame))
+			 (focused-view (climish::focused-view focused-window)))
+		    (and focused-view (typep focused-view 'climish::text-editor-view-mixin)
+			 (not (eql focused-view *echo-area-window*)))))
+  (:preparation (let* ((focused-window (climish:focused-window clim:application-frame))
+		       (focused-view (climish::focused-view focused-window)))
+		  (list focused-view (climish::universal-argument clim:application-frame)))))
 
-(defmethod mousewheel-scroll-command (window p)
+(defmethod mousewheel-scroll-command (window p))
+
+(defmethod mousewheel-scroll-command ((window climish::text-editor-view-mixin) p)
   (declare (ignore p))
   (let ((last-event (climish:window-last-event (clim:application-frame window))))
     (let* ((offset (clui::pointer-wheel-event-yoffset last-event)))
@@ -488,7 +501,9 @@
   (:applicability (not (typep (climish:focused-window clim:application-frame)
 			      'climish::context-menu-mixin)))
   (:preparation (list climish::application-frame
-		      (climish::applicable-commands clim:application-frame))))
+		      (progn
+			(climish::compute-applicable-commands clim:application-frame)
+			(climish::applicable-commands clim:application-frame)))))
 
 (defmethod options (frame applicable-commands)
   (let* ((event (climish::window-last-event frame))
