@@ -141,6 +141,7 @@
    
    (:file "src/gui-application")
    (:file "src/hemlock-core/completion")
+   (:file "src/error-report")
    (:file "src/accelerators")
    ))
 	  

@@ -62,6 +62,8 @@
       :value (make-hemlock-interactive-character-io-stream buffer)))
   t)
 
+
+
 (defmethod stream-write-char ((stream hemlock-character-io-stream) character)
   ;; maybe this stuff needs to be protected by without-interrupts.
   (let ((buffer (hemlock-character-io-stream-buffer stream)))
@@ -190,11 +192,14 @@
 
 (defmethod stream-start-line-p ((stream hemlock-character-io-stream))
   ;; maybe needs previous-character buffer-end-mark #\newline
-  (let ((buffer (hemlock-character-io-stream-buffer stream)))
-    (or (eql (hi::mark-position buffer (hemlock-character-io-stream-mark stream))
-             (hi::mark-position buffer (buffer-start-mark buffer)))
-        (eq (previous-character (hemlock-character-io-stream-buffer stream)
-				(hemlock-character-io-stream-mark stream)) #\Newline))))
+  (let* ((buffer (hemlock-character-io-stream-buffer stream))
+	 (prev-char (previous-character buffer
+					(hemlock-character-io-stream-mark stream))))
+    (or #+NIL(eql (hi::mark-position buffer (hemlock-character-io-stream-mark stream))
+		  (hi::mark-position buffer (buffer-start-mark buffer)))
+	;; the above test was slowing down output massively!
+	(null prev-char)
+        (eq prev-char #\Newline))))
 
 (defmethod stream-line-column ((stream hemlock-character-io-stream))
   (mark-charpos (hemlock-character-io-stream-mark stream)))

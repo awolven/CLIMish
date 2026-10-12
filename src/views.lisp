@@ -407,6 +407,7 @@
 
   :inputs
   ((parent (main-window clim:*default-frame-manager*))
+   #+NIL
    (scene (krma:default-scene))
    ;;(style :visual *style*)
    ;;(color :visual (the style window-bg-color))
@@ -594,8 +595,8 @@
 	  (setq siblings (sort siblings #'< :key #'(lambda (self) (the z-index))))
 	  (loop for i from 0
 		for sibling in siblings
-		do (setf (send sibling z-index) i)
-		finally (setf (the z-index) (length siblings))
+		do (ignore-errors (setf (send sibling z-index) i))
+		finally (ignore-errors (setf (the z-index) (length siblings)))
 		#+WAS(mapcar #'rm-redraw-node-recursively (nconc siblings (list self)))
 		     (setf (focused-window (application-frame self)) self))
 	  (unless (typep self 'context-menu)

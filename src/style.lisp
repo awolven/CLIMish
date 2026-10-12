@@ -92,8 +92,6 @@
 				:spread 8))
     (let* ((dpy (the style display))
 	   (device (vk::default-logical-device dpy))
-	   (index (vk::queue-family-index (vk::render-surface (clui::helper-window dpy))))
-	   (queue (vk::find-queue device index))
 	   (sampler (krma::krma-texture-sampler (the style display)))
 	   (texture-dsl (vk::create-descriptor-set-layout
 			 device
@@ -102,11 +100,10 @@
 							:count 1
 							:flags vk::VK_SHADER_STAGE_FRAGMENT_BIT
 							:samplers (list sampler)))))
-	   (command-pool (vk::find-command-pool device index))
-	   (descriptor-pool (vk::default-descriptor-pool dpy))
-	   (command-buffer (elt (vk::command-buffers command-pool) 0)))
-	  
-      (krma::vulkan-make-font device queue sampler texture-dsl descriptor-pool command-buffer :cache-file cache-filename))))
+	   (descriptor-pool (vk::default-descriptor-pool device)))
+
+      (vk::with-command-pool (command-pool device)
+	(krma::vulkan-make-font device sampler texture-dsl descriptor-pool command-pool :cache-file cache-filename)))))
 			    
 									    
 

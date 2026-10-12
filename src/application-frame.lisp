@@ -172,6 +172,7 @@
   (lparallel.queue:push-queue event (input-event-queue self))
   (values))
 
+#+NIL
 (defmethod clim:handle-event :after ((window application-frame-mixin) (event clui::pointer-wheel-event-mixin))
   (lparallel.queue:push-queue event (input-event-queue window)))
 
@@ -541,6 +542,7 @@
 #+win32
 (defclass win32::application-frame (application-frame-mixin win32:krma-enabled-window-mixin) ())
 
+#+x11
 (defclass x11::application-frame (application-frame-mixin x11:krma-enabled-window-mixin) ())
 
 #+cocoa
@@ -761,3 +763,9 @@
 
 	  ;;(format t "~%2: ~S" all-hovered)
 	  (setf (hovered window) all-hovered))))
+
+(defmethod clim:handle-event ((window application-frame-mixin) (event clui::pointer-wheel-event-mixin))
+  (if (eq (focused-window window) window)
+      (krma::graphics-zoom window event)
+      (lparallel.queue:push-queue event (input-event-queue window)))
+  (values))
